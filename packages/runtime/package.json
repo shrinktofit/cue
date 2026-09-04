@@ -1,0 +1,25 @@
+{
+  "name": "@bsgames/cue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "lib",
+    "!lib/**/*.map"
+  ],
+  "exports": "./lib/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vue/runtime-core": "catalog:"
+  },
+  "devDependencies": {
+    "@bsgames/cue-workflow": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

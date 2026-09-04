@@ -1,0 +1,27 @@
+{
+  "name": "@bsgames/cue-compiler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "lib",
+    "!lib/**/*.map"
+  ],
+  "exports": "./lib/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vue/compiler-dom": "catalog:",
+    "@vue/compiler-sfc": "catalog:",
+    "lightningcss": "catalog:"
+  },
+  "devDependencies": {
+    "@bsgames/cue-workflow": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

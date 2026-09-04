@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@bsgames/cue-workflow/tsconfig/basic",
+  "files": [
+    "eslint.config.js",
+    "vitest.workspace.ts",
+  ],
+  "references": [
+    {
+      "path": "./packages/runtime",
+    },
+    {
+      "path": "./packages/compiler",
+    },
+    {
+      "path": "./packages/language-service",
+    },
+    {
+      "path": "./packages/extension",
+    },
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": true,
+    "types": [
+      "node",
+    ],
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig/basic.json",
+  "files": [
+    "index.ts",
+  ],
+  "compilerOptions": {
+    "noEmit": true
+  }
+}

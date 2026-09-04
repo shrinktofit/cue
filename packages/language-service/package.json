@@ -1,0 +1,32 @@
+{
+  "name": "@bsgames/cue-language-service",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "lib",
+    "!lib/**/*.map"
+  ],
+  "exports": "./lib/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bsgames/cue-compiler": "workspace:*"
+  },
+  "peerDependencies": {
+    "@bsgames/cue": "workspace:*",
+    "@vue/language-core": "^3.3.11"
+  },
+  "devDependencies": {
+    "@bsgames/cue": "workspace:*",
+    "@bsgames/cue-workflow": "workspace:*",
+    "@vue/language-core": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

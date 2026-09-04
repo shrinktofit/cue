@@ -1,0 +1,32 @@
+{
+  "extends": "@bsgames/cue-workflow/tsconfig/basic",
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "vite.config.ts",
+  ],
+  "references": [
+    {
+      "path": "../compiler",
+    },
+    {
+      "path": "../language-service",
+    },
+  ],
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+    ],
+    "noEmit": true,
+    "rootDir": ".",
+    "types": [
+      "@cocos/creator-types/editor",
+      "@cocos/creator-types/engine",
+      "node",
+      "vite/client",
+    ],
+  }
+}

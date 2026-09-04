@@ -1,0 +1,61 @@
+{
+  "name": "cue",
+  "title": "Cue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "package_version": 2,
+  "editor": ">=3.8.7",
+  "author": "BluesquallGames",
+  "description": "Vue 3 retained-mode runtime UI for Cocos Creator and Vortex.",
+  "main": "./dist/main.cjs",
+  "creator": {
+    "extensionName": "Cue",
+    "hookScript": "./dist/hooks.cjs"
+  },
+  "vortex": {
+    "extensionName": "Cue",
+    "hookScript": "./dist/hooks.cjs",
+    "extensionDependencies": {
+      "required": [
+        "asset-db"
+      ]
+    }
+  },
+  "exm": {
+    "registry": "http://exm.bluesquall.local/",
+    "registryPackageName": "@bsgames/extension-cue"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "exports": {
+    "./hooks": "./dist/hooks.cjs",
+    "./main": "./dist/main.cjs"
+  },
+  "scripts": {
+    "prepublishOnly": "node --run build",
+    "build": "node --run typecheck && vite build",
+    "dev": "vite build --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@bsgames/cue-compiler": "workspace:*",
+    "@bsgames/cue-language-service": "workspace:*"
+  },
+  "devDependencies": {
+    "@bsgames/cue-workflow": "workspace:*",
+    "@cocos/creator-types": "catalog:",
+    "@cyclonium/cc-extension-utils": "catalog:cyclonium",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vue": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}
