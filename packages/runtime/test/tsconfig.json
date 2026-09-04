@@ -1,0 +1,12 @@
+{
+  "extends": "@bsgames/cue-workflow/tsconfig/basic",
+  "include": [
+    "**/*.ts",
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "vitest",
+    ],
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "filename": "custom-element.cue",
+  "customElements": [
+    "cooldown-ring"
+  ]
+}

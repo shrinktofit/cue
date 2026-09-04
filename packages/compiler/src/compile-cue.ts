@@ -20,6 +20,7 @@ export type CompileCueError
     | SFCTemplateCompileResults['errors'][number];
 
 export interface CompileCueOptions {
+  customElements?: readonly string[];
   filename: string;
   id?: string;
   templateCompilerOptions?: CompilerOptions;
@@ -62,8 +63,14 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   }
 
   const id = options.id ?? options.filename;
+  const configuredCustomElements = new Set(options.customElements);
+  const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
   const templateCompilerOptions = {
     ...options.templateCompilerOptions,
+    isCustomElement: (tagName: string) => (
+      configuredCustomElements.has(tagName)
+      || configuredIsCustomElement?.(tagName) === true
+    ),
     runtimeModuleName: cueRuntimeModuleName,
   };
   const script = descriptor.script || descriptor.scriptSetup

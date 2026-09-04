@@ -6,7 +6,7 @@
 
 ## 1. 项目定位
 
-Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `VisualElement` 树，仅通过少量 `UIPanelHost` Cocos Component 接入场景生命周期、输入和渲染提交。
+Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `CueElement` 树，仅通过少量 `UIPanelHost` Cocos Component 接入场景生命周期、输入和渲染提交。
 
 目标链路为：
 
@@ -16,7 +16,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
   -> JavaScript render function + versioned style/asset metadata
   -> oh-my-script build/runtime
   -> Vue 3 custom renderer
-  -> VisualElement tree
+  -> CueElement tree
   -> cascade / computed style
   -> Taffy + inline layout
   -> paint list / batching / clipping
@@ -83,8 +83,11 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 ## 3. 已确定的产品与架构约束
 
 - 使用 Vue 3 `runtime-core`，不使用 `runtime-dom`。
-- 每个 `VisualElement` 都不是 Cocos Node 或 Component。
-- 内建元素与项目自定义 element 共享同一套 element registry/factory 创建路径；compiler 不维护封闭的硬编码标签集合。
+- runtime 节点层级为 `CueNode -> CueElement | CharacterData`，其中 `Text` 和 `Comment` 继承 `CharacterData`；只有字符节点拥有可变的 `data`。
+- 每个 `CueElement` 都不是 Cocos Node 或 Component。
+- 内建元素与项目自定义 element 都通过 `globalElementRegistry.define/get` 注册和查询；renderer 不维护按标签分支的创建逻辑。
+- runtime 只暴露一个模块级 `globalElementRegistry`，不提供局部 registry 或 parent 继承；同一模块实例内的重复注册必须显式报错。
+- compiler 不读取运行时 `globalElementRegistry`；Custom Element 标签通过可序列化项目配置传入，保证 CLI、OMS 和独立进程得到一致结果。
 - 场景中只保留一个或少量 `UIPanelHost`。
 - 使用标准 Web CSS 名称与尽可能一致的语义，不创建平行的私有样式词汇。
 - Taffy 负责 Block/Flex/Grid；inline layout 由 Cue 自己负责。
@@ -172,7 +175,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 恰好零个或一个 template；缺少 template 时允许纯逻辑组件。
 - 支持一个或多个 style block，但是否支持 `scoped`、CSS Modules 和预处理器必须分别经过 ADR。
 - 不支持 DOM-specific custom block、HTML parser 行为和 SSR 输出。
-- 内建标签与项目自定义 host element 均来自 Cue element registry；compiler、language-service 和 runtime 共享标签元数据契约。
+- 内建标签与项目自定义 host element 共享 Cue element metadata 契约；compiler 仍通过可序列化项目配置识别 Custom Element。
 - compiler 根据可序列化的项目配置建立 Vue `isCustomElement` 判断；PascalCase 名称仍由 Vue component resolution 处理。
 
 ### 7.2 编译流水线
@@ -382,7 +385,7 @@ LS-A：基础 Vue/TS
 - 基于 `@vue/language-core` 接受 `.cue`。
 - runtime lib 指向最终 Cue runtime package。
 - 支持 `vue-tsc`、unknown element/prop/event diagnostics。
-- 用 cc-plus fixture 经验建立最小测试，但改成 `VisualElement` 语义。
+- 用 cc-plus fixture 经验建立最小测试，但改成 `CueElement` 语义。
 
 LS-B：CSS Profile
 
@@ -412,7 +415,7 @@ LS-C：项目感知
 
 ```text
 panel/       UIPanel, viewport, frame lifecycle
-element/     VisualElement tree and five primitives
+element/     CueNode/CueElement tree and five primitives
 vue/         custom renderer host operations
 style/       selector, cascade, computed values, invalidation
 layout/      LayoutBackend, Taffy bridge, inline/scroll boundaries
@@ -428,7 +431,7 @@ devtools/    runtime protocol, tree/style/render diagnostics
 
 ### 10.2 核心不变量
 
-- `VisualElement` identity 与 Vue VNode/Cocos Node identity 解耦。
+- `CueElement` identity 与 Vue VNode/Cocos Node identity 解耦。
 - element attach/detach 只能通过 document/tree mutation 入口发生。
 - style、layout、paint、composite 和 hit-test dirty reasons 可观测且可追踪。
 - computed style 是只读结果；动画通过独立 presentation layer 合成。
@@ -447,7 +450,7 @@ devtools/    runtime protocol, tree/style/render diagnostics
 - `@cyclonium/math`：纯数学值与运算，确认坐标/可变性语义一致后再采用。
 - `@cyclonium/event` / `abort-controller`：确认事件传播、取消和生命周期语义一致后再采用。
 
-不因为 RoboTimes 使用 `@cyclonium/core` 就让 `VisualElement` 继承 `CycloComponent`。Cue 的 UI tree 必须保持独立；只有存在精确 API 复用价值时才增加依赖。
+不因为 RoboTimes 使用 `@cyclonium/core` 就让 `CueElement` 继承 `CycloComponent`。Cue 的 UI tree 必须保持独立；只有存在精确 API 复用价值时才增加依赖。
 
 ### 10.4 Cocos backend
 
@@ -556,13 +559,13 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 - element registry ABI，以及 compiler、language-service、runtime 共享的 Custom Element 元数据契约。
 - 最小 compiler：script setup + template + style。
 - 最小 language plugin：`.cue` + `vue-tsc`。
-- 最小 runtime：Vue renderer -> VisualElement tree -> 一个圆角色块。
+- 最小 runtime：Vue renderer -> CueElement tree -> 一个圆角色块。
 - 一个 isolated Vortex example，贯通开发、HMR 和 production build。
 
 退出 Gate：
 
 - `.cue` 通过 OMS 运行，不经过 Cocos 内置脚本系统。
-- Web Preview 显示并响应一个 Vue 驱动的 VisualElement tree。
+- Web Preview 显示并响应一个 Vue 驱动的 CueElement tree。
 - source map 和基础 diagnostics 正确。
 - 1000 quad、初始 bundle size 和 Taffy batch bridge 有测量结果。
 - Native 风险有可执行结论，不以“以后再看”关闭。
@@ -571,7 +574,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 交付：
 
-- 通过可扩展 element registry 提供 `div/span/text/br/img`。
+- 通过 `globalElementRegistry` 提供 `div/span/text/br/img`。
 - CSS selector/cascade/inheritance/variables。
 - Block/Flex/Grid。
 - background/border/radius/outline、2D transform、三类 gradient。

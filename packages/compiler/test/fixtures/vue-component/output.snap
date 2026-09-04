@@ -1,0 +1,32 @@
+/// vue-component.cue.js
+
+import component from "./vue-component.cue.script.js";
+import { render } from "./vue-component.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "vue-component.cue",
+  render,
+});
+
+/// vue-component.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+import HealthBar from './health-bar.cue';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'vue-component',
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const __returned__ = { get HealthBar() { return HealthBar; } };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// vue-component.cue.template.js
+
+import { openBlock as _openBlock, createBlock as _createBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createBlock($setup["HealthBar"]))
+}

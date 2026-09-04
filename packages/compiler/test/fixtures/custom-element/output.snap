@@ -1,0 +1,32 @@
+/// custom-element.cue.js
+
+import component from "./custom-element.cue.script.js";
+import { render } from "./custom-element.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "custom-element.cue",
+  render,
+});
+
+/// custom-element.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+const progress = 0.75;
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'custom-element',
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const __returned__ = { progress };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// custom-element.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("cooldown-ring", { progress: $setup.progress }))
+}
