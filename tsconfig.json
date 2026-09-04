@@ -3,6 +3,7 @@
   "extends": "@bsgames/cue-workflow/tsconfig/basic",
   "files": [
     "eslint.config.js",
+    "packages/cli/bin.js",
     "vitest.workspace.ts",
   ],
   "references": [
@@ -17,6 +18,9 @@
     },
     {
       "path": "./packages/extension",
+    },
+    {
+      "path": "./packages/cli",
     },
   ],
   "compilerOptions": {

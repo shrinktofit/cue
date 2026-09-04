@@ -6,7 +6,7 @@
 
 ## 1. 项目定位
 
-Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `UIElement` 树，仅通过少量 `UIPanelHost` Cocos Component 接入场景生命周期、输入和渲染提交。
+Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `VisualElement` 树，仅通过少量 `UIPanelHost` Cocos Component 接入场景生命周期、输入和渲染提交。
 
 目标链路为：
 
@@ -16,7 +16,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
   -> JavaScript render function + versioned style/asset metadata
   -> oh-my-script build/runtime
   -> Vue 3 custom renderer
-  -> UIElement tree
+  -> VisualElement tree
   -> cascade / computed style
   -> Taffy + inline layout
   -> paint list / batching / clipping
@@ -83,7 +83,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 ## 3. 已确定的产品与架构约束
 
 - 使用 Vue 3 `runtime-core`，不使用 `runtime-dom`。
-- 每个 UI element 都不是 Cocos Node 或 Component。
+- 每个 `VisualElement` 都不是 Cocos Node 或 Component。
+- 内建元素与项目自定义 element 共享同一套 element registry/factory 创建路径；compiler 不维护封闭的硬编码标签集合。
 - 场景中只保留一个或少量 `UIPanelHost`。
 - 使用标准 Web CSS 名称与尽可能一致的语义，不创建平行的私有样式词汇。
 - Taffy 负责 Block/Flex/Grid；inline layout 由 Cue 自己负责。
@@ -120,6 +121,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 - `runtime`：Vue renderer、UI tree、style/layout/paint/input/animation 和 Cocos runtime bridge。
 - `compiler`：SFC、template、CSS、asset reference、IR、source map 和 HMR metadata 编译。
+- `cue-cli`：早期开发阶段的 compiler 命令行前端，只调用 compiler 库，不承载独立编译逻辑。
 - `language-service`：`.cue` 的 Volar/Vue/TypeScript/CSS profile 集成。
 - `extension`：Vortex 生命周期、OMS 对接、asset-db/build/preview contributions、开发工具 UI。
 
@@ -170,7 +172,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 恰好零个或一个 template；缺少 template 时允许纯逻辑组件。
 - 支持一个或多个 style block，但是否支持 `scoped`、CSS Modules 和预处理器必须分别经过 ADR。
 - 不支持 DOM-specific custom block、HTML parser 行为和 SSR 输出。
-- 原生标签只来自 Cue element registry；PascalCase 名称由 Vue component resolution 处理。
+- 内建标签与项目自定义 host element 均来自 Cue element registry；compiler、language-service 和 runtime 共享标签元数据契约。
+- compiler 根据可序列化的项目配置建立 Vue `isCustomElement` 判断；PascalCase 名称仍由 Vue component resolution 处理。
 
 ### 7.2 编译流水线
 
@@ -185,6 +188,8 @@ source
   -> component assembly
   -> JS + style IR + asset metadata + source maps + HMR metadata
 ```
+
+Compiler 只返回内存中的多文件 JavaScript artifacts，不负责文件系统写入。每个组件包含一个公开 facade 入口以及独立的 script、template 和后续 style/metadata 模块；CLI 将它们写入输出目录，OMS adapter 则可将它们注册为虚拟模块。
 
 各阶段职责：
 
@@ -211,7 +216,7 @@ source
    - 收集 template 与 CSS 中的 `asset://`。
    - 保留可追踪的逻辑 URL；最终 `AssetKey` 由项目构建清单生成，不在源码暴露 UUID。
 7. Assembly
-   - 输出组件模块、样式注册元数据、asset dependencies、scope id、HMR id 和 source maps。
+   - 输出公开 facade、独立 JavaScript block modules、样式注册元数据、asset dependencies、scope id、HMR id 和 source maps。
    - 不通过字符串拼接维持复杂代码映射；使用带 segment mapping 的 emitter。
 
 ### 7.3 Style IR 与 ABI
@@ -377,7 +382,7 @@ LS-A：基础 Vue/TS
 - 基于 `@vue/language-core` 接受 `.cue`。
 - runtime lib 指向最终 Cue runtime package。
 - 支持 `vue-tsc`、unknown element/prop/event diagnostics。
-- 用 cc-plus fixture 经验建立最小测试，但改成 UIElement 语义。
+- 用 cc-plus fixture 经验建立最小测试，但改成 `VisualElement` 语义。
 
 LS-B：CSS Profile
 
@@ -407,7 +412,7 @@ LS-C：项目感知
 
 ```text
 panel/       UIPanel, viewport, frame lifecycle
-element/     UIElement tree and five primitives
+element/     VisualElement tree and five primitives
 vue/         custom renderer host operations
 style/       selector, cascade, computed values, invalidation
 layout/      LayoutBackend, Taffy bridge, inline/scroll boundaries
@@ -423,7 +428,7 @@ devtools/    runtime protocol, tree/style/render diagnostics
 
 ### 10.2 核心不变量
 
-- UIElement identity 与 Vue VNode/Cocos Node identity 解耦。
+- `VisualElement` identity 与 Vue VNode/Cocos Node identity 解耦。
 - element attach/detach 只能通过 document/tree mutation 入口发生。
 - style、layout、paint、composite 和 hit-test dirty reasons 可观测且可追踪。
 - computed style 是只读结果；动画通过独立 presentation layer 合成。
@@ -442,7 +447,7 @@ devtools/    runtime protocol, tree/style/render diagnostics
 - `@cyclonium/math`：纯数学值与运算，确认坐标/可变性语义一致后再采用。
 - `@cyclonium/event` / `abort-controller`：确认事件传播、取消和生命周期语义一致后再采用。
 
-不因为 RoboTimes 使用 `@cyclonium/core` 就让 UIElement 继承 `CycloComponent`。Cue 的 UI tree 必须保持独立；只有存在精确 API 复用价值时才增加依赖。
+不因为 RoboTimes 使用 `@cyclonium/core` 就让 `VisualElement` 继承 `CycloComponent`。Cue 的 UI tree 必须保持独立；只有存在精确 API 复用价值时才增加依赖。
 
 ### 10.4 Cocos backend
 
@@ -490,7 +495,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 独立仓库：`U:\Repos\Bluesquall\cc-extensions\cc-extension-cue-examples`
 
-参考 `oh-my-script-examples`，采用 pnpm workspace，提交真实 Vortex 项目和可复现 smoke scripts；本地 extension link 放入 ignored `exm.local.yaml` / `exm-lock.local.yaml`。
+参考 `oh-my-script-examples`，采用 pnpm workspace，提交真实 Vortex 项目和可复现 smoke scripts；本地 extension link 放入 ignored `exm.local.yaml` / `exm-lock.local.yaml`。OMS source compiler 接入完成前，examples 通过 `cue compile` 把 `.cue` 临时编译到 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
 
 建议项目序列：
 
@@ -548,15 +553,16 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 - ADR-003：`.cue` SFC block 与 scoped/module style 语义。
 - ADR-004：Style IR/HMR protocol versioning。
 - ADR-005：Taffy Web/Native backend 策略。
+- element registry ABI，以及 compiler、language-service、runtime 共享的 Custom Element 元数据契约。
 - 最小 compiler：script setup + template + style。
 - 最小 language plugin：`.cue` + `vue-tsc`。
-- 最小 runtime：Vue renderer -> UIElement tree -> 一个圆角色块。
+- 最小 runtime：Vue renderer -> VisualElement tree -> 一个圆角色块。
 - 一个 isolated Vortex example，贯通开发、HMR 和 production build。
 
 退出 Gate：
 
 - `.cue` 通过 OMS 运行，不经过 Cocos 内置脚本系统。
-- Web Preview 显示并响应一个 Vue 驱动的 UIElement tree。
+- Web Preview 显示并响应一个 Vue 驱动的 VisualElement tree。
 - source map 和基础 diagnostics 正确。
 - 1000 quad、初始 bundle size 和 Taffy batch bridge 有测量结果。
 - Native 风险有可执行结论，不以“以后再看”关闭。
@@ -565,7 +571,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 交付：
 
-- `div/span/text/br/img`。
+- 通过可扩展 element registry 提供 `div/span/text/br/img`。
 - CSS selector/cascade/inheritance/variables。
 - Block/Flex/Grid。
 - background/border/radius/outline、2D transform、三类 gradient。
@@ -586,7 +592,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 - button/label/input/textarea/checkbox/radio/range/select/option。
 - overflow/scroll、GestureArena、focus navigation、IME。
 - transition、keyframes、`element.animate()`。
-- custom elements。
+- 公开的 Custom Element 注册 API、类型元数据与静态/动态发现。
 
 退出 Gate：
 
@@ -668,7 +674,7 @@ Phase 0 前置决策：
 可延后到 Phase 1/2：
 
 8. asset manifest 由 Cue 独立生成还是复用 Cyclonium asset pipeline。
-9. custom element 注册的静态/动态发现方式。
+9. Custom Element 名称、类型元数据和 factory 注册的静态/动态发现与同步方式。
 10. headless profile 遇到 UI component import 的行为。
 11. accessibility/gamepad semantics 的最小公开模型。
 

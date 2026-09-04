@@ -4,24 +4,10 @@ packages:
 catalog:
   '@cocos/creator-types': '3.8.7'
   '@types/node': '^25.9.2'
-  '@vitejs/plugin-vue': '^6.0.6'
-  '@vue/compiler-dom': '^3.5.42'
-  '@vue/compiler-sfc': '^3.5.42'
-  '@vue/language-core': '^3.3.11'
-  '@vue/runtime-core': '^3.5.42'
-  'lightningcss': '^1.33.0'
-  'turbo': '^2.9.12'
   'typescript': '^6.0.3'
   'vite': '^8.2.2'
   'vitest': '^4.1.6'
-  'vue': '^3.5.42'
   'vue-tsc': '^3.3.11'
-
-catalogs:
-  cyclonium:
-    '@cyclonium/bundle-wasm': '^0.0.102'
-    '@cyclonium/cc-extension-utils': '^0.0.102'
-    '@cyclonium/cc-test': '^0.0.102'
 
 autoInstallPeers: false
 

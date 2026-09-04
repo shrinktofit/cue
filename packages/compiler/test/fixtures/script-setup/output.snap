@@ -1,0 +1,32 @@
+/// greeting.cue.js
+
+import component from "./greeting.cue.script.js";
+import { render } from "./greeting.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "greeting.cue",
+  render,
+});
+
+/// greeting.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+const message = 'Hello';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'greeting',
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const __returned__ = { message };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// greeting.cue.template.js
+
+import { toDisplayString as _toDisplayString, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("div", null, _toDisplayString($setup.message)))
+}

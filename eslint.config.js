@@ -13,6 +13,7 @@ export default defineConfig([
     '**/lib-types/',
     '**/dist/',
     '**/coverage/',
+    '**/test/fixtures/',
   ]),
   {
     settings: {

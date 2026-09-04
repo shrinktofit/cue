@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vue/runtime-core": "catalog:"
+    "@vue/runtime-core": "^3.5.42"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",

@@ -24,7 +24,7 @@
   "devDependencies": {
     "@bsgames/cue": "workspace:*",
     "@bsgames/cue-workflow": "workspace:*",
-    "@vue/language-core": "catalog:",
+    "@vue/language-core": "^3.3.11",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
