@@ -6,7 +6,7 @@
 
 ## 1. 项目定位
 
-Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `CueElement` 树，仅通过少量 `UIPanelHost` Cocos Component 接入场景生命周期、输入和渲染提交。
+Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其配套扩展。它不把 Vue 模板映射为传统 Cocos UI Node/Component 树，而是维护独立的 retained-mode `CueElement` 树，仅通过少量 `CueDocument` Cocos Component 接入场景生命周期、输入和渲染提交。
 
 目标链路为：
 
@@ -78,7 +78,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 | `@vue/compiler-sfc` | `3.5.42` | `.cue` SFC 编译 |
 | `@vue/language-core` / `vue-tsc` | `3.3.11` | `.cue` 语言服务和 CLI 类型检查 |
 | `lightningcss` | `1.33.0` | 构建期 CSS 解析、语法降级和 CSS Modules 基础能力 |
-| `taffy-wasm` | `0.9.10` | 只作为验证基线，不直接承诺进入生产 runtime |
+| `taffy-layout` | `2.0.3` | Phase 0 Web/WASM Flex 布局实现；Native backend 仍需验证 |
 
 ## 3. 已确定的产品与架构约束
 
@@ -88,7 +88,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 内建元素与项目自定义 element 都通过 `globalElementRegistry.define/get` 注册和查询；renderer 不维护按标签分支的创建逻辑。
 - runtime 只暴露一个模块级 `globalElementRegistry`，不提供局部 registry 或 parent 继承；同一模块实例内的重复注册必须显式报错。
 - compiler 不读取运行时 `globalElementRegistry`；Custom Element 标签通过可序列化项目配置传入，保证 CLI、OMS 和独立进程得到一致结果。
-- 场景中只保留一个或少量 `UIPanelHost`。
+- 场景中只保留一个或少量 `CueDocument`。
 - 使用标准 Web CSS 名称与尽可能一致的语义，不创建平行的私有样式词汇。
 - Taffy 负责 Block/Flex/Grid；inline layout 由 Cue 自己负责。
 - CSS parser/compiler 仅在开发和构建阶段存在；runtime 自己执行 cascade、inheritance、variables、computed values 和 invalidation。
@@ -503,7 +503,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 建议项目序列：
 
 1. `basic`
-   - 单个 `UIPanelHost`、Vue state、div/span/text/img、基础 CSS。
+   - 单个 `CueDocument`、Vue state、div/span/text/img、基础 CSS。
    - 验证 editor startup、OMS build、Preview 和 production build。
 2. `compiler-language-service`
    - script setup、components、slots、events、diagnostics、source maps、`vue-tsc`。

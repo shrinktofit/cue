@@ -40,21 +40,4 @@ describe('compileCue', () => {
         .toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
     });
   }
-
-  it('reports style blocks as unsupported instead of discarding them', () => {
-    /// @case
-    /// A Cue component uses a style block before the style compiler exists.
-    /// @expect
-    /// Compilation fails visibly and does not emit a partial module.
-    const result = compileCue('<template><div /></template><style>div { color: red; }</style>', {
-      filename: 'styled.cue',
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toHaveProperty('message', 'Cue style blocks are not supported yet.');
-  });
 });

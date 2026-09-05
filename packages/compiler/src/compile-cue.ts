@@ -11,6 +11,7 @@ import {
   ScriptTarget,
   transpileModule,
 } from 'typescript';
+import { compileCueStyle } from './compile-cue-style.js';
 
 export const cueFileExtension = '.cue';
 export const cueRuntimeModuleName = '@bsgames/cue';
@@ -53,12 +54,14 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   }
 
   const descriptor = parsed.descriptor;
-  if (descriptor.styles.length > 0) {
+  const compiledStyle = compileCueStyle(
+    descriptor.styles.map((style) => style.content),
+    options.filename,
+  );
+  if (compiledStyle.errors.length > 0) {
     return {
       ok: false,
-      errors: [
-        new SyntaxError('Cue style blocks are not supported yet.'),
-      ],
+      errors: compiledStyle.errors,
     };
   }
 
@@ -111,6 +114,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const entryFileName = `${sourceFileName}.js`;
   const scriptFileName = `${sourceFileName}.script.js`;
   const templateFileName = `${sourceFileName}.template.js`;
+  const styleFileName = `${sourceFileName}.style.js`;
   const scriptCode = transpileModule([
     script?.content ?? 'const __sfc__ = {};',
     'export default __sfc__;',
@@ -128,12 +132,20 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   if (template) {
     componentProperties.push('  render,');
   }
+  if (descriptor.styles.length > 0) {
+    componentProperties.push('  __cueStyleSheets: [styleSheet],');
+  }
 
   const entryCode = [
     `import component from ${JSON.stringify(`./${scriptFileName}`)};`,
     ...(template
       ? [
         `import { render } from ${JSON.stringify(`./${templateFileName}`)};`,
+      ]
+      : []),
+    ...(descriptor.styles.length > 0
+      ? [
+        `import styleSheet from ${JSON.stringify(`./${styleFileName}`)};`,
       ]
       : []),
     '',
@@ -159,6 +171,17 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
         ? [{
           code: template.code,
           fileName: templateFileName,
+        }]
+        : []),
+      ...(descriptor.styles.length > 0 && compiledStyle.styleSheet
+        ? [{
+          code: [
+            `const styleSheet = ${JSON.stringify(compiledStyle.styleSheet, undefined, 2)};`,
+            '',
+            'export default styleSheet;',
+            '',
+          ].join('\n'),
+          fileName: styleFileName,
         }]
         : []),
     ],

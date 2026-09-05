@@ -1,0 +1,6 @@
+{
+  "customElements": [
+    "counter-display"
+  ],
+  "filename": "runtime-integration.cue"
+}

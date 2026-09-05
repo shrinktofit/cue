@@ -30,7 +30,11 @@ export default defineConfig([
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
-        projectService: true,
+        projectService: {
+          allowDefaultProject: [
+            'packages/*/vite.config.ts',
+          ],
+        },
       },
     },
   },

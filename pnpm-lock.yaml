@@ -83,10 +83,13 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
 
   packages/compiler:
     dependencies:
+      '@bsgames/cue-style-schema':
+        specifier: workspace:*
+        version: link:../style-schema
       '@vue/compiler-sfc':
         specifier: ^3.5.42
         version: 3.5.42
@@ -103,12 +106,18 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@25.9.5)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
 
   packages/extension:
     dependencies:
+      '@bsgames/cue':
+        specifier: workspace:*
+        version: link:../runtime
       '@bsgames/cue-compiler':
         specifier: workspace:*
         version: link:../compiler
@@ -139,7 +148,7 @@ importers:
         version: 8.2.2(@types/node@25.9.5)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
       vue:
         specifier: ^3.5.42
         version: 3.5.42(typescript@6.0.3)
@@ -167,16 +176,43 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
 
   packages/runtime:
     dependencies:
+      '@bsgames/cue-style-schema':
+        specifier: workspace:*
+        version: link:../style-schema
+      '@cyclonium/core':
+        specifier: 1.0.1
+        version: 1.0.1
       '@vue/runtime-core':
         specifier: ^3.5.42
         version: 3.5.42
+      taffy-layout:
+        specifier: 2.0.3
+        version: 2.0.3
+    devDependencies:
+      '@bsgames/cue-workflow':
+        specifier: workspace:*
+        version: link:../workflow
+      '@cocos/creator-types':
+        specifier: 'catalog:'
+        version: 3.8.7
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@25.9.5)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+
+  packages/style-schema:
     devDependencies:
       '@bsgames/cue-workflow':
         specifier: workspace:*
@@ -186,7 +222,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
 
   packages/workflow:
     devDependencies:
@@ -220,8 +256,20 @@ packages:
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
     engines: {node: '>=0.1.90'}
 
+  '@cyclonium/abort-controller@0.0.102':
+    resolution: {integrity: sha512-BUhjYpT7UFSOMrdX+k+cNbrpzsxTHdodbOCG9Kerur3200zm8ENOLgmSzx+thlPV9XXfnH2m9QB+XlUt+aHHpA==}
+
+  '@cyclonium/algorithm@1.0.0':
+    resolution: {integrity: sha512-Z6ROiXCGRKqIG61VbaarMCaXC7zX5svVC9PhsfdyG5I2DfTLWE6fAsleXwryF3lLu2gGuSfIe6nz4pKSX3m/ow==}
+
   '@cyclonium/cc-extension-utils@0.0.102':
     resolution: {integrity: sha512-C2qsTsT+CQ3NcQveaiwWERbOvgYHBGruRJ4jM1bC6AmJGeJaQILmN8KRVqadhAkW6FsVrhTFS1VTra/6QfXBPA==}
+
+  '@cyclonium/core@1.0.1':
+    resolution: {integrity: sha512-RVjuGeoQaftn/pKD7Flo2IEFkHgFhBw51RZjmj/kYYx4Gxa7t/glEUvBh6m66yJ5LkjmKsnuu0t44+6PF/7UZA==}
+
+  '@cyclonium/math@0.0.104':
+    resolution: {integrity: sha512-/QxQ7Szkua2v3arW/99GeHL/KYRRcw7fxtnO0JdHERvMnsYyBuM5Lmk6ctMXNd/gAwMPk8v7goz+KgbjdmhIKw==}
 
   '@dabh/diagnostics@2.0.8':
     resolution: {integrity: sha512-R4MSXTVnuMzGD7bzHdW2ZhhdPC/igELENcq5IjEverBvq5hn1SXCWcsi6eSsdWP0/Ur+SItRRjAktmdoX/8R/Q==}
@@ -599,6 +647,10 @@ packages:
   '@vue/shared@3.5.42':
     resolution: {integrity: sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==}
 
+  abort-controller@3.0.0:
+    resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
+    engines: {node: '>=6.5'}
+
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
     peerDependencies:
@@ -860,6 +912,10 @@ packages:
   esutils@2.0.3:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
+
+  event-target-shim@5.0.1:
+    resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
+    engines: {node: '>=6'}
 
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
@@ -1256,6 +1312,10 @@ packages:
     resolution: {integrity: sha512-SlyRoSkdh1dYP0PzclLE7r0M9sgbFKKMFXpFRUMNuKhQSbC6VQIGzq3E0qsfvGJaUFJPGv6Ws1NZ/haTAjfbMA==}
     engines: {node: '>=12'}
 
+  taffy-layout@2.0.3:
+    resolution: {integrity: sha512-gKR7T3GvdI1itN8ZvMACk739aVXS3bWdNVYfDcKJej02Fl448+hjd8TszlMzV942BtsgHYiGcjSpVjZafeXs8g==}
+    engines: {node: '>=12'}
+
   tapable@2.3.3:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
@@ -1386,6 +1446,7 @@ packages:
       '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -1498,11 +1559,25 @@ snapshots:
 
   '@colors/colors@1.6.0': {}
 
+  '@cyclonium/abort-controller@0.0.102':
+    dependencies:
+      abort-controller: 3.0.0
+
+  '@cyclonium/algorithm@1.0.0': {}
+
   '@cyclonium/cc-extension-utils@0.0.102':
     dependencies:
       fs-extra: 11.4.0
       winston: 3.19.0
       winston-transport: 4.9.0
+
+  '@cyclonium/core@1.0.1':
+    dependencies:
+      '@cyclonium/abort-controller': 0.0.102
+      '@cyclonium/algorithm': 1.0.0
+      '@cyclonium/math': 0.0.104
+
+  '@cyclonium/math@0.0.104': {}
 
   '@dabh/diagnostics@2.0.8':
     dependencies:
@@ -1904,6 +1979,10 @@ snapshots:
 
   '@vue/shared@3.5.42': {}
 
+  abort-controller@3.0.0:
+    dependencies:
+      event-target-shim: 5.0.1
+
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
       acorn: 8.18.0
@@ -2162,6 +2241,8 @@ snapshots:
       '@types/estree': 1.0.9
 
   esutils@2.0.3: {}
+
+  event-target-shim@5.0.1: {}
 
   expect-type@1.4.0: {}
 
@@ -2489,6 +2570,8 @@ snapshots:
 
   strip-indent@4.1.1: {}
 
+  taffy-layout@2.0.3: {}
+
   tapable@2.3.3: {}
 
   text-hex@1.0.0: {}
@@ -2563,7 +2646,7 @@ snapshots:
       '@types/node': 25.9.5
       fsevents: 2.3.3
 
-  vitest@4.1.11(@types/node@25.9.5):
+  vitest@4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@25.9.5))
@@ -2588,18 +2671,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.9.5
     transitivePeerDependencies:
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
       - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
 
   vscode-uri@3.2.0: {}
 

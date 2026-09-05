@@ -43,6 +43,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@bsgames/cue": "workspace:*",
     "@bsgames/cue-compiler": "workspace:*",
     "@bsgames/cue-language-service": "workspace:*"
   },

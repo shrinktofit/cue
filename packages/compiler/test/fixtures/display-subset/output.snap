@@ -1,0 +1,54 @@
+/// display-subset.cue.js
+
+import component from "./display-subset.cue.script.js";
+import { render } from "./display-subset.cue.template.js";
+import styleSheet from "./display-subset.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "display-subset.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// display-subset.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// display-subset.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div"))
+}
+
+/// display-subset.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "block"
+      },
+      "selectors": [
+        [
+          "block"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "display": "flex"
+      },
+      "selectors": [
+        [
+          "flex"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

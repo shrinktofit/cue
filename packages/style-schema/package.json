@@ -1,5 +1,5 @@
 {
-  "name": "@bsgames/cue-compiler",
+  "name": "@bsgames/cue-style-schema",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,16 +14,9 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@bsgames/cue-style-schema": "workspace:*",
-    "@vue/compiler-sfc": "^3.5.42",
-    "lightningcss": "^1.33.0",
-    "typescript": "catalog:"
-  },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",
-    "@types/node": "catalog:",
-    "vite": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

@@ -3,6 +3,9 @@
   "include": [
     "**/*.ts",
   ],
+  "exclude": [
+    "fixtures/**/*.ts",
+  ],
   "compilerOptions": {
     "noEmit": true,
     "types": [

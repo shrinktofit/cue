@@ -1,0 +1,58 @@
+/// runtime-integration.cue.js
+
+import component from "./runtime-integration.cue.script.js";
+import { render } from "./runtime-integration.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "runtime-integration.cue",
+  render,
+});
+
+/// runtime-integration.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+import { defineComponent, h, ref } from '@bsgames/cue';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'runtime-integration',
+    setup(__props, { expose: __expose }) {
+        const count = ref(1);
+        const items = ref([
+            'first',
+            'second',
+        ]);
+        const StatusLabel = defineComponent(() => () => h('div', 'count:' + count.value));
+        function advance() {
+            count.value = 2;
+            items.value = [
+                ...items.value,
+            ].reverse();
+        }
+        __expose({
+            advance,
+        });
+        const __returned__ = { count, items, StatusLabel, advance };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// runtime-integration.cue.template.js
+
+import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, createVNode as _createVNode, renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, createCommentVNode as _createCommentVNode } from "@bsgames/cue"
+
+const _hoisted_1 = ["value"]
+const _hoisted_2 = { key: 0 }
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("div", null, [
+    _createElementVNode("counter-display", { value: $setup.count }, _toDisplayString($setup.count), 9 /* TEXT, PROPS */, _hoisted_1),
+    _createVNode($setup["StatusLabel"]),
+    (_openBlock(true), _createElementBlock(_Fragment, null, _renderList($setup.items, (item) => {
+      return (_openBlock(), _createElementBlock("div", { key: item }, _toDisplayString(item), 1 /* TEXT */))
+    }), 128 /* KEYED_FRAGMENT */)),
+    ($setup.count > 1)
+      ? (_openBlock(), _createElementBlock("div", _hoisted_2, "ready"))
+      : _createCommentVNode("v-if", true)
+  ]))
+}

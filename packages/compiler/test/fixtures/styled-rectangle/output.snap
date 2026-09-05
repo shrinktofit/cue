@@ -1,0 +1,107 @@
+/// styled-rectangle.cue.js
+
+import component from "./styled-rectangle.cue.script.js";
+import { render } from "./styled-rectangle.cue.template.js";
+import styleSheet from "./styled-rectangle.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "styled-rectangle.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// styled-rectangle.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// styled-rectangle.cue.template.js
+
+import { createElementVNode as _createElementVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+const _hoisted_1 = { class: "card strong" }
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", _hoisted_1, [...(_cache[0] || (_cache[0] = [
+    _createElementVNode("div", { class: "item first" }, null, -1 /* CACHED */),
+    _createElementVNode("div", { class: "item second" }, null, -1 /* CACHED */)
+  ]))]))
+}
+
+/// styled-rectangle.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "flex",
+        "flexDirection": "row",
+        "justifyContent": "space-between",
+        "alignItems": "center",
+        "gap": {
+          "column": 12,
+          "row": 12
+        },
+        "width": 240,
+        "height": 96,
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 204,
+          "green": 102,
+          "red": 51
+        },
+        "borderRadius": [
+          24,
+          24,
+          24,
+          24
+        ]
+      },
+      "selectors": [
+        [
+          "card"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 40,
+        "height": 24,
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 51,
+          "green": 204,
+          "red": 255
+        },
+        "borderRadius": [
+          6,
+          6,
+          6,
+          6
+        ]
+      },
+      "selectors": [
+        [
+          "item"
+        ],
+        [
+          "badge"
+        ]
+      ]
+    },
+    {
+      "importantDeclarations": {
+        "height": 104
+      },
+      "selectors": [
+        [
+          "card",
+          "strong"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

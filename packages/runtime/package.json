@@ -4,22 +4,32 @@
   "private": true,
   "type": "module",
   "files": [
+    "assets",
     "lib",
     "!lib/**/*.map"
   ],
-  "exports": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./assets-meta": "./assets/.meta.json",
+    "./host": "./lib/host/index.js"
+  },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && vite build",
     "dev": "tsc -b --watch",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vue/runtime-core": "^3.5.42"
+    "@bsgames/cue-style-schema": "workspace:*",
+    "@cyclonium/core": "1.0.1",
+    "@vue/runtime-core": "^3.5.42",
+    "taffy-layout": "2.0.3"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",
+    "@cocos/creator-types": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }
