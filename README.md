@@ -11,7 +11,7 @@ Cue is a Vue 3 retained-mode runtime UI system and Cocos Creator / Vortex extens
 - `cue`: Vortex extension published through exm as `@bsgames/extension-cue`.
 - `@bsgames/cue-workflow`: private shared TypeScript workflow configuration.
 
-The implementation roadmap and architectural constraints live in [`docs/PLANS.md`](docs/PLANS.md).
+Current feature coverage lives in [`docs/implementation-status.md`](docs/implementation-status.md). The implementation roadmap and architectural constraints live in [`docs/PLANS.md`](docs/PLANS.md).
 
 ## Workspace commands
 

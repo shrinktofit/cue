@@ -2,28 +2,54 @@ import { Buffer } from 'node:buffer';
 
 import {
   cueStyleSchemaVersion,
+  CueAlignContent,
   CueAlignItems,
+  CueAlignSelf,
+  CueBorderStyle,
+  CueBoxSizing,
+  CueDimensionKeyword,
   CueDisplay,
   CueFlexDirection,
+  CueFlexWrap,
   CueJustifyContent,
+  CueMaxDimensionKeyword,
   CueStyleProperty,
   type CueClassSelector,
+  type CueColor,
+  type CueDimension,
+  type CueLengthPercentage,
+  type CueMargin,
+  type CueMaxDimension,
   type CueStyleDeclarations,
   type CueStyleRule,
   type CueStyleSheet,
 } from '@bsgames/cue-style-schema';
 import {
   transform,
+  type AlignContent,
   type AlignItems,
+  type AlignSelf,
+  type BorderColor,
   type BorderRadius,
+  type BorderSideWidth,
+  type BorderStyle,
+  type BorderWidth,
   type CssColor,
   type Declaration,
   type DimensionPercentageFor_LengthValue,
   type Display,
+  type Flex,
   type FlexDirection,
+  type FlexFlow,
+  type FlexWrap,
   type Gap,
   type GapValue,
+  type GenericBorderFor_LineStyle,
   type JustifyContent,
+  type LengthPercentageOrAuto,
+  type Margin,
+  type MaxSize,
+  type Padding,
   type Selector,
   type Size,
   type StyleSheet,
@@ -134,6 +160,13 @@ function compileDeclarations(
   const compiledDeclarations: CueStyleDeclarations = {};
   for (const declaration of declarations) {
     switch (declaration.property) {
+    case 'align-content': {
+      const value = readAlignContent(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.alignContent] = value;
+      }
+      break;
+    }
     case 'align-items': {
       const value = readAlignItems(declaration.value);
       if (value) {
@@ -141,15 +174,28 @@ function compileDeclarations(
       }
       break;
     }
+    case 'align-self': {
+      const value = readAlignSelf(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.alignSelf] = value;
+      }
+      break;
+    }
     case 'width':
-    case 'height': {
-      const value = readPixelSize(declaration.value);
+    case 'height':
+    case 'min-width':
+    case 'min-height': {
+      const value = readDimension(declaration.value);
       if (value !== undefined) {
-        compiledDeclarations[
-          declaration.property === 'width'
-            ? CueStyleProperty.width
-            : CueStyleProperty.height
-        ] = value;
+        compiledDeclarations[sizePropertyByCssName[declaration.property]] = value;
+      }
+      break;
+    }
+    case 'max-width':
+    case 'max-height': {
+      const value = readMaxDimension(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[maxSizePropertyByCssName[declaration.property]] = value;
       }
       break;
     }
@@ -160,6 +206,17 @@ function compileDeclarations(
       }
       break;
     }
+    case 'border': {
+      writeBorder(compiledDeclarations, declaration.value);
+      break;
+    }
+    case 'border-color': {
+      const value = readUniformBorderColor(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.borderColor] = value;
+      }
+      break;
+    }
     case 'border-radius': {
       const value = readBorderRadius(declaration.value);
       if (value) {
@@ -167,6 +224,26 @@ function compileDeclarations(
       }
       break;
     }
+    case 'border-style': {
+      const value = readUniformBorderStyle(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.borderStyle] = value;
+      }
+      break;
+    }
+    case 'border-width': {
+      const value = readUniformBorderWidth(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.borderWidth] = value;
+      }
+      break;
+    }
+    case 'box-sizing':
+      compiledDeclarations[CueStyleProperty.boxSizing]
+        = declaration.value === 'border-box'
+          ? CueBoxSizing.borderBox
+          : CueBoxSizing.contentBox;
+      break;
     case 'display': {
       const value = readDisplay(declaration.value);
       if (value) {
@@ -174,14 +251,47 @@ function compileDeclarations(
       }
       break;
     }
+    case 'flex': {
+      writeFlex(compiledDeclarations, declaration.value);
+      break;
+    }
+    case 'flex-basis': {
+      const value = readLengthPercentageOrAuto(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.flexBasis] = value;
+      }
+      break;
+    }
     case 'flex-direction':
       compiledDeclarations[CueStyleProperty.flexDirection]
         = readFlexDirection(declaration.value);
       break;
+    case 'flex-flow':
+      writeFlexFlow(compiledDeclarations, declaration.value);
+      break;
+    case 'flex-grow':
+      compiledDeclarations[CueStyleProperty.flexGrow] = declaration.value;
+      break;
+    case 'flex-shrink':
+      compiledDeclarations[CueStyleProperty.flexShrink] = declaration.value;
+      break;
+    case 'flex-wrap':
+      compiledDeclarations[CueStyleProperty.flexWrap]
+        = readFlexWrap(declaration.value);
+      break;
     case 'gap': {
-      const value = readGap(declaration.value);
-      if (value) {
-        compiledDeclarations[CueStyleProperty.gap] = value;
+      writeGap(compiledDeclarations, declaration.value);
+      break;
+    }
+    case 'column-gap':
+    case 'row-gap': {
+      const value = readGapValue(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[
+          declaration.property === 'column-gap'
+            ? CueStyleProperty.columnGap
+            : CueStyleProperty.rowGap
+        ] = value;
       }
       break;
     }
@@ -192,6 +302,35 @@ function compileDeclarations(
       }
       break;
     }
+    case 'margin':
+      writeMargin(compiledDeclarations, declaration.value);
+      break;
+    case 'margin-bottom':
+    case 'margin-left':
+    case 'margin-right':
+    case 'margin-top': {
+      const value = readLengthPercentageOrAuto(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[marginPropertyByCssName[declaration.property]] = value;
+      }
+      break;
+    }
+    case 'order':
+      compiledDeclarations[CueStyleProperty.order] = declaration.value;
+      break;
+    case 'padding':
+      writePadding(compiledDeclarations, declaration.value);
+      break;
+    case 'padding-bottom':
+    case 'padding-left':
+    case 'padding-right':
+    case 'padding-top': {
+      const value = readPadding(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[paddingPropertyByCssName[declaration.property]] = value;
+      }
+      break;
+    }
     default:
       break;
     }
@@ -199,11 +338,77 @@ function compileDeclarations(
   return compiledDeclarations;
 }
 
+const sizePropertyByCssName = {
+  'height': CueStyleProperty.height,
+  'min-height': CueStyleProperty.minHeight,
+  'min-width': CueStyleProperty.minWidth,
+  'width': CueStyleProperty.width,
+} as const;
+
+const maxSizePropertyByCssName = {
+  'max-height': CueStyleProperty.maxHeight,
+  'max-width': CueStyleProperty.maxWidth,
+} as const;
+
+const marginPropertyByCssName = {
+  'margin-bottom': CueStyleProperty.marginBottom,
+  'margin-left': CueStyleProperty.marginLeft,
+  'margin-right': CueStyleProperty.marginRight,
+  'margin-top': CueStyleProperty.marginTop,
+} as const;
+
+const paddingPropertyByCssName = {
+  'padding-bottom': CueStyleProperty.paddingBottom,
+  'padding-left': CueStyleProperty.paddingLeft,
+  'padding-right': CueStyleProperty.paddingRight,
+  'padding-top': CueStyleProperty.paddingTop,
+} as const;
+
+function readAlignContent(
+  alignContent: AlignContent,
+): CueAlignContent | undefined {
+  if (alignContent.type === 'normal') {
+    return CueAlignContent.stretch;
+  }
+  if (
+    alignContent.type !== 'content-distribution'
+    && alignContent.type !== 'content-position'
+  ) {
+    return undefined;
+  }
+  switch (alignContent.value) {
+  case 'center':
+    return CueAlignContent.center;
+  case 'end':
+    return CueAlignContent.end;
+  case 'flex-end':
+    return CueAlignContent.flexEnd;
+  case 'flex-start':
+    return CueAlignContent.flexStart;
+  case 'space-around':
+    return CueAlignContent.spaceAround;
+  case 'space-between':
+    return CueAlignContent.spaceBetween;
+  case 'space-evenly':
+    return CueAlignContent.spaceEvenly;
+  case 'start':
+    return CueAlignContent.start;
+  case 'stretch':
+    return CueAlignContent.stretch;
+  }
+}
+
 function readAlignItems(alignItems: AlignItems): CueAlignItems | undefined {
-  if (alignItems.type === 'stretch') {
+  if (alignItems.type === 'normal' || alignItems.type === 'stretch') {
     return CueAlignItems.stretch;
   }
-  if (alignItems.type !== 'self-position') {
+  if (
+    alignItems.type === 'baseline-position'
+    && alignItems.value === 'first'
+  ) {
+    return CueAlignItems.baseline;
+  }
+  if (alignItems.type !== 'self-position' || alignItems.overflow) {
     return undefined;
   }
   switch (alignItems.value) {
@@ -222,6 +427,38 @@ function readAlignItems(alignItems: AlignItems): CueAlignItems | undefined {
   }
 }
 
+function readAlignSelf(alignSelf: AlignSelf): CueAlignSelf | undefined {
+  if (alignSelf.type === 'auto') {
+    return CueAlignSelf.auto;
+  }
+  if (alignSelf.type === 'normal' || alignSelf.type === 'stretch') {
+    return CueAlignSelf.stretch;
+  }
+  if (
+    alignSelf.type === 'baseline-position'
+    && alignSelf.value === 'first'
+  ) {
+    return CueAlignSelf.baseline;
+  }
+  if (alignSelf.type !== 'self-position' || alignSelf.overflow) {
+    return undefined;
+  }
+  switch (alignSelf.value) {
+  case 'center':
+    return CueAlignSelf.center;
+  case 'end':
+    return CueAlignSelf.end;
+  case 'flex-end':
+    return CueAlignSelf.flexEnd;
+  case 'flex-start':
+    return CueAlignSelf.flexStart;
+  case 'start':
+    return CueAlignSelf.start;
+  default:
+    return undefined;
+  }
+}
+
 function readClassSelector(selector: Selector): string[] | undefined {
   const classes: string[] = [];
   for (const component of selector) {
@@ -233,11 +470,22 @@ function readClassSelector(selector: Selector): string[] | undefined {
   return classes.length > 0 ? classes : undefined;
 }
 
-function readPixelSize(size: Size): number | undefined {
-  if (size.type !== 'length-percentage') {
-    return undefined;
+function readDimension(size: Size): CueDimension | undefined {
+  if (size.type === 'auto') {
+    return CueDimensionKeyword.auto;
   }
-  return readPixelLength(size.value);
+  return size.type === 'length-percentage'
+    ? readLengthPercentage(size.value)
+    : undefined;
+}
+
+function readMaxDimension(size: MaxSize): CueMaxDimension | undefined {
+  if (size.type === 'none') {
+    return CueMaxDimensionKeyword.none;
+  }
+  return size.type === 'length-percentage'
+    ? readLengthPercentage(size.value)
+    : undefined;
 }
 
 function readDisplay(display: Display): CueDisplay | undefined {
@@ -271,29 +519,74 @@ function readFlexDirection(flexDirection: FlexDirection): CueFlexDirection {
   }
 }
 
-function readGap(gap: Gap) {
-  const column = readGapValue(gap.column);
-  const row = readGapValue(gap.row);
-  return column === undefined || row === undefined
-    ? undefined
-    : {
-      column,
-      row,
-    };
+function readFlexWrap(flexWrap: FlexWrap): CueFlexWrap {
+  switch (flexWrap) {
+  case 'nowrap':
+    return CueFlexWrap.nowrap;
+  case 'wrap':
+    return CueFlexWrap.wrap;
+  case 'wrap-reverse':
+    return CueFlexWrap.wrapReverse;
+  }
 }
 
-function readGapValue(gap: GapValue): number | undefined {
-  return gap.type === 'length-percentage'
-    ? readPixelLength(gap.value)
-    : undefined;
+function writeFlex(
+  declarations: CueStyleDeclarations,
+  flex: Flex,
+): void {
+  const basis = readLengthPercentageOrAuto(flex.basis);
+  if (basis === undefined) {
+    return;
+  }
+  declarations[CueStyleProperty.flexBasis] = basis;
+  declarations[CueStyleProperty.flexGrow] = flex.grow;
+  declarations[CueStyleProperty.flexShrink] = flex.shrink;
+}
+
+function writeFlexFlow(
+  declarations: CueStyleDeclarations,
+  flexFlow: FlexFlow,
+): void {
+  declarations[CueStyleProperty.flexDirection]
+    = readFlexDirection(flexFlow.direction);
+  declarations[CueStyleProperty.flexWrap] = readFlexWrap(flexFlow.wrap);
+}
+
+function writeGap(
+  declarations: CueStyleDeclarations,
+  gap: Gap,
+): void {
+  const column = readGapValue(gap.column);
+  const row = readGapValue(gap.row);
+  if (column === undefined || row === undefined) {
+    return;
+  }
+  declarations[CueStyleProperty.columnGap] = column;
+  declarations[CueStyleProperty.rowGap] = row;
+}
+
+function readGapValue(gap: GapValue): CueLengthPercentage | undefined {
+  if (gap.type === 'normal') {
+    return 0;
+  }
+  return readLengthPercentage(gap.value);
 }
 
 function readJustifyContent(
   justifyContent: JustifyContent,
 ): CueJustifyContent | undefined {
+  if (justifyContent.type === 'normal') {
+    return CueJustifyContent.start;
+  }
   if (
-    justifyContent.type !== 'content-distribution'
-    && justifyContent.type !== 'content-position'
+    (
+      justifyContent.type !== 'content-distribution'
+      && justifyContent.type !== 'content-position'
+    )
+    || (
+      justifyContent.type === 'content-position'
+      && justifyContent.overflow
+    )
   ) {
     return undefined;
   }
@@ -319,6 +612,76 @@ function readJustifyContent(
   }
 }
 
+function writeMargin(
+  declarations: CueStyleDeclarations,
+  margin: Margin,
+): void {
+  const bottom = readLengthPercentageOrAuto(margin.bottom);
+  const left = readLengthPercentageOrAuto(margin.left);
+  const right = readLengthPercentageOrAuto(margin.right);
+  const top = readLengthPercentageOrAuto(margin.top);
+  if (
+    bottom === undefined
+    || left === undefined
+    || right === undefined
+    || top === undefined
+  ) {
+    return;
+  }
+  declarations[CueStyleProperty.marginBottom] = bottom;
+  declarations[CueStyleProperty.marginLeft] = left;
+  declarations[CueStyleProperty.marginRight] = right;
+  declarations[CueStyleProperty.marginTop] = top;
+}
+
+function writePadding(
+  declarations: CueStyleDeclarations,
+  padding: Padding,
+): void {
+  const bottom = readPadding(padding.bottom);
+  const left = readPadding(padding.left);
+  const right = readPadding(padding.right);
+  const top = readPadding(padding.top);
+  if (
+    bottom === undefined
+    || left === undefined
+    || right === undefined
+    || top === undefined
+  ) {
+    return;
+  }
+  declarations[CueStyleProperty.paddingBottom] = bottom;
+  declarations[CueStyleProperty.paddingLeft] = left;
+  declarations[CueStyleProperty.paddingRight] = right;
+  declarations[CueStyleProperty.paddingTop] = top;
+}
+
+function readPadding(
+  value: LengthPercentageOrAuto,
+): CueLengthPercentage | undefined {
+  return value.type === 'length-percentage'
+    ? readLengthPercentage(value.value)
+    : undefined;
+}
+
+function readLengthPercentageOrAuto(
+  value: LengthPercentageOrAuto,
+): CueMargin | undefined {
+  return value.type === 'auto'
+    ? CueDimensionKeyword.auto
+    : readLengthPercentage(value.value);
+}
+
+function readLengthPercentage(
+  value: DimensionPercentageFor_LengthValue,
+): CueLengthPercentage | undefined {
+  if (value.type === 'percentage') {
+    const percentage = Math.round(value.value * 100_000_000) / 1_000_000;
+    return `${percentage}%`;
+  }
+  return readPixelLength(value);
+}
+
 function readPixelLength(
   length: DimensionPercentageFor_LengthValue,
 ): number | undefined {
@@ -328,7 +691,92 @@ function readPixelLength(
   return length.value.value;
 }
 
-function readColor(color: CssColor) {
+function writeBorder(
+  declarations: CueStyleDeclarations,
+  border: GenericBorderFor_LineStyle,
+): void {
+  const color = readColor(border.color);
+  const style = readBorderStyle(border.style);
+  const width = readBorderWidth(border.width);
+  if (!color || !style || width === undefined) {
+    return;
+  }
+  declarations[CueStyleProperty.borderColor] = color;
+  declarations[CueStyleProperty.borderStyle] = style;
+  declarations[CueStyleProperty.borderWidth] = width;
+}
+
+function readUniformBorderColor(
+  borderColor: BorderColor,
+): CueColor | undefined {
+  const colors = [
+    readColor(borderColor.top),
+    readColor(borderColor.right),
+    readColor(borderColor.bottom),
+    readColor(borderColor.left),
+  ];
+  const first = colors[0];
+  return first && colors.every((color) => color && colorsEqual(color, first))
+    ? first
+    : undefined;
+}
+
+function readUniformBorderStyle(
+  borderStyle: BorderStyle,
+): CueBorderStyle | undefined {
+  if (
+    borderStyle.top !== borderStyle.right
+    || borderStyle.top !== borderStyle.bottom
+    || borderStyle.top !== borderStyle.left
+  ) {
+    return undefined;
+  }
+  return readBorderStyle(borderStyle.top);
+}
+
+function readUniformBorderWidth(
+  borderWidth: BorderWidth,
+): number | undefined {
+  const widths = [
+    readBorderWidth(borderWidth.top),
+    readBorderWidth(borderWidth.right),
+    readBorderWidth(borderWidth.bottom),
+    readBorderWidth(borderWidth.left),
+  ];
+  const first = widths[0];
+  return first !== undefined && widths.every((width) => width === first)
+    ? first
+    : undefined;
+}
+
+function readBorderStyle(style: string): CueBorderStyle | undefined {
+  switch (style) {
+  case 'none':
+  case 'hidden':
+    return CueBorderStyle.none;
+  case 'solid':
+    return CueBorderStyle.solid;
+  default:
+    return undefined;
+  }
+}
+
+function readBorderWidth(width: BorderSideWidth): number | undefined {
+  switch (width.type) {
+  case 'thin':
+    return 1;
+  case 'medium':
+    return 3;
+  case 'thick':
+    return 5;
+  case 'length':
+    return width.value.type === 'value' && width.value.value.unit === 'px'
+      ? width.value.value.value
+      : undefined;
+  }
+}
+
+function readColor(color: CssColor): CueColor | undefined {
   if (typeof color !== 'object' || color.type !== 'rgb') {
     return undefined;
   }
@@ -338,6 +786,13 @@ function readColor(color: CssColor) {
     green: color.g,
     red: color.r,
   };
+}
+
+function colorsEqual(left: CueColor, right: CueColor): boolean {
+  return left.alpha === right.alpha
+    && left.blue === right.blue
+    && left.green === right.green
+    && left.red === right.red;
 }
 
 function readBorderRadius(

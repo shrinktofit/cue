@@ -1,8 +1,8 @@
 # Cue 开发计划
 
-状态：待推进 Phase 0 契约与技术验证
+状态：推进 Phase 0 剩余契约与验证 Gate；Box/Flex 原型进入标准语义补齐阶段
 目标运行环境：Cocos Creator / Vortex 3.8
-文档日期：2026-09-04
+文档日期：2026-09-12
 
 ## 1. 项目定位
 
@@ -25,6 +25,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 本计划补充原始设计报告没有展开的 compiler、language-service、扩展工程化、发布与验证方案。运行时设计仍以原始报告为准。
 
+当前能力边界与 Web CSS 差异统一记录在 [`implementation-status.md`](implementation-status.md)；本文件只保留尚未完成的工作和仍有效的架构约束。
+
 ## 2. 资料优先级与已验证事实
 
 ### 2.1 资料优先级
@@ -40,8 +42,10 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 ### 2.2 当前未完成事项
 
-- `cc-extension-cue-examples` 当前也为空目录。
-- 首轮功能实现仍需先确定 runtime helper、OMS compiler extension 和跨项目 ABI。
+- `.cue` 仍通过 CLI 预编译，尚未接入 OMS source compiler、依赖图、source map 与 HMR。
+- language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
+- Box/Flex 只覆盖无 intrinsic measurement 的 box-level 子集；尚无几何断言矩阵、完整文本/inline 语义和 Grid。
+- Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
 
 ### 2.3 从早期 Cue 实现保留与舍弃的内容
 
@@ -60,25 +64,6 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - `CueComponentAsset` 挂载传统 Cocos 节点树的运行时模型。
 
 新的模板原语必须是设计报告定义的 `div`、`span`、文本、`br`、`img` 及后续标准 Web 风格控件；Cocos 只存在于 panel host 和 backend 边界。
-
-### 2.4 当前依赖事实
-
-2026-09-04 从 registry 查询到的版本快照如下。新增或升级依赖时仍需重新查询并进行兼容性验证，不能把“最新版”直接等同于“已兼容”。
-
-| 包 | 查询版本 | 规划用途 |
-| --- | ---: | --- |
-| `@shrinktofit/eslint-config` | `0.0.12` | 必须采用当时最新版，并启用 conventions |
-| `@cyclonium/cc-extension-utils` | `0.0.102` | Vortex contribution 和 editor module 构建辅助 |
-| `@cyclonium/cc-test` | `0.0.102` | Cocos runtime/browser 测试 |
-| `@cyclonium/bundle-wasm` | `0.0.102` | 评估 Taffy WASM 的 Rollup/Vite 集成 |
-| `@cyclonium/core` | `1.0.0` | 仅按实际 API 需求评估，不默认引入整个框架 |
-| `@cyclonium/event` | `0.0.103` | 评估输入/生命周期事件基础设施 |
-| `@cyclonium/math` | `0.0.104` | 评估 2D transform、bounds、向量运算复用 |
-| `@vue/runtime-core` | `3.5.42` | Vue custom renderer |
-| `@vue/compiler-sfc` | `3.5.42` | `.cue` SFC 编译 |
-| `@vue/language-core` / `vue-tsc` | `3.3.11` | `.cue` 语言服务和 CLI 类型检查 |
-| `lightningcss` | `1.33.0` | 构建期 CSS 解析、语法降级和 CSS Modules 基础能力 |
-| `taffy-layout` | `2.0.3` | Phase 0 Web/WASM Flex 布局实现；Native backend 仍需验证 |
 
 ## 3. 已确定的产品与架构约束
 
@@ -150,7 +135,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 ### 7.1 输入语法
 
-第一版 `.cue` 建议支持：
+后续语法与语义扩展以如下目标形态为参照：
 
 ```vue
 <script setup lang="ts">
@@ -169,71 +154,56 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 </style>
 ```
 
-第一阶段限定：
+剩余决策与约束：
 
-- `script` / `script setup` 只支持 JavaScript 和 TypeScript。
-- 恰好零个或一个 template；缺少 template 时允许纯逻辑组件。
-- 支持一个或多个 style block，但是否支持 `scoped`、CSS Modules 和预处理器必须分别经过 ADR。
+- `scoped`、CSS Modules 和预处理器必须分别经过 ADR 后再支持。
 - 不支持 DOM-specific custom block、HTML parser 行为和 SSR 输出。
-- 内建标签与项目自定义 host element 共享 Cue element metadata 契约；compiler 仍通过可序列化项目配置识别 Custom Element。
-- compiler 根据可序列化的项目配置建立 Vue `isCustomElement` 判断；PascalCase 名称仍由 Vue component resolution 处理。
+- 为 `span`、`br`、`img` 以及后续控件补充共享的 element metadata 和 template diagnostics。
+- PascalCase 名称仍由 Vue component resolution 处理；Custom Element 配置必须继续保持可序列化，供 CLI、OMS 与独立进程共用。
 
 ### 7.2 编译流水线
 
 ```text
-source
-  -> SFC parse
+current JavaScript artifacts
   -> descriptor validation
-  -> script compile
-  -> template semantic validation + Vue render generation
-  -> style parse / profile validation / selector compile
+  -> template semantic validation
+  -> complete CSS Profile validation + selector compilation
   -> asset dependency extraction
-  -> component assembly
-  -> JS + style IR + asset metadata + source maps + HMR metadata
+  -> source-map-aware emission
+  -> asset metadata + diagnostics + HMR metadata
 ```
 
-Compiler 只返回内存中的多文件 JavaScript artifacts，不负责文件系统写入。每个组件包含一个公开 facade 入口以及独立的 script、template 和后续 style/metadata 模块；CLI 将它们写入输出目录，OMS adapter 则可将它们注册为虚拟模块。
+Compiler 继续只返回内存中的多文件 JavaScript artifacts，不负责文件系统写入。CLI 负责落盘；未来 OMS adapter 将相同结果注册为虚拟模块，不能复制编译逻辑。
 
-各阶段职责：
+剩余阶段职责：
 
-1. SFC parse
-   - 使用 `@vue/compiler-sfc`。
-   - 保留 block offset、原始 source map 和 parse diagnostics。
-2. Descriptor validation
+1. Descriptor validation
    - 校验重复 block、语言、unsupported attributes、template/style 缺失规则。
    - 所有 Cue 自有错误使用 `CUE-SFC-*` code。
-3. Script compile
-   - 支持普通 script 与 script setup 合并。
-   - 不注入 Cocos Node/Component 类型桥。
-   - 产出 bindings metadata 给 template compiler。
-4. Template compile
-   - 使用 Vue compiler-core/dom 的 AST 和 codegen 能力，但关闭 DOM-only assumptions。
-   - runtime helpers 指向唯一 Cue runtime specifier。
+2. Template validation
    - 校验元素、属性、事件、directives 和不支持的 DOM 行为。
-   - 保留 static hoist、patch flags 和 component slots 等 Vue 优化，前提是 custom renderer 语义一致。
-5. Style compile
-   - Lightning CSS 负责语法解析、`@import`、nesting、CSS Modules 等构建期能力。
-   - Cue 层负责 CSS Profile 验证、shorthand 展开、typed value、selector program、specificity、dependency、keyframes 和 source mapping。
-   - 不把 Lightning CSS parser 带入 runtime。
-6. Asset extraction
+   - 逐项验证 static hoist、patch flags、slots 等 Vue 优化与 custom renderer 语义。
+3. Style Profile
+   - Cue 层补齐 supported/unsupported property、value、selector 与 at-rule diagnostics。
+   - 扩展 selector program、dependency、custom properties、media conditions、keyframes 和 source mapping。
+   - 继续保证 Lightning CSS 只存在于 compiler/build 阶段。
+4. Asset extraction
    - 收集 template 与 CSS 中的 `asset://`。
    - 保留可追踪的逻辑 URL；最终 `AssetKey` 由项目构建清单生成，不在源码暴露 UUID。
-7. Assembly
-   - 输出公开 facade、独立 JavaScript block modules、样式注册元数据、asset dependencies、scope id、HMR id 和 source maps。
+5. Source-map-aware assembly
+   - 在现有 facade、script、template、style JavaScript modules 上增加 asset dependencies、scope id、HMR id 和 source maps。
    - 不通过字符串拼接维持复杂代码映射；使用带 segment mapping 的 emitter。
 
 ### 7.3 Style IR 与 ABI
 
-`.uicss` 是 compiler/runtime 边界，至少包含：
+Style IR 下一阶段需要增加以下稳定 compiler/runtime ABI 能力：
 
 ```text
 magic
-schema version
 CSS profile version
 feature flags
 string/value tables
-compiled selectors + specificity + dependency keys
-typed declarations
+stable selector programs/IDs + explicit specificity + dependency keys
 custom property tokens
 media conditions
 keyframes
@@ -241,12 +211,11 @@ asset references
 source locations (development only)
 ```
 
-约束：
+剩余约束：
 
-- IR 必须有显式 schema version，runtime 遇到不兼容版本立即报错。
-- production 可移除 source locations 和调试字符串。
+- production 可移除 source locations 和调试字符串，但 development 表示必须可定位回 `.cue`。
 - 开发 patch 使用稳定 stylesheet/rule/declaration IDs。
-- 二进制格式是否直接输出文件，或先输出可 tree-shake 的 JS/typed-array module，由 Phase 0 体积和加载实验决定。
+- 是否引入 binary / MessagePack、typed-array module 或继续使用可 tree-shake JavaScript，由体积、解析成本与 HMR patch 实验决定；不为了格式本身升级 schema version。
 - compiler 和 runtime 的 compatibility table 必须进入发布流程。
 
 ### 7.4 HMR 编译契约
@@ -269,8 +238,8 @@ source locations (development only)
 
 ### 7.5 Compiler 测试
 
-- SFC parse 和 diagnostics table tests。
-- template golden tests：原生 element、component、slot、directive、事件、文本、条件和列表。
+- descriptor validation 和 diagnostics table tests。
+- 把现有 template golden fixtures 扩展到 slot、directive、事件、条件和列表。
 - CSS profile table tests：每个支持/拒绝的 property、value、selector 和 at-rule。
 - selector bytecode 与 runtime matcher contract tests。
 - source map tests：script/template/style 错误均映射回 `.cue` 原位置。
@@ -411,16 +380,13 @@ LS-C：项目感知
 
 原始设计报告已经定义完整目标，本节只描述实现边界和推进顺序。
 
-### 10.1 初始模块边界
+### 10.1 后续模块边界
 
 ```text
-panel/       UIPanel, viewport, frame lifecycle
-element/     CueNode/CueElement tree and five primitives
-vue/         custom renderer host operations
-style/       selector, cascade, computed values, invalidation
-layout/      LayoutBackend, Taffy bridge, inline/scroll boundaries
+style/       complete selector, inheritance, variables, invalidation
+layout/      intrinsic measure, inline, Grid, positioning, scroll boundaries
 paint/       display list and partial rebuild
-render/      batching, clipping, Cocos backend
+render/      batch splitting, clipping, backend isolation
 input/       hit-test, pointer, focus, keyboard, IME, gestures
 animation/   timeline, transition, keyframes, WAAPI-like API
 asset/       logical URLs, keys, acquire/release
@@ -442,11 +408,9 @@ devtools/    runtime protocol, tree/style/render diagnostics
 
 ### 10.3 Cyclonium 使用边界
 
-优先评估已发布的窄包和明确子路径：
+后续能力优先评估已发布的窄包和明确子路径：
 
-- `@cyclonium/cc-extension-utils`：extension build/contribution。
 - `@cyclonium/cc-test`：Cocos/browser 测试。
-- `@cyclonium/bundle-wasm`：Taffy WASM 构建实验。
 - `@cyclonium/math`：纯数学值与运算，确认坐标/可变性语义一致后再采用。
 - `@cyclonium/event` / `abort-controller`：确认事件传播、取消和生命周期语义一致后再采用。
 
@@ -465,8 +429,7 @@ endFrame()
 
 Phase 0 必须分别验证：
 
-- Cocos 3.8 Web Preview 的自定义 draw submission。
-- buffer 更新、材质/texture/clip 导致的 batch split。
+- 材质、texture、clip 导致的 batch split 及资源生命周期。
 - 1000 个圆角 quad 的 CPU、GPU、draw call 和内存基线。
 - WASM 在 Web、小游戏和目标 Native 平台的加载限制。
 - Native Taffy static library/C ABI 是否是必须方案。
@@ -475,15 +438,7 @@ Phase 0 必须分别验证：
 
 ## 11. Vortex Extension 规划
 
-extension package 采用 package format v2，并参考 Cyclonium/RoboTimes 的已验证结构：
-
-- ESM source。
-- Vite 生成宿主要求的 CJS main/hooks/contribution entries。
-- 使用已发布的 `@cyclonium/cc-extension-utils` contribution 和 editor-module plugins。
-- `main.cjs` / `hooks.cjs` 仅作为稳定 bridge。
-- extension source、runtime export 和 editor-only export 明确分区。
-
-职责分配：
+剩余职责：
 
 - main：版本检查、服务启动/停止、菜单和消息入口。
 - hooks/build contribution：把 compiler/IR/asset manifest 接入项目 build。
@@ -498,13 +453,13 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 独立仓库：`U:\Repos\Bluesquall\cc-extensions\cc-extension-cue-examples`
 
-参考 `oh-my-script-examples`，采用 pnpm workspace，提交真实 Vortex 项目和可复现 smoke scripts；本地 extension link 放入 ignored `exm.local.yaml` / `exm-lock.local.yaml`。OMS source compiler 接入完成前，examples 通过 `cue compile` 把 `.cue` 临时编译到 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
+OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
 
-建议项目序列：
+后续项目与验收序列：
 
 1. `basic`
-   - 单个 `CueDocument`、Vue state、div/span/text/img、基础 CSS。
-   - 验证 editor startup、OMS build、Preview 和 production build。
+   - 为现有 Flex playground 增加自动几何断言、viewport resize 与 production Web smoke。
+   - 随 runtime 能力补入 `span`、文本、`br`、`img`。
 2. `compiler-language-service`
    - script setup、components、slots、events、diagnostics、source maps、`vue-tsc`。
 3. `layout-gallery`
@@ -556,16 +511,13 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 - ADR-003：`.cue` SFC block 与 scoped/module style 语义。
 - ADR-004：Style IR/HMR protocol versioning。
 - ADR-005：Taffy Web/Native backend 策略。
-- element registry ABI，以及 compiler、language-service、runtime 共享的 Custom Element 元数据契约。
-- 最小 compiler：script setup + template + style。
+- compiler、language-service 与 runtime 共享的 Custom Element 类型元数据契约。
 - 最小 language plugin：`.cue` + `vue-tsc`。
-- 最小 runtime：Vue renderer -> CueElement tree -> 一个圆角色块。
-- 一个 isolated Vortex example，贯通开发、HMR 和 production build。
+- 在现有 isolated Vortex example 上贯通 HMR 和 production build。
 
 退出 Gate：
 
 - `.cue` 通过 OMS 运行，不经过 Cocos 内置脚本系统。
-- Web Preview 显示并响应一个 Vue 驱动的 CueElement tree。
 - source map 和基础 diagnostics 正确。
 - 1000 quad、初始 bundle size 和 Taffy batch bridge 有测量结果。
 - Native 风险有可执行结论，不以“以后再看”关闭。
@@ -574,10 +526,10 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 交付：
 
-- 通过 `globalElementRegistry` 提供 `div/span/text/br/img`。
-- CSS selector/cascade/inheritance/variables。
-- Block/Flex/Grid。
-- background/border/radius/outline、2D transform、三类 gradient。
+- 增加 `span`、`br`、`img`，并让 `Text` 进入 measure、layout 与 paint。
+- 把 class-only cascade 扩展到目标 selector、inheritance 和 variables。
+- 补齐 Block/Flex 标准语义与自动 conformance fixtures，再接入 Grid。
+- individual border、outline、2D transform 和三类 gradient。
 - AssetResolver 和 Pointer Events 基线。
 - template/style HMR、element picker。
 - LS-A 和 LS-B。
@@ -669,7 +621,7 @@ Phase 0 前置决策：
 
 阻断 Phase 0 退出：
 
-4. Style IR 的初始 schema、development/production 表示和兼容规则。
+4. Style IR 的 production 表示、演进与 compatibility 规则。
 5. Taffy 定制构建、WASM 装载和 Native C ABI 路线。
 6. Cocos 3.8 render submission 的稳定接入点。
 7. HMR transport 所有者：OMS 复用、Cue 独立 channel，或共享底层 transport。
@@ -683,12 +635,12 @@ Phase 0 前置决策：
 
 ## 17. 下一轮工作建议
 
-在写功能代码前按此顺序继续：
+近期先不接 OMS，按当前可视化能力收敛 layout：
 
-1. 讨论并确认 ADR-001 剩余的 runtime helper 与安装模型。
-2. 在 oh-my-script 侧起草 ADR-002 所需的最小 source compiler API，不先实现泛化插件系统。
-3. 为 `.cue` grammar、Style IR 和 HMR metadata 写三个纯数据示例，验证 compiler/runtime/LS 是否能共享语义。
-4. 确认 Taffy Web/Native 技术验证矩阵和目标平台。
-5. 实现 Phase 0 最小 compiler/runtime/language-service vertical slice。
+1. 为 Box/Flex 建立数据驱动的几何断言矩阵，并让每个 playground 控件组合都能对应可复现 fixture。
+2. 补齐不依赖文本的 Flexbox 值域与语义，优先处理 unsupported value diagnostics、alignment fallback、`display: none` 和 viewport containing block。
+3. 建立 intrinsic measure 接口，让文本、图片和 Custom Element 能参与 flex base size、min-size 与 baseline 计算。
+4. 完成 Flex Gate：自动几何测试、Web Preview playground、resize 与 production Web smoke 同时通过。
+5. Flex Gate 完成后接入 Taffy Grid，并建立同结构的 Grid status table、fixtures 与 gallery controls。
 
-在上述四项关键决策完成前，不进入完整 runtime 实现。
+OMS、HMR 与 language-service 仍是 Phase 0 Gate，但在 layout 验收链稳定前不作为近期实现顺序。

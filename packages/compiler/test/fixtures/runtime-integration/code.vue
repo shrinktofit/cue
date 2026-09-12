@@ -32,6 +32,14 @@ defineExpose({
     >
       {{ item }}
     </div>
+    <div class="static-grid">
+      <div class="static-item" />
+      <div class="static-item" />
+      <div class="static-item" />
+      <div class="static-item" />
+      <div class="static-item" />
+      <div class="static-item" />
+    </div>
     <div v-if="count > 1">ready</div>
   </div>
 </template>

@@ -70,6 +70,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
   const templateCompilerOptions = {
     ...options.templateCompilerOptions,
+    hoistStatic: false,
     isCustomElement: (tagName: string) => (
       configuredCustomElements.has(tagName)
       || configuredIsCustomElement?.(tagName) === true

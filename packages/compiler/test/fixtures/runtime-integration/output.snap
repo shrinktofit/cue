@@ -41,18 +41,23 @@ export default __sfc__;
 
 import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, createVNode as _createVNode, renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, createCommentVNode as _createCommentVNode } from "@bsgames/cue"
 
-const _hoisted_1 = ["value"]
-const _hoisted_2 = { key: 0 }
-
 export function render(_ctx, _cache, $props, $setup, $data, $options) {
   return (_openBlock(), _createElementBlock("div", null, [
-    _createElementVNode("counter-display", { value: $setup.count }, _toDisplayString($setup.count), 9 /* TEXT, PROPS */, _hoisted_1),
+    _createElementVNode("counter-display", { value: $setup.count }, _toDisplayString($setup.count), 9 /* TEXT, PROPS */, ["value"]),
     _createVNode($setup["StatusLabel"]),
     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList($setup.items, (item) => {
       return (_openBlock(), _createElementBlock("div", { key: item }, _toDisplayString(item), 1 /* TEXT */))
     }), 128 /* KEYED_FRAGMENT */)),
+    _createElementVNode("div", { class: "static-grid" }, [
+      _createElementVNode("div", { class: "static-item" }),
+      _createElementVNode("div", { class: "static-item" }),
+      _createElementVNode("div", { class: "static-item" }),
+      _createElementVNode("div", { class: "static-item" }),
+      _createElementVNode("div", { class: "static-item" }),
+      _createElementVNode("div", { class: "static-item" })
+    ]),
     ($setup.count > 1)
-      ? (_openBlock(), _createElementBlock("div", _hoisted_2, "ready"))
+      ? (_openBlock(), _createElementBlock("div", { key: 0 }, "ready"))
       : _createCommentVNode("v-if", true)
   ]))
 }

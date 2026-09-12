@@ -1,9 +1,5 @@
 /// <meta "uuid"="a3126a99-13de-4a88-b396-028e96f59e1d"/>
 
-import {
-  cueStyleSchemaVersion,
-  type CueStyleSheet,
-} from '@bsgames/cue-style-schema';
 import { CycloComponent } from '@cyclonium/core/framework';
 import {
   cycloClass,
@@ -30,6 +26,10 @@ import {
   initializeCueLayout,
   type CuePaintRect,
 } from '../render/create-cue-paint-rects.js';
+import {
+  trackCueStyleSheets,
+  type CueStyleSheetCollection,
+} from '../style/cue-style-sheet-collection.js';
 import { createCueRenderer } from '../vue/create-cue-renderer.js';
 
 const cueEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
@@ -66,9 +66,17 @@ export class CueDocument extends CycloComponent {
     if (this.#unmount) {
       throw new Error('CueDocument already has a mounted Vue application.');
     }
-    this.#styleSheets = readComponentStyleSheets(rootComponent);
     const app = createCueRenderer().createApp(rootComponent, rootProps);
-    const instance = app.mount(this.#rootElement);
+    const styleSheetCollection = trackCueStyleSheets(app);
+    this.#styleSheetCollection = styleSheetCollection;
+    let instance: ComponentPublicInstance;
+    try {
+      instance = app.mount(this.#rootElement);
+    } catch (cause) {
+      styleSheetCollection.clear();
+      this.#styleSheetCollection = undefined;
+      throw cause;
+    }
     this.#unmount = () => app.unmount();
     return instance;
   }
@@ -76,7 +84,8 @@ export class CueDocument extends CycloComponent {
   unmount(): void {
     this.#unmount?.();
     this.#unmount = undefined;
-    this.#styleSheets = [];
+    this.#styleSheetCollection?.clear();
+    this.#styleSheetCollection = undefined;
   }
 
   protected override onAwake(): void {
@@ -97,7 +106,7 @@ export class CueDocument extends CycloComponent {
     }
     this.#syncRenderRecord(createCuePaintRects(
       this.#rootElement,
-      this.#styleSheets,
+      this.#styleSheetCollection?.styleSheets ?? [],
     ));
   }
 
@@ -112,7 +121,7 @@ export class CueDocument extends CycloComponent {
   readonly #rootElement = new CueRootElement();
   #material: Material | undefined;
   #renderRecord: CueRenderRecord | undefined;
-  #styleSheets: readonly CueStyleSheet[] = [];
+  #styleSheetCollection: CueStyleSheetCollection | undefined;
   #unmount: (() => void) | undefined;
 
   async #prepareRenderResources(): Promise<void> {
@@ -231,13 +240,17 @@ const textureCoordinateOffset = 2;
 const colorOffset = 4;
 const sizeOffset = 8;
 const radiusOffset = 10;
-const vertexStrideFloats = 14;
+const borderColorOffset = 14;
+const borderWidthOffset = 18;
+const vertexStrideFloats = 19;
 const vertexAttributes = [
   new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_COLOR, gfx.Format.RGBA32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD1, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD2, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD3, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD4, gfx.Format.R32F),
 ];
 const textureCoordinates = [
   0, 0,
@@ -257,7 +270,7 @@ function writeVertexBuffer(
       paintRect.x + paintRect.width, paintRect.y,
       paintRect.x + paintRect.width, paintRect.y - paintRect.height,
     ];
-    const radii = clampRadii(paintRect);
+    const radii = normalizeRadii(paintRect);
     for (let vertexIndex = 0; vertexIndex < verticesPerQuad; vertexIndex += 1) {
       const vertexOffset = (
         quadIndex * verticesPerQuad + vertexIndex
@@ -276,17 +289,39 @@ function writeVertexBuffer(
       for (let radiusIndex = 0; radiusIndex < radii.length; radiusIndex += 1) {
         vertexBuffer[vertexOffset + radiusOffset + radiusIndex] = radii[radiusIndex] ?? 0;
       }
+      vertexBuffer[vertexOffset + borderColorOffset] = paintRect.borderColor.red / 255;
+      vertexBuffer[vertexOffset + borderColorOffset + 1] = paintRect.borderColor.green / 255;
+      vertexBuffer[vertexOffset + borderColorOffset + 2] = paintRect.borderColor.blue / 255;
+      vertexBuffer[vertexOffset + borderColorOffset + 3] = paintRect.borderColor.alpha;
+      vertexBuffer[vertexOffset + borderWidthOffset] = paintRect.borderWidth;
     }
   }
 }
 
-function clampRadii(
+function normalizeRadii(
   paintRect: CuePaintRect,
 ): readonly [number, number, number, number] {
-  const maximumRadius = Math.min(paintRect.width, paintRect.height) / 2;
-  return paintRect.radii.map(
-    (radius) => Math.min(Math.max(radius, 0), maximumRadius),
-  ) as [number, number, number, number];
+  const topLeft = Math.max(paintRect.radii[0], 0);
+  const topRight = Math.max(paintRect.radii[1], 0);
+  const bottomRight = Math.max(paintRect.radii[2], 0);
+  const bottomLeft = Math.max(paintRect.radii[3], 0);
+  const scale = Math.min(
+    1,
+    sideScale(paintRect.width, topLeft + topRight),
+    sideScale(paintRect.width, bottomLeft + bottomRight),
+    sideScale(paintRect.height, topLeft + bottomLeft),
+    sideScale(paintRect.height, topRight + bottomRight),
+  );
+  return [
+    topLeft * scale,
+    topRight * scale,
+    bottomRight * scale,
+    bottomLeft * scale,
+  ];
+}
+
+function sideScale(sideLength: number, radiiLength: number): number {
+  return radiiLength > 0 ? sideLength / radiiLength : 1;
 }
 
 function createIndices(quadCount: number): Uint16Array {
@@ -326,35 +361,6 @@ function updateModelBounds(
     new Vec3(xMax, yMax, 0),
   );
   model.updateWorldBound();
-}
-
-function readComponentStyleSheets(
-  component: VueComponent,
-): readonly CueStyleSheet[] {
-  if (
-    (typeof component !== 'object' || component === null)
-    && typeof component !== 'function'
-  ) {
-    return [];
-  }
-  const styleSheets = (
-    component as { __cueStyleSheets?: unknown }
-  ).__cueStyleSheets;
-  if (styleSheets === undefined) {
-    return [];
-  }
-  if (!Array.isArray(styleSheets)) {
-    throw new TypeError('Cue component style metadata must be an array.');
-  }
-  for (const styleSheet of styleSheets) {
-    const version = styleSheet && typeof styleSheet === 'object'
-      ? (styleSheet as { version?: unknown }).version
-      : undefined;
-    if (version !== cueStyleSchemaVersion) {
-      throw new Error('Unsupported Cue style schema version: ' + String(version) + '.');
-    }
-  }
-  return styleSheets as CueStyleSheet[];
 }
 
 function loadCueEffect(): Promise<EffectAsset> {

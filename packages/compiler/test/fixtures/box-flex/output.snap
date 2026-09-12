@@ -1,0 +1,119 @@
+/// box-flex.cue.js
+
+import component from "./box-flex.cue.script.js";
+import { render } from "./box-flex.cue.template.js";
+import styleSheet from "./box-flex.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "box-flex.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// box-flex.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// box-flex.cue.template.js
+
+import { createElementVNode as _createElementVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "container" }, [
+    _createElementVNode("div", { class: "item override" }),
+    _createElementVNode("div", { class: "item" }),
+    _createElementVNode("div", { class: "item" })
+  ]))
+}
+
+/// box-flex.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "flex",
+        "flexDirection": "row",
+        "flexWrap": "wrap",
+        "alignContent": "space-between",
+        "alignItems": "stretch",
+        "justifyContent": "space-evenly",
+        "columnGap": "5%",
+        "rowGap": 10,
+        "boxSizing": "border-box",
+        "width": 320,
+        "minWidth": "50%",
+        "maxWidth": "none",
+        "height": "auto",
+        "marginBottom": 8,
+        "marginLeft": "10%",
+        "marginRight": "auto",
+        "marginTop": 4,
+        "paddingBottom": 12,
+        "paddingLeft": "5%",
+        "paddingRight": "5%",
+        "paddingTop": 12,
+        "borderColor": {
+          "alpha": 1,
+          "blue": 119,
+          "green": 85,
+          "red": 51
+        },
+        "borderStyle": "solid",
+        "borderWidth": 4,
+        "borderRadius": [
+          30,
+          30,
+          30,
+          30
+        ]
+      },
+      "selectors": [
+        [
+          "container"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "flexBasis": "25%",
+        "flexGrow": 2,
+        "flexShrink": 1,
+        "alignSelf": "center",
+        "order": -1,
+        "minWidth": 40,
+        "maxWidth": 120,
+        "height": 36,
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 73,
+          "green": 157,
+          "red": 242
+        }
+      },
+      "selectors": [
+        [
+          "item"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "flexGrow": 3,
+        "flexWrap": "wrap-reverse",
+        "columnGap": 6,
+        "marginLeft": 14,
+        "paddingRight": 8
+      },
+      "selectors": [
+        [
+          "override"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;
