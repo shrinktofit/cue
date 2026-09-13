@@ -1,6 +1,6 @@
 # Cue Implementation Status
 
-更新日期：2026-09-12
+更新日期：2026-09-13
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
@@ -48,7 +48,9 @@
 | `span` | ❌ | 尚未实现 inline formatting context |
 | `br` | ❌ | 尚未实现 inline formatting context |
 | `img` | ❌ | 尚未实现资源解析与 intrinsic size |
-| 文本测量、排版与绘制 | ❌ | `Text` 当前只存在于 element tree |
+| 纯文本元素的 intrinsic measure | ✅[^text-raster] | 文本宽高参与 Taffy Block/Flex 布局 |
+| 整文本块 TTF 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
+| Inline formatting context | ❌ | 混合文本与子元素、`span`、`br` 和跨 run 排版尚未实现；纯文本 Element 已有独立换行路径 |
 | DOM 风格事件派发 | ❌ | 尚未实现 |
 | Element 生命周期 / document 归属 | ❌ | 尚未形成完整 attach / detach 契约 |
 
@@ -103,6 +105,25 @@
 | `overflow` / scrolling | ❌ | 尚未实现 |
 | `aspect-ratio` | ❌ | 尚未实现 |
 
+## Typography
+
+| CSS 能力 | 状态 | 当前边界 |
+| --- | :---: | --- |
+| `color` | ✅[^text-raster] | RGB 颜色及 alpha；按标准继承 |
+| `font-family` | ✅[^text-raster] | 标准 fallback list；字体须已由运行平台注册 |
+| `font-size` | ✅[^text-raster] | `px`；按标准继承 |
+| `line-height` | ✅[^text-raster] | `normal` 与 `px`；按标准继承 |
+| `text-align` | ✅[^text-align] | `start`、`end`、`left`、`right`、`center`；按标准继承 |
+| `white-space` | ✅[^text-wrap] | `normal`、`nowrap`、`pre`、`pre-wrap`、`pre-line`；标准属性名、值与继承语义 |
+| 自动换行 | ✅[^text-wrap] | 纯文本 Element 按可用 inline size 和 Unicode / CSS Text 换行机会分行 |
+| 显式 segment break | ✅[^text-wrap] | 在 `pre`、`pre-wrap`、`pre-line` 中保留；在 `normal`、`nowrap` 中折叠 |
+| `white-space: break-spaces` | ❌ | 尚未实现 preserved-space 的逐空格换行与行尾占位语义 |
+| `overflow-wrap` / `word-break` / `line-break` / `hyphens` | ❌ | 当前使用这些属性的标准初始行为，不接受非初始值 |
+| `font-weight` / `font-style` | ❌ | 尚未进入 Style IR |
+| `text-align: justify` / `justify-all` | ❌ | 依赖尚未实现的 inline formatting 与空白分配 |
+| 字距与词距 | ❌ | `letter-spacing`、`word-spacing` 尚未实现 |
+| 完整 shaping / bidi / fallback diagnostics | ❌ | 当前委托 Canvas 2D，不声明跨平台一致性 |
+
 ## Flexbox
 
 本表以 [CSS Flexible Box Layout Module Level 1](https://www.w3.org/TR/css-flexbox-1/) 与 [CSS Box Alignment Module Level 3](https://www.w3.org/TR/css-align-3/) 为目标参照。
@@ -128,7 +149,8 @@
 | Main-axis auto margins | ✅[^flex-engine] | 由 Taffy 处理 |
 | Cross-axis auto margins | ✅[^flex-engine] | 由 Taffy 处理 |
 | Multi-line flex layout | ✅[^flex-engine] | 由 Taffy 处理 |
-| Intrinsic / content-based flex sizing | ❌ | 尚无文本、图片或自定义 measure function |
+| 纯文本元素的 intrinsic / content-based flex sizing | ✅[^text-raster] | Taffy measure callback 使用与绘制一致的 Canvas 字体测量 |
+| 图片与 Custom Element intrinsic sizing | ❌ | 尚未接入 measure function |
 | `flex-basis: content` 与 intrinsic keywords | ❌ | 尚未进入 Style IR |
 | `safe` / `unsafe` overflow alignment | ❌ | 当前会忽略这些值 |
 | Last baseline / self-start / self-end | ❌ | 尚未进入 Style IR |
@@ -174,7 +196,8 @@
 | Clip / mask | ❌ | 尚未实现 |
 | CSS transform / opacity | ❌ | 尚未实现 |
 | Stacking context / `z-index` | ❌ | 尚未实现 |
-| Text / glyph paint | ❌ | 尚未实现 |
+| 整文本块 texture paint | ✅[^text-raster] | 每个纯文本元素一张纹理和一个 quad |
+| Glyph atlas / SDF text | ❌ | 当前阶段明确不引入 |
 | Image / nine-slice paint | ❌ | 尚未实现 |
 | Material / texture / clip batch splitting | ❌ | 当前只有单一 rectangle material |
 | Partial paint rebuild / dirty propagation | ❌ | 当前每帧重新计算 layout 与上传 vertex buffer |
@@ -209,6 +232,7 @@
 | CSS Profile completion / diagnostics | ❌ | 尚未实现 |
 | Custom Element editor metadata | ❌ | 尚未实现 |
 | Flex playground 可视化验收 | ✅ | 独立 examples 仓库以 Cocos UI 控件组合控制一个 live flex layout |
+| Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
 | Production Web smoke | ❌ | 尚未形成发布 Gate |
@@ -239,3 +263,9 @@
 [^alignment-values]: Cue 保留标准 CSS 名称和值，但目前只接通表中列出的 Box Alignment 子集；`safe` / `unsafe`、self-position 扩展值与完整 fallback 规则尚未实现。
 
 [^baseline]: `baseline` / `first baseline` 能被 parser 接受并映射到 Taffy，但 Cue 没有 glyph、line box 或 custom element baseline 测量，所以当前只对无文本 box 使用 Taffy fallback，不能宣称完整 Web CSS baseline alignment。
+
+[^text-raster]: 当前是过渡性的 Web Preview 文本路径：只处理没有 Element 子节点的纯文本 Element，将整块文字用 Canvas 2D 动态栅格化为 RGBA 纹理，再由 Cocos GFX 绘制一个 quad。字体与颜色使用标准 CSS 属性名和继承语义；没有混合 inline formatting context、glyph atlas、SDF 或 Native 支持声明。文本、排版宽度或继承样式变化时会重建该文本块纹理。
+
+[^text-align]: Cue 尚未实现 CSS `direction`，当前使用 Web CSS 的默认 LTR 方向，因此 `start` 等价于 `left`、`end` 等价于 `right`；物理值 `left`、`right` 与方向无关。
+
+[^text-wrap]: Cue 先按 `white-space` 处理 segment break、可折叠空白和 tab，再用 `css-line-break` 的 CSS Text Level 3 tailoring / Unicode UAX #14 换行机会配合 Canvas 实测宽度选择 soft wrap。当前只覆盖纯文本 Element；尚无 `lang` / `line-break` tailoring。保留模式下的 tab 使用 CSS 初始 `tab-size: 8` 的像素停靠近似，`pre-wrap` 的行尾 hanging-space 几何也尚未单独建模，因此这两项不能视为完整浏览器一致性。

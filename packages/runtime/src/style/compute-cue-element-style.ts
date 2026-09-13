@@ -5,8 +5,11 @@ import {
   CueDisplay,
   CueFlexDirection,
   CueFlexWrap,
+  CueLineHeightKeyword,
   CueMaxDimensionKeyword,
   CueStyleProperty,
+  CueTextAlign,
+  CueWhiteSpace,
   type CueAlignContent,
   type CueAlignItems,
   type CueAlignSelf,
@@ -14,6 +17,7 @@ import {
   type CueDimension,
   type CueJustifyContent,
   type CueLengthPercentage,
+  type CueLineHeight,
   type CueMargin,
   type CueMaxDimension,
   type CueStyleDeclarations,
@@ -25,7 +29,16 @@ import {
 } from '../element/cue-element.js';
 import { DivElement } from '../element/div-element.js';
 
-export interface ComputedCueElementStyle {
+export interface ComputedCueTextStyle {
+  color: CueColor;
+  fontFamily: readonly string[];
+  fontSize: number;
+  lineHeight: CueLineHeight;
+  textAlign: CueTextAlign;
+  whiteSpace: CueWhiteSpace;
+}
+
+export interface ComputedCueElementStyle extends ComputedCueTextStyle {
   alignContent?: CueAlignContent;
   alignItems?: CueAlignItems;
   alignSelf?: CueAlignSelf;
@@ -69,9 +82,26 @@ interface DeclarationCandidate {
 
 const cueStyleProperties = Object.values(CueStyleProperty);
 
+export const initialCueTextStyle: ComputedCueTextStyle = {
+  color: {
+    alpha: 1,
+    blue: 0,
+    green: 0,
+    red: 0,
+  },
+  fontFamily: [
+    'sans-serif',
+  ],
+  fontSize: 16,
+  lineHeight: CueLineHeightKeyword.normal,
+  textAlign: CueTextAlign.start,
+  whiteSpace: CueWhiteSpace.normal,
+};
+
 export function computeCueElementStyle(
   element: CueElement,
   styleSheets: readonly CueStyleSheet[],
+  inheritedTextStyle: ComputedCueTextStyle = initialCueTextStyle,
 ): ComputedCueElementStyle {
   const classNames = readClassNames(getCueElementProperties(element).get('class'));
   const candidates = new Map<CueStyleProperty, DeclarationCandidate>();
@@ -135,6 +165,7 @@ export function computeCueElementStyle(
     borderWidth: 3,
     boxSizing: CueBoxSizing.contentBox,
     columnGap: 0,
+    color: inheritedTextStyle.color,
     ...(element instanceof DivElement
       ? {
         display: CueDisplay.block,
@@ -145,6 +176,8 @@ export function computeCueElementStyle(
     flexGrow: 0,
     flexShrink: 1,
     flexWrap: CueFlexWrap.nowrap,
+    fontFamily: inheritedTextStyle.fontFamily,
+    fontSize: inheritedTextStyle.fontSize,
     height: CueDimensionKeyword.auto,
     marginBottom: 0,
     marginLeft: 0,
@@ -154,12 +187,15 @@ export function computeCueElementStyle(
     maxWidth: CueMaxDimensionKeyword.none,
     minHeight: CueDimensionKeyword.auto,
     minWidth: CueDimensionKeyword.auto,
+    lineHeight: inheritedTextStyle.lineHeight,
     order: 0,
     paddingBottom: 0,
     paddingLeft: 0,
     paddingRight: 0,
     paddingTop: 0,
     rowGap: 0,
+    textAlign: inheritedTextStyle.textAlign,
+    whiteSpace: inheritedTextStyle.whiteSpace,
     width: CueDimensionKeyword.auto,
   };
   Object.assign(computedStyle, declarations);

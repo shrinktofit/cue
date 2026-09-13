@@ -12,12 +12,16 @@ import {
   CueFlexDirection,
   CueFlexWrap,
   CueJustifyContent,
+  CueLineHeightKeyword,
   CueMaxDimensionKeyword,
   CueStyleProperty,
+  CueTextAlign,
+  CueWhiteSpace,
   type CueClassSelector,
   type CueColor,
   type CueDimension,
   type CueLengthPercentage,
+  type CueLineHeight,
   type CueMargin,
   type CueMaxDimension,
   type CueStyleDeclarations,
@@ -42,14 +46,19 @@ import {
   type FlexDirection,
   type FlexFlow,
   type FlexWrap,
+  type FontFamily,
+  type FontSize,
   type Gap,
   type GapValue,
   type GenericBorderFor_LineStyle,
   type JustifyContent,
   type LengthPercentageOrAuto,
+  type LineHeight,
   type Margin,
   type MaxSize,
   type Padding,
+  type TextAlign,
+  type WhiteSpace,
   type Selector,
   type Size,
   type StyleSheet,
@@ -206,6 +215,13 @@ function compileDeclarations(
       }
       break;
     }
+    case 'color': {
+      const value = readColor(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.color] = value;
+      }
+      break;
+    }
     case 'border': {
       writeBorder(compiledDeclarations, declaration.value);
       break;
@@ -279,6 +295,20 @@ function compileDeclarations(
       compiledDeclarations[CueStyleProperty.flexWrap]
         = readFlexWrap(declaration.value);
       break;
+    case 'font-family': {
+      const value = readFontFamily(declaration.value);
+      if (value) {
+        compiledDeclarations[CueStyleProperty.fontFamily] = value;
+      }
+      break;
+    }
+    case 'font-size': {
+      const value = readFontSize(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.fontSize] = value;
+      }
+      break;
+    }
     case 'gap': {
       writeGap(compiledDeclarations, declaration.value);
       break;
@@ -299,6 +329,27 @@ function compileDeclarations(
       const value = readJustifyContent(declaration.value);
       if (value) {
         compiledDeclarations[CueStyleProperty.justifyContent] = value;
+      }
+      break;
+    }
+    case 'line-height': {
+      const value = readLineHeight(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.lineHeight] = value;
+      }
+      break;
+    }
+    case 'text-align': {
+      const value = readTextAlign(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.textAlign] = value;
+      }
+      break;
+    }
+    case 'white-space': {
+      const value = readWhiteSpace(declaration.value);
+      if (value !== undefined) {
+        compiledDeclarations[CueStyleProperty.whiteSpace] = value;
       }
       break;
     }
@@ -527,6 +578,74 @@ function readFlexWrap(flexWrap: FlexWrap): CueFlexWrap {
     return CueFlexWrap.wrap;
   case 'wrap-reverse':
     return CueFlexWrap.wrapReverse;
+  }
+}
+
+const unsupportedFontFamilyKeywords = new Set([
+  'default',
+  'inherit',
+  'initial',
+  'revert',
+  'revert-layer',
+  'unset',
+]);
+
+function readFontFamily(
+  fontFamilies: readonly FontFamily[],
+): readonly string[] | undefined {
+  const families = fontFamilies.map((family) => family.toString());
+  return families.length > 0
+    && families.every((family) => !unsupportedFontFamilyKeywords.has(family))
+    ? families
+    : undefined;
+}
+
+function readFontSize(fontSize: FontSize): number | undefined {
+  return fontSize.type === 'length'
+    ? readPixelLength(fontSize.value)
+    : undefined;
+}
+
+function readLineHeight(lineHeight: LineHeight): CueLineHeight | undefined {
+  if (lineHeight.type === 'normal') {
+    return CueLineHeightKeyword.normal;
+  }
+  return lineHeight.type === 'length'
+    ? readPixelLength(lineHeight.value)
+    : undefined;
+}
+
+function readTextAlign(textAlign: TextAlign): CueTextAlign | undefined {
+  switch (textAlign) {
+  case 'center':
+    return CueTextAlign.center;
+  case 'end':
+    return CueTextAlign.end;
+  case 'left':
+    return CueTextAlign.left;
+  case 'right':
+    return CueTextAlign.right;
+  case 'start':
+    return CueTextAlign.start;
+  default:
+    return undefined;
+  }
+}
+
+function readWhiteSpace(whiteSpace: WhiteSpace): CueWhiteSpace | undefined {
+  switch (whiteSpace) {
+  case 'normal':
+    return CueWhiteSpace.normal;
+  case 'nowrap':
+    return CueWhiteSpace.nowrap;
+  case 'pre':
+    return CueWhiteSpace.pre;
+  case 'pre-line':
+    return CueWhiteSpace.preLine;
+  case 'pre-wrap':
+    return CueWhiteSpace.preWrap;
+  case 'break-spaces':
+    return undefined;
   }
 }
 

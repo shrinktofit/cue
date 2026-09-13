@@ -13,7 +13,7 @@ class CounterDisplayElement extends CueElement {}
 
 function collectText(node: CueNode): string[] {
   if (node instanceof Text) {
-    return node.data.length > 0
+    return node.data.trim().length > 0
       ? [
         node.data,
       ]

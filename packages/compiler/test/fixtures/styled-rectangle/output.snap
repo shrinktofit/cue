@@ -17,11 +17,12 @@ export default __sfc__;
 
 /// styled-rectangle.cue.template.js
 
-import { createElementVNode as _createElementVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
 export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "card strong" }, [
     _createElementVNode("div", { class: "item first" }),
+    _createTextVNode(),
     _createElementVNode("div", { class: "item second" })
   ]))
 }
@@ -51,7 +52,13 @@ const styleSheet = {
           24,
           24,
           24
-        ]
+        ],
+        "color": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        }
       },
       "selectors": [
         [

@@ -17,12 +17,14 @@ export default __sfc__;
 
 /// box-flex.cue.template.js
 
-import { createElementVNode as _createElementVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
 export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "container" }, [
     _createElementVNode("div", { class: "item override" }),
+    _createTextVNode(),
     _createElementVNode("div", { class: "item" }),
+    _createTextVNode(),
     _createElementVNode("div", { class: "item" })
   ]))
 }

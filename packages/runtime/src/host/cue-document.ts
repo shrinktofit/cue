@@ -17,22 +17,28 @@ import {
   Material,
   renderer,
   RenderingSubMesh,
+  Texture2D,
   Vec3,
+  view,
   type Asset,
 } from 'cc';
 import { CueRootElement } from '../element/cue-root-element.js';
 import {
-  createCuePaintRects,
+  createCuePaintList,
   initializeCueLayout,
+  type CuePaintList,
   type CuePaintRect,
-} from '../render/create-cue-paint-rects.js';
+  type CuePaintText,
+} from '../render/create-cue-paint-list.js';
 import {
   trackCueStyleSheets,
   type CueStyleSheetCollection,
 } from '../style/cue-style-sheet-collection.js';
 import { createCueRenderer } from '../vue/create-cue-renderer.js';
+import { CanvasTextRasterizer } from './canvas-text-rasterizer.js';
 
-const cueEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
+const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
+const cueTextEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
 
 interface CueRenderRecord {
   readonly localVertexBuffer: Float32Array;
@@ -43,7 +49,19 @@ interface CueRenderRecord {
   readonly vertexBuffer: gfx.Buffer;
 }
 
-let cueEffect: EffectAsset | Promise<EffectAsset> | undefined;
+interface CueTextRenderRecord {
+  readonly cacheKey: string;
+  readonly localVertexBuffer: Float32Array;
+  readonly material: Material;
+  readonly model: renderer.scene.Model;
+  readonly renderScene: renderer.RenderScene;
+  readonly renderingSubMesh: RenderingSubMesh;
+  readonly texture: Texture2D;
+  readonly vertexBuffer: gfx.Buffer;
+}
+
+let cueRoundedRectEffect: EffectAsset | Promise<EffectAsset> | undefined;
+let cueTextEffect: EffectAsset | Promise<EffectAsset> | undefined;
 
 @cycloClass('cue.CueDocument')
 @executeInEditMode
@@ -51,7 +69,8 @@ export class CueDocument extends CycloComponent {
   static async prepare(): Promise<void> {
     await Promise.all([
       initializeCueLayout(),
-      loadCueEffect(),
+      loadCueRoundedRectEffect(),
+      loadCueTextEffect(),
     ]);
   }
 
@@ -101,33 +120,43 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onUpdate(): void {
-    if (!this.#material) {
+    const textRasterizer = this.#textRasterizer;
+    if (!this.#material || !this.#textEffect || !textRasterizer) {
       return;
     }
-    this.#syncRenderRecord(createCuePaintRects(
+    const paintList = createCuePaintList(
       this.#rootElement,
       this.#styleSheetCollection?.styleSheets ?? [],
-    ));
+      textRasterizer,
+    );
+    this.#syncRenderRecords(paintList);
   }
 
   protected override onDestroy(): void {
     super.onDestroy();
     this.unmount();
     this.#destroyRenderRecord();
+    this.#destroyTextRenderRecords();
     this.#material?.destroy();
     this.#material = undefined;
+    this.#textEffect = undefined;
+    this.#textRasterizer = undefined;
   }
 
   readonly #rootElement = new CueRootElement();
   #material: Material | undefined;
   #renderRecord: CueRenderRecord | undefined;
   #styleSheetCollection: CueStyleSheetCollection | undefined;
+  #textEffect: EffectAsset | undefined;
+  #textRasterizer: CanvasTextRasterizer | undefined;
+  readonly #textRenderRecords = new Map<CuePaintText['element'], CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
 
   async #prepareRenderResources(): Promise<void> {
     try {
-      const [effect] = await Promise.all([
-        loadCueEffect(),
+      const [roundedRectEffect, textEffect] = await Promise.all([
+        loadCueRoundedRectEffect(),
+        loadCueTextEffect(),
         initializeCueLayout(),
       ]);
       if (!this.isValid) {
@@ -135,12 +164,19 @@ export class CueDocument extends CycloComponent {
       }
       const material = new Material();
       material.reset({
-        effectAsset: effect,
+        effectAsset: roundedRectEffect,
       });
       this.#material = material;
+      this.#textEffect = textEffect;
+      this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
     } catch (cause) {
       error('Failed to prepare Cue rendering resources.', cause);
     }
+  }
+
+  #syncRenderRecords(paintList: CuePaintList): void {
+    this.#syncRenderRecord(paintList.rects);
+    this.#syncTextRenderRecords(paintList.texts);
   }
 
   #syncRenderRecord(paintRects: readonly CuePaintRect[]): void {
@@ -230,6 +266,157 @@ export class CueDocument extends CycloComponent {
     if (this.#renderRecord) {
       this.#renderRecord.model.enabled = this.enabledInHierarchy;
     }
+    for (const renderRecord of this.#textRenderRecords.values()) {
+      renderRecord.model.enabled = this.enabledInHierarchy;
+    }
+  }
+
+  #syncTextRenderRecords(paintTexts: readonly CuePaintText[]): void {
+    const textRasterizer = this.#textRasterizer;
+    const textEffect = this.#textEffect;
+    if (!textRasterizer || !textEffect) {
+      return;
+    }
+    const liveElements = new Set<CuePaintText['element']>();
+    for (const paintText of paintTexts) {
+      liveElements.add(paintText.element);
+      const cacheKey = JSON.stringify({
+        color: paintText.style.color,
+        fontFamily: paintText.style.fontFamily,
+        fontSize: paintText.style.fontSize,
+        lineHeight: paintText.style.lineHeight,
+        lines: paintText.lines,
+        pixelScale: textRasterizer.pixelScale,
+        textAlign: paintText.style.textAlign,
+        whiteSpace: paintText.style.whiteSpace,
+        width: paintText.width,
+      });
+      let renderRecord = this.#textRenderRecords.get(paintText.element);
+      if (renderRecord?.cacheKey !== cacheKey) {
+        if (renderRecord) {
+          this.#destroyTextRenderRecord(renderRecord);
+        }
+        renderRecord = this.#reconstructTextRenderRecord(
+          paintText,
+          cacheKey,
+          textEffect,
+          textRasterizer,
+        );
+        if (renderRecord) {
+          this.#textRenderRecords.set(paintText.element, renderRecord);
+        } else {
+          this.#textRenderRecords.delete(paintText.element);
+        }
+      }
+      if (!renderRecord) {
+        continue;
+      }
+      writeTextVertexBuffer(renderRecord.localVertexBuffer, paintText);
+      updateGfxBuffer(
+        renderRecord.vertexBuffer,
+        renderRecord.localVertexBuffer,
+      );
+      updateTextModelBounds(renderRecord.model, paintText);
+      renderRecord.model.enabled = this.enabledInHierarchy;
+    }
+    for (const [element, renderRecord] of this.#textRenderRecords) {
+      if (!liveElements.has(element)) {
+        this.#textRenderRecords.delete(element);
+        this.#destroyTextRenderRecord(renderRecord);
+      }
+    }
+  }
+
+  #reconstructTextRenderRecord(
+    paintText: CuePaintText,
+    cacheKey: string,
+    textEffect: EffectAsset,
+    textRasterizer: CanvasTextRasterizer,
+  ): CueTextRenderRecord | undefined {
+    const renderScene = this.node.scene?.renderScene;
+    if (!renderScene) {
+      return undefined;
+    }
+    const rasterizedText = textRasterizer.rasterize(paintText);
+    const texture = new Texture2D();
+    texture.reset({
+      format: Texture2D.PixelFormat.RGBA8888,
+      height: rasterizedText.canvas.height,
+      width: rasterizedText.canvas.width,
+    });
+    texture.setFilters(Texture2D.Filter.LINEAR, Texture2D.Filter.LINEAR);
+    texture.setWrapMode(
+      Texture2D.WrapMode.CLAMP_TO_EDGE,
+      Texture2D.WrapMode.CLAMP_TO_EDGE,
+    );
+    texture.uploadData(rasterizedText.canvas);
+
+    const material = new Material();
+    material.reset({
+      effectAsset: textEffect,
+    });
+    material.setProperty('mainTexture', texture);
+
+    const device = renderScene.root.device;
+    const localVertexBuffer = new Float32Array(
+      verticesPerQuad * textVertexStrideFloats,
+    );
+    const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.VERTEX,
+      gfx.MemoryUsageBit.DEVICE,
+      localVertexBuffer.byteLength,
+      Float32Array.BYTES_PER_ELEMENT * textVertexStrideFloats,
+      gfx.BufferFlagBit.NONE,
+    ));
+    const indexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.INDEX,
+      gfx.MemoryUsageBit.DEVICE,
+      textIndices.byteLength,
+      textIndices.BYTES_PER_ELEMENT,
+      gfx.BufferFlagBit.NONE,
+    ));
+    updateGfxBuffer(indexBuffer, textIndices);
+    const renderingSubMesh = new RenderingSubMesh(
+      [vertexBuffer],
+      textVertexAttributes,
+      gfx.PrimitiveMode.TRIANGLE_LIST,
+      indexBuffer,
+      null,
+      true,
+    );
+    const model = new renderer.scene.Model();
+    model.node = this.node;
+    model.transform = this.node;
+    model.initSubModel(0, renderingSubMesh, material);
+    model.visFlags = this.node.layer;
+    model.priority = 1;
+    model.enabled = this.enabledInHierarchy;
+    renderScene.addModel(model);
+    return {
+      cacheKey,
+      localVertexBuffer,
+      material,
+      model,
+      renderScene,
+      renderingSubMesh,
+      texture,
+      vertexBuffer,
+    };
+  }
+
+  #destroyTextRenderRecords(): void {
+    for (const renderRecord of this.#textRenderRecords.values()) {
+      this.#destroyTextRenderRecord(renderRecord);
+    }
+    this.#textRenderRecords.clear();
+  }
+
+  #destroyTextRenderRecord(renderRecord: CueTextRenderRecord): void {
+    renderRecord.renderScene.removeModel(renderRecord.model);
+    renderRecord.renderingSubMesh.destroy();
+    renderRecord.model.destroy();
+    renderRecord.material.destroy();
+    renderRecord.texture.destroy();
   }
 }
 
@@ -252,12 +439,27 @@ const vertexAttributes = [
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD3, gfx.Format.RGBA32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD4, gfx.Format.R32F),
 ];
-const textureCoordinates = [
+const rectTextureCoordinates = [
   0, 0,
   0, 1,
   1, 1,
   1, 0,
 ] as const;
+const textTextureCoordinates = [
+  0, 1,
+  0, 0,
+  1, 0,
+  1, 1,
+] as const;
+const textVertexStrideFloats = 4;
+const textVertexAttributes = [
+  new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
+];
+const textIndices = new Uint16Array([
+  0, 1, 2,
+  0, 2, 3,
+]);
 
 function writeVertexBuffer(
   vertexBuffer: Float32Array,
@@ -278,8 +480,8 @@ function writeVertexBuffer(
       const vectorOffset = vertexIndex * 2;
       vertexBuffer[vertexOffset + positionOffset] = positions[vectorOffset] ?? 0;
       vertexBuffer[vertexOffset + positionOffset + 1] = positions[vectorOffset + 1] ?? 0;
-      vertexBuffer[vertexOffset + textureCoordinateOffset] = textureCoordinates[vectorOffset] ?? 0;
-      vertexBuffer[vertexOffset + textureCoordinateOffset + 1] = textureCoordinates[vectorOffset + 1] ?? 0;
+      vertexBuffer[vertexOffset + textureCoordinateOffset] = rectTextureCoordinates[vectorOffset] ?? 0;
+      vertexBuffer[vertexOffset + textureCoordinateOffset + 1] = rectTextureCoordinates[vectorOffset + 1] ?? 0;
       vertexBuffer[vertexOffset + colorOffset] = paintRect.color.red / 255;
       vertexBuffer[vertexOffset + colorOffset + 1] = paintRect.color.green / 255;
       vertexBuffer[vertexOffset + colorOffset + 2] = paintRect.color.blue / 255;
@@ -295,6 +497,26 @@ function writeVertexBuffer(
       vertexBuffer[vertexOffset + borderColorOffset + 3] = paintRect.borderColor.alpha;
       vertexBuffer[vertexOffset + borderWidthOffset] = paintRect.borderWidth;
     }
+  }
+}
+
+function writeTextVertexBuffer(
+  vertexBuffer: Float32Array,
+  paintText: CuePaintText,
+): void {
+  const positions = [
+    paintText.x, paintText.y - paintText.height,
+    paintText.x, paintText.y,
+    paintText.x + paintText.width, paintText.y,
+    paintText.x + paintText.width, paintText.y - paintText.height,
+  ];
+  for (let vertexIndex = 0; vertexIndex < verticesPerQuad; vertexIndex += 1) {
+    const vertexOffset = vertexIndex * textVertexStrideFloats;
+    const vectorOffset = vertexIndex * 2;
+    vertexBuffer[vertexOffset] = positions[vectorOffset] ?? 0;
+    vertexBuffer[vertexOffset + 1] = positions[vectorOffset + 1] ?? 0;
+    vertexBuffer[vertexOffset + 2] = textTextureCoordinates[vectorOffset] ?? 0;
+    vertexBuffer[vertexOffset + 3] = textTextureCoordinates[vectorOffset + 1] ?? 0;
   }
 }
 
@@ -363,18 +585,43 @@ function updateModelBounds(
   model.updateWorldBound();
 }
 
-function loadCueEffect(): Promise<EffectAsset> {
-  if (cueEffect instanceof EffectAsset) {
-    return Promise.resolve(cueEffect);
+function updateTextModelBounds(
+  model: renderer.scene.Model,
+  paintText: CuePaintText,
+): void {
+  model.createBoundingShape(
+    new Vec3(paintText.x, paintText.y - paintText.height, 0),
+    new Vec3(paintText.x + paintText.width, paintText.y, 0),
+  );
+  model.updateWorldBound();
+}
+
+function loadCueRoundedRectEffect(): Promise<EffectAsset> {
+  if (cueRoundedRectEffect instanceof EffectAsset) {
+    return Promise.resolve(cueRoundedRectEffect);
   }
-  if (cueEffect) {
-    return cueEffect;
+  if (cueRoundedRectEffect) {
+    return cueRoundedRectEffect;
   }
-  cueEffect = loadAsset<EffectAsset>(cueEffectUuid).then((effect) => {
-    cueEffect = effect;
+  cueRoundedRectEffect = loadAsset<EffectAsset>(cueRoundedRectEffectUuid).then((effect) => {
+    cueRoundedRectEffect = effect;
     return effect;
   });
-  return cueEffect;
+  return cueRoundedRectEffect;
+}
+
+function loadCueTextEffect(): Promise<EffectAsset> {
+  if (cueTextEffect instanceof EffectAsset) {
+    return Promise.resolve(cueTextEffect);
+  }
+  if (cueTextEffect) {
+    return cueTextEffect;
+  }
+  cueTextEffect = loadAsset<EffectAsset>(cueTextEffectUuid).then((effect) => {
+    cueTextEffect = effect;
+    return effect;
+  });
+  return cueTextEffect;
 }
 
 function loadAsset<TAsset extends Asset>(uuid: string): Promise<TAsset> {

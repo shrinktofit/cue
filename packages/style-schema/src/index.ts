@@ -77,6 +77,26 @@ export enum CueJustifyContent {
   stretch = 'stretch',
 }
 
+export enum CueLineHeightKeyword {
+  normal = 'normal',
+}
+
+export enum CueTextAlign {
+  center = 'center',
+  end = 'end',
+  left = 'left',
+  right = 'right',
+  start = 'start',
+}
+
+export enum CueWhiteSpace {
+  normal = 'normal',
+  nowrap = 'nowrap',
+  pre = 'pre',
+  preLine = 'pre-line',
+  preWrap = 'pre-wrap',
+}
+
 export enum CueMaxDimensionKeyword {
   none = 'none',
 }
@@ -92,14 +112,18 @@ export enum CueStyleProperty {
   borderWidth = 'borderWidth',
   boxSizing = 'boxSizing',
   columnGap = 'columnGap',
+  color = 'color',
   display = 'display',
   flexBasis = 'flexBasis',
   flexDirection = 'flexDirection',
   flexGrow = 'flexGrow',
   flexShrink = 'flexShrink',
   flexWrap = 'flexWrap',
+  fontFamily = 'fontFamily',
+  fontSize = 'fontSize',
   height = 'height',
   justifyContent = 'justifyContent',
+  lineHeight = 'lineHeight',
   marginBottom = 'marginBottom',
   marginLeft = 'marginLeft',
   marginRight = 'marginRight',
@@ -114,6 +138,8 @@ export enum CueStyleProperty {
   paddingRight = 'paddingRight',
   paddingTop = 'paddingTop',
   rowGap = 'rowGap',
+  textAlign = 'textAlign',
+  whiteSpace = 'whiteSpace',
   width = 'width',
 }
 
@@ -129,6 +155,7 @@ export type CueLengthPercentage = number | `${number}%`;
 export type CueDimension = CueLengthPercentage | CueDimensionKeyword;
 export type CueMargin = CueLengthPercentage | CueDimensionKeyword;
 export type CueMaxDimension = CueLengthPercentage | CueMaxDimensionKeyword;
+export type CueLineHeight = number | CueLineHeightKeyword;
 
 export interface CueStyleDeclarations {
   [CueStyleProperty.alignContent]?: CueAlignContent;
@@ -141,14 +168,18 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.borderWidth]?: number;
   [CueStyleProperty.boxSizing]?: CueBoxSizing;
   [CueStyleProperty.columnGap]?: CueLengthPercentage;
+  [CueStyleProperty.color]?: CueColor;
   [CueStyleProperty.display]?: CueDisplay;
   [CueStyleProperty.flexBasis]?: CueDimension;
   [CueStyleProperty.flexDirection]?: CueFlexDirection;
   [CueStyleProperty.flexGrow]?: number;
   [CueStyleProperty.flexShrink]?: number;
   [CueStyleProperty.flexWrap]?: CueFlexWrap;
+  [CueStyleProperty.fontFamily]?: readonly string[];
+  [CueStyleProperty.fontSize]?: number;
   [CueStyleProperty.height]?: CueDimension;
   [CueStyleProperty.justifyContent]?: CueJustifyContent;
+  [CueStyleProperty.lineHeight]?: CueLineHeight;
   [CueStyleProperty.marginBottom]?: CueMargin;
   [CueStyleProperty.marginLeft]?: CueMargin;
   [CueStyleProperty.marginRight]?: CueMargin;
@@ -163,6 +194,8 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.paddingRight]?: CueLengthPercentage;
   [CueStyleProperty.paddingTop]?: CueLengthPercentage;
   [CueStyleProperty.rowGap]?: CueLengthPercentage;
+  [CueStyleProperty.textAlign]?: CueTextAlign;
+  [CueStyleProperty.whiteSpace]?: CueWhiteSpace;
   [CueStyleProperty.width]?: CueDimension;
 }
 

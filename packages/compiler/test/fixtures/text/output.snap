@@ -1,0 +1,57 @@
+/// text.cue.js
+
+import component from "./text.cue.script.js";
+import { render } from "./text.cue.template.js";
+import styleSheet from "./text.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "text.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// text.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// text.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "message" }, "  Hello\nCue  "))
+}
+
+/// text.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "color": {
+          "alpha": 0.9019607901573181,
+          "blue": 254,
+          "green": 242,
+          "red": 224
+        },
+        "fontFamily": [
+          "Noto Sans",
+          "sans-serif"
+        ],
+        "fontSize": 24,
+        "lineHeight": 30,
+        "textAlign": "center",
+        "whiteSpace": "pre-wrap"
+      },
+      "selectors": [
+        [
+          "message"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

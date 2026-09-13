@@ -23,6 +23,7 @@
     "@bsgames/cue-style-schema": "workspace:*",
     "@cyclonium/core": "1.0.1",
     "@vue/runtime-core": "^3.5.42",
+    "css-line-break": "2.1.0",
     "taffy-layout": "2.0.3"
   },
   "devDependencies": {

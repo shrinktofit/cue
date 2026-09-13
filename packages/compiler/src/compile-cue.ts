@@ -76,6 +76,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
       || configuredIsCustomElement?.(tagName) === true
     ),
     runtimeModuleName: cueRuntimeModuleName,
+    whitespace: 'preserve' as const,
   };
   const script = descriptor.script || descriptor.scriptSetup
     ? compileScript(descriptor, {
