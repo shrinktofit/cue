@@ -79,4 +79,47 @@ describe('cue compile', () => {
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
     await expect(Promise.all(outputFiles.map((file) => readFile(file, 'utf8')))).resolves.toHaveLength(3);
   });
+
+  it('compiles a relative cue-image source to its SpriteFrame UUID', async () => {
+    /// @case
+    /// A Cue file references an image beside it and the Cocos meta contains one SpriteFrame subasset.
+    /// @expect
+    /// The generated template refers to that SpriteFrame UUID and no longer contains the relative path.
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-image-'));
+    temporaryDirectories.push(workingDirectory);
+    await Promise.all([
+      writeFile(
+        join(workingDirectory, 'card.cue'),
+        '<template><cue-image src="./icon.png" /></template>',
+        'utf8',
+      ),
+      writeFile(
+        join(workingDirectory, 'icon.png.meta'),
+        JSON.stringify({
+          subMetas: {
+            f9941: {
+              importer: 'sprite-frame',
+              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
+            },
+          },
+        }),
+        'utf8',
+      ),
+    ]);
+
+    await executeFile(
+      process.execPath,
+      [cliEntry, 'compile', 'card.cue'],
+      {
+        cwd: workingDirectory,
+      },
+    );
+
+    const template = await readFile(
+      join(workingDirectory, 'card.cue.template.js'),
+      'utf8',
+    );
+    expect(template).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
+    expect(template).not.toContain('./icon.png');
+  });
 });

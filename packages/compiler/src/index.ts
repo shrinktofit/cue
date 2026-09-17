@@ -1,4 +1,5 @@
 export {
+  type CanonicalizeCueImageSourceResult,
   compileCue,
   cueFileExtension,
   cueRuntimeModuleName,
@@ -6,6 +7,7 @@ export {
   type CompileCueFile,
   type CompileCueOptions,
   type CompileCueResult,
+  type CueImageSourceCanonicalizer,
 } from './compile-cue.js';
 
 export {};

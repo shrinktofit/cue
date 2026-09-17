@@ -1,7 +1,17 @@
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import {
+  dirname,
+  extname,
+  join,
+  resolve,
+} from 'node:path';
 import process from 'node:process';
-import { compileCue, cueFileExtension } from '@bsgames/cue-compiler';
+import {
+  compileCue,
+  cueFileExtension,
+  type CanonicalizeCueImageSourceResult,
+} from '@bsgames/cue-compiler';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -33,6 +43,7 @@ try {
 
         const source = await readFile(sourceFile, 'utf8');
         const result = compileCue(source, {
+          canonicalizeImageSource,
           filename: sourceFile,
         });
 
@@ -59,4 +70,54 @@ try {
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
+}
+
+interface CocosAssetMeta {
+  subMetas?: Record<string, CocosAssetSubMeta>;
+}
+
+interface CocosAssetSubMeta {
+  importer?: unknown;
+  uuid?: unknown;
+}
+
+function canonicalizeImageSource(
+  source: string,
+  filename: string,
+): CanonicalizeCueImageSourceResult {
+  const assetPath = resolve(dirname(filename), source);
+  const metaPath = `${assetPath}.meta`;
+  let meta: CocosAssetMeta;
+  try {
+    meta = JSON.parse(readFileSync(metaPath, 'utf8')) as CocosAssetMeta;
+  } catch (cause) {
+    return {
+      ok: false,
+      error: new SyntaxError(
+        `Cannot read Cocos asset metadata for <cue-image> src ${JSON.stringify(source)} at ${metaPath}.`,
+        {
+          cause,
+        },
+      ),
+    };
+  }
+  const spriteFrames = meta.subMetas
+    ? Object.values(meta.subMetas).filter((subMeta) => (
+      subMeta.importer === 'sprite-frame'
+      && typeof subMeta.uuid === 'string'
+      && subMeta.uuid.length > 0
+    ))
+    : [];
+  if (spriteFrames.length !== 1) {
+    return {
+      ok: false,
+      error: new SyntaxError(
+        `Expected exactly one SpriteFrame subasset for <cue-image> src ${JSON.stringify(source)}, found ${spriteFrames.length}. Use an explicit "uuid:" source when the asset is ambiguous.`,
+      ),
+    };
+  }
+  return {
+    ok: true,
+    source: `uuid:${String(spriteFrames[0]?.uuid)}`,
+  };
 }

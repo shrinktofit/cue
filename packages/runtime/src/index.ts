@@ -7,6 +7,7 @@ export {
 } from './element/custom-element-registry.js';
 export { Comment } from './element/comment.js';
 export { CueElement } from './element/cue-element.js';
+export { CueImageElement } from './element/cue-image-element.js';
 export { CueNode } from './element/cue-node.js';
 export { CueRootElement } from './element/cue-root-element.js';
 export { DivElement } from './element/div-element.js';

@@ -1,4 +1,10 @@
 import {
+  ElementTypes,
+  NodeTypes,
+  type AttributeNode,
+  type NodeTransform,
+} from '@vue/compiler-core';
+import {
   compileScript,
   compileTemplate,
   parse,
@@ -20,7 +26,21 @@ export type CompileCueError
   = SFCParseResult['errors'][number]
     | SFCTemplateCompileResults['errors'][number];
 
+export type CanonicalizeCueImageSourceResult = {
+  ok: true;
+  source: string;
+} | {
+  ok: false;
+  error: CompileCueError;
+};
+
+export type CueImageSourceCanonicalizer = (
+  source: string,
+  filename: string,
+) => CanonicalizeCueImageSourceResult;
+
 export interface CompileCueOptions {
+  canonicalizeImageSource?: CueImageSourceCanonicalizer;
   customElements?: readonly string[];
   filename: string;
   id?: string;
@@ -66,15 +86,21 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   }
 
   const id = options.id ?? options.filename;
+  const imageSourceErrors: CompileCueError[] = [];
   const configuredCustomElements = new Set(options.customElements);
   const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
   const templateCompilerOptions = {
     ...options.templateCompilerOptions,
     hoistStatic: false,
     isCustomElement: (tagName: string) => (
-      configuredCustomElements.has(tagName)
+      tagName === 'cue-image'
+      || configuredCustomElements.has(tagName)
       || configuredIsCustomElement?.(tagName) === true
     ),
+    nodeTransforms: [
+      createCueImageSourceTransform(options, imageSourceErrors),
+      ...(options.templateCompilerOptions?.nodeTransforms ?? []),
+    ],
     runtimeModuleName: cueRuntimeModuleName,
     whitespace: 'preserve' as const,
   };
@@ -104,10 +130,13 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     })
     : undefined;
 
-  if (template && template.errors.length > 0) {
+  if (template && (template.errors.length > 0 || imageSourceErrors.length > 0)) {
     return {
       ok: false,
-      errors: template.errors,
+      errors: [
+        ...template.errors,
+        ...imageSourceErrors,
+      ],
     };
   }
 
@@ -188,4 +217,63 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
         : []),
     ],
   };
+}
+
+function createCueImageSourceTransform(
+  options: CompileCueOptions,
+  errors: CompileCueError[],
+): NodeTransform {
+  return (node) => {
+    if (
+      node.type !== NodeTypes.ELEMENT
+      || node.tagType !== ElementTypes.ELEMENT
+      || node.tag !== 'cue-image'
+    ) {
+      return;
+    }
+    const sourceAttribute = node.props.find(
+      (property): property is AttributeNode => (
+        property.type === NodeTypes.ATTRIBUTE
+        && property.name === 'src'
+      ),
+    );
+    if (!sourceAttribute?.value) {
+      return;
+    }
+    const source = sourceAttribute.value.content;
+    if (isUuidSource(source)) {
+      return;
+    }
+    if (!source.startsWith('./') && !source.startsWith('../')) {
+      errors.push(new SyntaxError(
+        '<cue-image> src must be a relative path or use the "uuid:" scheme.',
+      ));
+      return;
+    }
+    const canonicalizeImageSource = options.canonicalizeImageSource;
+    if (!canonicalizeImageSource) {
+      errors.push(new SyntaxError(
+        `Cannot compile relative <cue-image> src ${JSON.stringify(source)} without a compiler-host image source canonicalizer.`,
+      ));
+      return;
+    }
+    const result = canonicalizeImageSource(source, options.filename);
+    if (!result.ok) {
+      errors.push(result.error);
+      return;
+    }
+    if (!isUuidSource(result.source)) {
+      errors.push(new SyntaxError(
+        `The compiler host returned an invalid <cue-image> source ${JSON.stringify(result.source)}; expected a non-empty "uuid:" source.`,
+      ));
+      return;
+    }
+    sourceAttribute.value.content = result.source;
+  };
+}
+
+function isUuidSource(source: string): boolean {
+  return source.startsWith('uuid:')
+    && source.length > 'uuid:'.length
+    && !/\s/u.test(source.slice('uuid:'.length));
 }

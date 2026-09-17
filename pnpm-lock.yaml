@@ -90,6 +90,9 @@ importers:
       '@bsgames/cue-style-schema':
         specifier: workspace:*
         version: link:../style-schema
+      '@vue/compiler-core':
+        specifier: ^3.5.42
+        version: 3.5.42
       '@vue/compiler-sfc':
         specifier: ^3.5.42
         version: 3.5.42

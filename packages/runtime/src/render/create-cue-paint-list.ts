@@ -16,6 +16,7 @@ import {
   type CueMaxDimension,
   type CueStyleSheet,
 } from '@bsgames/cue-style-schema';
+import type { SpriteFrame } from 'cc';
 import initializeTaffy, {
   AlignContent,
   AlignItems,
@@ -35,6 +36,10 @@ import initializeTaffy, {
   type StylePropertyValues,
 } from 'taffy-layout/wasm';
 import { CueElement } from '../element/cue-element.js';
+import {
+  CueImageElement,
+  getCueImageSource,
+} from '../element/cue-image-element.js';
 import { Text } from '../element/text.js';
 import {
   computeCueElementStyle,
@@ -50,6 +55,15 @@ export interface CuePaintRect {
   color: CueColor;
   height: number;
   radii: readonly [number, number, number, number];
+  width: number;
+  x: number;
+  y: number;
+}
+
+export interface CuePaintImage {
+  element: CueImageElement;
+  height: number;
+  spriteFrame: SpriteFrame;
   width: number;
   x: number;
   y: number;
@@ -71,9 +85,14 @@ export interface CuePaintTextLine {
 }
 
 export interface CuePaintList {
+  images: CuePaintImage[];
   rects: CuePaintRect[];
   texts: CuePaintText[];
 }
+
+export type CueImageSourceLookup = (
+  source: string,
+) => SpriteFrame | undefined;
 
 export interface CueTextMeasurer {
   layout(
@@ -88,12 +107,27 @@ interface CueLayoutRecord {
   element: CueElement;
   node: bigint;
   style: ComputedCueElementStyle;
+  image?: SpriteFrame;
   text?: string;
 }
 
 interface CueTextLayoutContext {
+  kind: CueIntrinsicContentKind.text;
   style: ComputedCueTextStyle;
   text: string;
+}
+
+interface CueImageLayoutContext {
+  height: number;
+  kind: CueIntrinsicContentKind.image;
+  width: number;
+}
+
+type CueIntrinsicLayoutContext = CueImageLayoutContext | CueTextLayoutContext;
+
+enum CueIntrinsicContentKind {
+  image = 'image',
+  text = 'text',
 }
 
 const alignContentByCueValue: Record<CueAlignContent, AlignContent> = {
@@ -175,6 +209,7 @@ export function createCuePaintList(
   root: CueElement,
   styleSheets: readonly CueStyleSheet[],
   textMeasurer: CueTextMeasurer,
+  imageSourceLookup: CueImageSourceLookup,
 ): CuePaintList {
   if (!cueLayoutInitialized) {
     throw new Error('Cue layout must be initialized before computing a paint list.');
@@ -195,6 +230,7 @@ export function createCuePaintList(
         node,
         styleSheets,
         initialCueTextStyle,
+        imageSourceLookup,
       )]
       : []);
     children.sort((left, right) => left.style.order - right.style.order);
@@ -218,6 +254,7 @@ export function createCuePaintList(
     );
 
     const paintList: CuePaintList = {
+      images: [],
       rects: [],
       texts: [],
     };
@@ -233,6 +270,7 @@ function createLayoutRecord(
   element: CueElement,
   styleSheets: readonly CueStyleSheet[],
   inheritedTextStyle: ComputedCueTextStyle,
+  imageSourceLookup: CueImageSourceLookup,
 ): CueLayoutRecord {
   const style = computeCueElementStyle(
     element,
@@ -246,6 +284,12 @@ function createLayoutRecord(
     .filter((node) => node instanceof Text)
     .map((node) => node.data)
     .join('');
+  if (
+    element instanceof CueImageElement
+    && (elementChildren.length > 0 || hasNonCollapsibleText(directText))
+  ) {
+    throw new Error('<cue-image> is a replaced element and cannot have children.');
+  }
   if (elementChildren.length > 0 && hasNonCollapsibleText(directText)) {
     throw new Error(
       `Mixed text and element children in <${element.tagName}> require an inline formatting context, which is not supported yet.`,
@@ -256,23 +300,38 @@ function createLayoutRecord(
     child,
     styleSheets,
     style,
+    imageSourceLookup,
   ));
   children.sort((left, right) => left.style.order - right.style.order);
-  const text = elementChildren.length === 0 && directText.length > 0
+  const text = !(element instanceof CueImageElement)
+    && elementChildren.length === 0
+    && directText.length > 0
     ? directText
+    : undefined;
+  const image = element instanceof CueImageElement
+    ? imageForSource(element, imageSourceLookup)
     : undefined;
   const taffyStyle = createTaffyStyle(element, style);
   let node: bigint;
   try {
-    node = text === undefined
-      ? tree.newWithChildren(
-        taffyStyle,
-        children.map((child) => child.node),
-      )
-      : tree.newLeafWithContext(taffyStyle, {
+    if (image) {
+      node = tree.newLeafWithContext(taffyStyle, {
+        height: image.rect.height,
+        kind: CueIntrinsicContentKind.image,
+        width: image.rect.width,
+      } satisfies CueImageLayoutContext);
+    } else if (text !== undefined) {
+      node = tree.newLeafWithContext(taffyStyle, {
+        kind: CueIntrinsicContentKind.text,
         style,
         text,
       } satisfies CueTextLayoutContext);
+    } else {
+      node = tree.newWithChildren(
+        taffyStyle,
+        children.map((child) => child.node),
+      );
+    }
   } finally {
     taffyStyle.free();
   }
@@ -281,8 +340,17 @@ function createLayoutRecord(
     element,
     node,
     style,
+    ...(image === undefined ? {} : { image }),
     ...(text === undefined ? {} : { text }),
   };
+}
+
+function imageForSource(
+  element: CueImageElement,
+  imageSourceLookup: CueImageSourceLookup,
+): SpriteFrame | undefined {
+  const source = getCueImageSource(element);
+  return source === undefined ? undefined : imageSourceLookup(source);
 }
 
 function hasNonCollapsibleText(text: string): boolean {
@@ -298,22 +366,62 @@ function createMeasureFunction(
     _node,
     context,
   ) => {
-    const textContext = context as CueTextLayoutContext | undefined;
-    if (!textContext) {
+    const intrinsicContext = context as CueIntrinsicLayoutContext | undefined;
+    if (!intrinsicContext) {
       return {
         height: knownDimensions.height ?? 0,
         width: knownDimensions.width ?? 0,
       };
     }
+    if (intrinsicContext.kind === CueIntrinsicContentKind.image) {
+      return measureImage(
+        intrinsicContext,
+        knownDimensions.width,
+        knownDimensions.height,
+      );
+    }
     const textLayout = textMeasurer.layout(
-      textContext.text,
-      textContext.style,
+      intrinsicContext.text,
+      intrinsicContext.style,
       knownDimensions.width ?? textAvailableWidth(availableSpace.width),
     );
     return {
       height: knownDimensions.height ?? textLayout.height,
       width: knownDimensions.width ?? textLayout.width,
     };
+  };
+}
+
+function measureImage(
+  context: CueImageLayoutContext,
+  knownWidth: number | undefined,
+  knownHeight: number | undefined,
+): Size<number> {
+  if (knownWidth !== undefined && knownHeight !== undefined) {
+    return {
+      height: knownHeight,
+      width: knownWidth,
+    };
+  }
+  if (knownWidth !== undefined) {
+    return {
+      height: context.width > 0
+        ? knownWidth * context.height / context.width
+        : 0,
+      width: knownWidth,
+    };
+  }
+  if (knownHeight !== undefined) {
+    return {
+      height: knownHeight,
+      width: context.height > 0
+        ? knownHeight * context.width / context.height
+        : 0,
+    };
+  }
+  return {
+    height: context.height,
+    width: context.width,
   };
 }
 
@@ -427,6 +535,7 @@ function appendPaintCommands(
     let contentX: number;
     let contentY: number;
     let contentWidth: number;
+    let contentHeight: number;
     try {
       const position = layout.position as Point<number>;
       const size = layout.size as Size<number>;
@@ -443,6 +552,14 @@ function appendPaintCommands(
         - layout.borderRight
         - layout.paddingLeft
         - layout.paddingRight,
+      );
+      contentHeight = Math.max(
+        0,
+        height
+        - layout.borderTop
+        - layout.borderBottom
+        - layout.paddingTop
+        - layout.paddingBottom,
       );
     } finally {
       layout.free();
@@ -471,6 +588,16 @@ function appendPaintCommands(
         width,
         x,
         y: -y,
+      });
+    }
+    if (record.image && contentWidth > 0 && contentHeight > 0) {
+      paintList.images.push({
+        element: record.element,
+        height: contentHeight,
+        spriteFrame: record.image,
+        width: contentWidth,
+        x: contentX,
+        y: -contentY,
       });
     }
     if (record.text !== undefined && record.style.color.alpha > 0) {

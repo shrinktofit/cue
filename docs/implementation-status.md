@@ -1,6 +1,6 @@
 # Cue Implementation Status
 
-更新日期：2026-09-13
+更新日期：2026-09-16
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
@@ -22,6 +22,7 @@
 | 版本化 Style IR | ✅ | 当前 schema version 为 `1` |
 | 多文件 JavaScript 产物 | ✅ | entry、script、template、style 按实际内容生成 |
 | `cue compile <file> --out-dir=<dir>` | ✅ | CLI 仅调用 compiler library |
+| `<cue-image src>` 静态资源规范化 | ✅[^cue-image] | `uuid:` 原样保留；相对 `.cue` 的路径由 compiler host 规范化为 SpriteFrame UUID |
 | Compiler → runtime 可执行 fixture | ✅ | 覆盖 Vue 响应式更新、Custom Element 与组件样式挂载 |
 | Source map | ❌ | script、template、style 均未回映到 `.cue` |
 | 稳定 diagnostic code 与精确 source range | ❌ | 当前主要透传 parser/compiler error |
@@ -44,10 +45,11 @@
 | Vue custom renderer | ✅ | 覆盖 element、text、comment、property patch 与 keyed reorder |
 | Vue 响应式更新 | ✅ | 已由 compiler → runtime fixture 执行验证 |
 | `globalElementRegistry.define/get` | ✅ | `div` 与项目 Custom Element 使用同一路径创建 |
-| `div` | ✅[^display] | 当前唯一内建可布局元素 |
+| `div` | ✅[^display] | 内建通用容器元素 |
+| `cue-image` | ✅[^cue-image] | 内建 replaced element；公开接口当前只有 `src` |
 | `span` | ❌ | 尚未实现 inline formatting context |
 | `br` | ❌ | 尚未实现 inline formatting context |
-| `img` | ❌ | 尚未实现资源解析与 intrinsic size |
+| `img` | ❌ | 当前不作为 `cue-image` 的 Web 兼容别名 |
 | 纯文本元素的 intrinsic measure | ✅[^text-raster] | 文本宽高参与 Taffy Block/Flex 布局 |
 | 整文本块 TTF 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
 | Inline formatting context | ❌ | 混合文本与子元素、`span`、`br` 和跨 run 排版尚未实现；纯文本 Element 已有独立换行路径 |
@@ -150,7 +152,8 @@
 | Cross-axis auto margins | ✅[^flex-engine] | 由 Taffy 处理 |
 | Multi-line flex layout | ✅[^flex-engine] | 由 Taffy 处理 |
 | 纯文本元素的 intrinsic / content-based flex sizing | ✅[^text-raster] | Taffy measure callback 使用与绘制一致的 Canvas 字体测量 |
-| 图片与 Custom Element intrinsic sizing | ❌ | 尚未接入 measure function |
+| `cue-image` intrinsic sizing | ✅[^cue-image] | SpriteFrame 加载后以其 `rect` 宽高参与 measure function |
+| 其他 Custom Element intrinsic sizing | ❌ | 尚未定义自定义测量契约 |
 | `flex-basis: content` 与 intrinsic keywords | ❌ | 尚未进入 Style IR |
 | `safe` / `unsafe` overflow alignment | ❌ | 当前会忽略这些值 |
 | Last baseline / self-start / self-end | ❌ | 尚未进入 Style IR |
@@ -198,7 +201,8 @@
 | Stacking context / `z-index` | ❌ | 尚未实现 |
 | 整文本块 texture paint | ✅[^text-raster] | 每个纯文本元素一张纹理和一个 quad |
 | Glyph atlas / SDF text | ❌ | 当前阶段明确不引入 |
-| Image / nine-slice paint | ❌ | 尚未实现 |
+| SpriteFrame image paint | ✅[^cue-image] | 每个 `cue-image` 使用 SpriteFrame texture / UV 绘制一个 quad |
+| Nine-slice image paint | ❌ | 尚未实现 |
 | Material / texture / clip batch splitting | ❌ | 当前只有单一 rectangle material |
 | Partial paint rebuild / dirty propagation | ❌ | 当前每帧重新计算 layout 与上传 vertex buffer |
 
@@ -233,6 +237,7 @@
 | Custom Element editor metadata | ❌ | 尚未实现 |
 | Flex playground 可视化验收 | ✅ | 独立 examples 仓库以 Cocos UI 控件组合控制一个 live flex layout |
 | Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
+| Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸与显式拉伸 |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
 | Production Web smoke | ❌ | 尚未形成发布 Gate |
@@ -269,3 +274,5 @@
 [^text-align]: Cue 尚未实现 CSS `direction`，当前使用 Web CSS 的默认 LTR 方向，因此 `start` 等价于 `left`、`end` 等价于 `right`；物理值 `left`、`right` 与方向无关。
 
 [^text-wrap]: Cue 先按 `white-space` 处理 segment break、可折叠空白和 tab，再用 `css-line-break` 的 CSS Text Level 3 tailoring / Unicode UAX #14 换行机会配合 Canvas 实测宽度选择 soft wrap。当前只覆盖纯文本 Element；尚无 `lang` / `line-break` tailoring。保留模式下的 tab 使用 CSS 初始 `tab-size: 8` 的像素停靠近似，`pre-wrap` 的行尾 hanging-space 几何也尚未单独建模，因此这两项不能视为完整浏览器一致性。
+
+[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时拉伸到 content box。尚无 URL、data URL、`object-fit`、裁剪或 nine-slice 语义。

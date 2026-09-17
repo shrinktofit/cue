@@ -87,6 +87,9 @@ describe('CustomElementRegistry', () => {
     expect(registry.get('registered-element')).toBe(RegisteredElement);
     expect(registry.get('missing-element')).toBeUndefined();
     expect(globalElementRegistry.get('div')).toBe(DivElement);
+    const imageConstructor = globalElementRegistry.get('cue-image');
+    expect(imageConstructor).toBeDefined();
+    expect(new imageConstructor!().tagName).toBe('cue-image');
   });
 
   it('rejects duplicate definitions in the same registry', () => {

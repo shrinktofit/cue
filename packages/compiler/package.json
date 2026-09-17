@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@bsgames/cue-style-schema": "workspace:*",
+    "@vue/compiler-core": "^3.5.42",
     "@vue/compiler-sfc": "^3.5.42",
     "lightningcss": "^1.33.0",
     "typescript": "catalog:"

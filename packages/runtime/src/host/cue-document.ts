@@ -17,15 +17,22 @@ import {
   Material,
   renderer,
   RenderingSubMesh,
+  SpriteFrame,
   Texture2D,
   Vec3,
   view,
   type Asset,
 } from 'cc';
+import { CueElement } from '../element/cue-element.js';
+import {
+  CueImageElement,
+  getCueImageSource,
+} from '../element/cue-image-element.js';
 import { CueRootElement } from '../element/cue-root-element.js';
 import {
   createCuePaintList,
   initializeCueLayout,
+  type CuePaintImage,
   type CuePaintList,
   type CuePaintRect,
   type CuePaintText,
@@ -38,7 +45,7 @@ import { createCueRenderer } from '../vue/create-cue-renderer.js';
 import { CanvasTextRasterizer } from './canvas-text-rasterizer.js';
 
 const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
-const cueTextEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
+const cueTextureEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
 
 interface CueRenderRecord {
   readonly localVertexBuffer: Float32Array;
@@ -60,8 +67,19 @@ interface CueTextRenderRecord {
   readonly vertexBuffer: gfx.Buffer;
 }
 
+interface CueImageRenderRecord {
+  readonly localVertexBuffer: Float32Array;
+  readonly material: Material;
+  readonly model: renderer.scene.Model;
+  readonly renderScene: renderer.RenderScene;
+  readonly renderingSubMesh: RenderingSubMesh;
+  readonly spriteFrame: SpriteFrame;
+  readonly texture: SpriteFrame['texture'];
+  readonly vertexBuffer: gfx.Buffer;
+}
+
 let cueRoundedRectEffect: EffectAsset | Promise<EffectAsset> | undefined;
-let cueTextEffect: EffectAsset | Promise<EffectAsset> | undefined;
+let cueTextureEffect: EffectAsset | Promise<EffectAsset> | undefined;
 
 @cycloClass('cue.CueDocument')
 @executeInEditMode
@@ -70,7 +88,7 @@ export class CueDocument extends CycloComponent {
     await Promise.all([
       initializeCueLayout(),
       loadCueRoundedRectEffect(),
-      loadCueTextEffect(),
+      loadCueTextureEffect(),
     ]);
   }
 
@@ -120,14 +138,16 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onUpdate(): void {
+    this.#syncImageAssets();
     const textRasterizer = this.#textRasterizer;
-    if (!this.#material || !this.#textEffect || !textRasterizer) {
+    if (!this.#material || !this.#textureEffect || !textRasterizer) {
       return;
     }
     const paintList = createCuePaintList(
       this.#rootElement,
       this.#styleSheetCollection?.styleSheets ?? [],
       textRasterizer,
+      (source) => this.#imageAssets.get(source),
     );
     this.#syncRenderRecords(paintList);
   }
@@ -136,27 +156,40 @@ export class CueDocument extends CycloComponent {
     super.onDestroy();
     this.unmount();
     this.#destroyRenderRecord();
+    this.#destroyImageRenderRecords();
     this.#destroyTextRenderRecords();
+    this.#acceptImageAssets = false;
+    for (const image of this.#imageAssets.values()) {
+      image.decRef();
+    }
+    this.#imageAssets.clear();
+    this.#imageSources.clear();
     this.#material?.destroy();
     this.#material = undefined;
-    this.#textEffect = undefined;
+    this.#textureEffect = undefined;
     this.#textRasterizer = undefined;
   }
 
   readonly #rootElement = new CueRootElement();
+  #acceptImageAssets = true;
+  readonly #imageAssets = new Map<string, SpriteFrame>();
+  readonly #imageLoads = new Map<string, Promise<void>>();
+  readonly #imageRenderRecords = new Map<CueImageElement, CueImageRenderRecord>();
+  #imageSources = new Set<string>();
+  readonly #reportedImageSources = new Set<string>();
   #material: Material | undefined;
   #renderRecord: CueRenderRecord | undefined;
   #styleSheetCollection: CueStyleSheetCollection | undefined;
-  #textEffect: EffectAsset | undefined;
+  #textureEffect: EffectAsset | undefined;
   #textRasterizer: CanvasTextRasterizer | undefined;
   readonly #textRenderRecords = new Map<CuePaintText['element'], CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
 
   async #prepareRenderResources(): Promise<void> {
     try {
-      const [roundedRectEffect, textEffect] = await Promise.all([
+      const [roundedRectEffect, textureEffect] = await Promise.all([
         loadCueRoundedRectEffect(),
-        loadCueTextEffect(),
+        loadCueTextureEffect(),
         initializeCueLayout(),
       ]);
       if (!this.isValid) {
@@ -167,15 +200,105 @@ export class CueDocument extends CycloComponent {
         effectAsset: roundedRectEffect,
       });
       this.#material = material;
-      this.#textEffect = textEffect;
+      this.#textureEffect = textureEffect;
       this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
     } catch (cause) {
       error('Failed to prepare Cue rendering resources.', cause);
     }
   }
 
+  #syncImageAssets(): void {
+    const liveSources = new Set<string>();
+    const observedSources = new Set<string>();
+    const elements: CueElement[] = [this.#rootElement];
+    while (elements.length > 0) {
+      const element = elements.pop();
+      if (!element) {
+        continue;
+      }
+      for (const child of element.children) {
+        if (child instanceof CueElement) {
+          elements.push(child);
+        }
+      }
+      if (!(element instanceof CueImageElement)) {
+        continue;
+      }
+      const source = getCueImageSource(element);
+      if (source === undefined) {
+        continue;
+      }
+      observedSources.add(source);
+      if (!isUuidImageSource(source)) {
+        if (!this.#reportedImageSources.has(source)) {
+          this.#reportedImageSources.add(source);
+          error(
+            `Dynamic <cue-image> src ${JSON.stringify(source)} is not supported; use a non-empty "uuid:" source. Static relative paths are canonicalized by the compiler host.`,
+          );
+        }
+        continue;
+      }
+      liveSources.add(source);
+    }
+
+    this.#imageSources = liveSources;
+    for (const [source, image] of this.#imageAssets) {
+      if (!liveSources.has(source)) {
+        this.#imageAssets.delete(source);
+        image.decRef();
+      }
+    }
+    for (const source of this.#reportedImageSources) {
+      if (!observedSources.has(source)) {
+        this.#reportedImageSources.delete(source);
+      }
+    }
+    for (const source of liveSources) {
+      if (
+        !this.#imageAssets.has(source)
+        && !this.#imageLoads.has(source)
+        && !this.#reportedImageSources.has(source)
+      ) {
+        this.#loadImage(source);
+      }
+    }
+  }
+
+  #loadImage(source: string): void {
+    const loading = loadAsset<SpriteFrame>(source.slice('uuid:'.length))
+      .then((image) => {
+        if (!(image instanceof SpriteFrame)) {
+          throw new TypeError(
+            `<cue-image> source ${JSON.stringify(source)} is not a SpriteFrame asset.`,
+          );
+        }
+        if (!this.#acceptImageAssets || !this.#imageSources.has(source)) {
+          return;
+        }
+        image.addRef();
+        this.#imageAssets.set(source, image);
+      })
+      .catch((cause: unknown) => {
+        if (
+          this.#acceptImageAssets
+          && this.#imageSources.has(source)
+          && !this.#reportedImageSources.has(source)
+        ) {
+          this.#reportedImageSources.add(source);
+          error(`Failed to load <cue-image> source ${JSON.stringify(source)}.`, cause);
+        }
+      })
+      .finally(() => {
+        if (this.#imageLoads.get(source) === loading) {
+          this.#imageLoads.delete(source);
+        }
+      });
+    this.#imageLoads.set(source, loading);
+  }
+
   #syncRenderRecords(paintList: CuePaintList): void {
     this.#syncRenderRecord(paintList.rects);
+    this.#syncImageRenderRecords(paintList.images);
     this.#syncTextRenderRecords(paintList.texts);
   }
 
@@ -269,12 +392,141 @@ export class CueDocument extends CycloComponent {
     for (const renderRecord of this.#textRenderRecords.values()) {
       renderRecord.model.enabled = this.enabledInHierarchy;
     }
+    for (const renderRecord of this.#imageRenderRecords.values()) {
+      renderRecord.model.enabled = this.enabledInHierarchy;
+    }
+  }
+
+  #syncImageRenderRecords(paintImages: readonly CuePaintImage[]): void {
+    const textureEffect = this.#textureEffect;
+    if (!textureEffect) {
+      return;
+    }
+    const liveElements = new Set<CueImageElement>();
+    for (const paintImage of paintImages) {
+      liveElements.add(paintImage.element);
+      let renderRecord = this.#imageRenderRecords.get(paintImage.element);
+      if (
+        renderRecord
+        && (
+          renderRecord.spriteFrame !== paintImage.spriteFrame
+          || renderRecord.texture !== paintImage.spriteFrame.texture
+        )
+      ) {
+        this.#destroyImageRenderRecord(renderRecord);
+        renderRecord = undefined;
+      }
+      if (!renderRecord) {
+        renderRecord = this.#reconstructImageRenderRecord(
+          paintImage,
+          textureEffect,
+        );
+        if (renderRecord) {
+          this.#imageRenderRecords.set(paintImage.element, renderRecord);
+        }
+      }
+      if (!renderRecord) {
+        continue;
+      }
+      writeTextureVertexBuffer(
+        renderRecord.localVertexBuffer,
+        paintImage,
+        spriteFrameTextureCoordinates(paintImage.spriteFrame),
+      );
+      updateGfxBuffer(
+        renderRecord.vertexBuffer,
+        renderRecord.localVertexBuffer,
+      );
+      updateTextureModelBounds(renderRecord.model, paintImage);
+      renderRecord.model.enabled = this.enabledInHierarchy;
+    }
+    for (const [element, renderRecord] of this.#imageRenderRecords) {
+      if (!liveElements.has(element)) {
+        this.#imageRenderRecords.delete(element);
+        this.#destroyImageRenderRecord(renderRecord);
+      }
+    }
+  }
+
+  #reconstructImageRenderRecord(
+    paintImage: CuePaintImage,
+    textureEffect: EffectAsset,
+  ): CueImageRenderRecord | undefined {
+    const renderScene = this.node.scene?.renderScene;
+    if (!renderScene) {
+      return undefined;
+    }
+    const material = new Material();
+    material.reset({
+      effectAsset: textureEffect,
+    });
+    material.setProperty('mainTexture', paintImage.spriteFrame.texture);
+
+    const device = renderScene.root.device;
+    const localVertexBuffer = new Float32Array(
+      verticesPerQuad * textureVertexStrideFloats,
+    );
+    const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.VERTEX,
+      gfx.MemoryUsageBit.DEVICE,
+      localVertexBuffer.byteLength,
+      Float32Array.BYTES_PER_ELEMENT * textureVertexStrideFloats,
+      gfx.BufferFlagBit.NONE,
+    ));
+    const indexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.INDEX,
+      gfx.MemoryUsageBit.DEVICE,
+      textureIndices.byteLength,
+      textureIndices.BYTES_PER_ELEMENT,
+      gfx.BufferFlagBit.NONE,
+    ));
+    updateGfxBuffer(indexBuffer, textureIndices);
+    const renderingSubMesh = new RenderingSubMesh(
+      [vertexBuffer],
+      textureVertexAttributes,
+      gfx.PrimitiveMode.TRIANGLE_LIST,
+      indexBuffer,
+      null,
+      true,
+    );
+    const model = new renderer.scene.Model();
+    model.node = this.node;
+    model.transform = this.node;
+    model.initSubModel(0, renderingSubMesh, material);
+    model.visFlags = this.node.layer;
+    model.priority = 1;
+    model.enabled = this.enabledInHierarchy;
+    renderScene.addModel(model);
+    return {
+      localVertexBuffer,
+      material,
+      model,
+      renderScene,
+      renderingSubMesh,
+      spriteFrame: paintImage.spriteFrame,
+      texture: paintImage.spriteFrame.texture,
+      vertexBuffer,
+    };
+  }
+
+  #destroyImageRenderRecords(): void {
+    for (const renderRecord of this.#imageRenderRecords.values()) {
+      this.#destroyImageRenderRecord(renderRecord);
+    }
+    this.#imageRenderRecords.clear();
+  }
+
+  #destroyImageRenderRecord(renderRecord: CueImageRenderRecord): void {
+    renderRecord.renderScene.removeModel(renderRecord.model);
+    renderRecord.renderingSubMesh.destroy();
+    renderRecord.model.destroy();
+    renderRecord.material.destroy();
   }
 
   #syncTextRenderRecords(paintTexts: readonly CuePaintText[]): void {
     const textRasterizer = this.#textRasterizer;
-    const textEffect = this.#textEffect;
-    if (!textRasterizer || !textEffect) {
+    const textureEffect = this.#textureEffect;
+    if (!textRasterizer || !textureEffect) {
       return;
     }
     const liveElements = new Set<CuePaintText['element']>();
@@ -299,7 +551,7 @@ export class CueDocument extends CycloComponent {
         renderRecord = this.#reconstructTextRenderRecord(
           paintText,
           cacheKey,
-          textEffect,
+          textureEffect,
           textRasterizer,
         );
         if (renderRecord) {
@@ -311,12 +563,16 @@ export class CueDocument extends CycloComponent {
       if (!renderRecord) {
         continue;
       }
-      writeTextVertexBuffer(renderRecord.localVertexBuffer, paintText);
+      writeTextureVertexBuffer(
+        renderRecord.localVertexBuffer,
+        paintText,
+        textTextureCoordinates,
+      );
       updateGfxBuffer(
         renderRecord.vertexBuffer,
         renderRecord.localVertexBuffer,
       );
-      updateTextModelBounds(renderRecord.model, paintText);
+      updateTextureModelBounds(renderRecord.model, paintText);
       renderRecord.model.enabled = this.enabledInHierarchy;
     }
     for (const [element, renderRecord] of this.#textRenderRecords) {
@@ -330,7 +586,7 @@ export class CueDocument extends CycloComponent {
   #reconstructTextRenderRecord(
     paintText: CuePaintText,
     cacheKey: string,
-    textEffect: EffectAsset,
+    textureEffect: EffectAsset,
     textRasterizer: CanvasTextRasterizer,
   ): CueTextRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
@@ -353,32 +609,32 @@ export class CueDocument extends CycloComponent {
 
     const material = new Material();
     material.reset({
-      effectAsset: textEffect,
+      effectAsset: textureEffect,
     });
     material.setProperty('mainTexture', texture);
 
     const device = renderScene.root.device;
     const localVertexBuffer = new Float32Array(
-      verticesPerQuad * textVertexStrideFloats,
+      verticesPerQuad * textureVertexStrideFloats,
     );
     const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
       gfx.BufferUsageBit.VERTEX,
       gfx.MemoryUsageBit.DEVICE,
       localVertexBuffer.byteLength,
-      Float32Array.BYTES_PER_ELEMENT * textVertexStrideFloats,
+      Float32Array.BYTES_PER_ELEMENT * textureVertexStrideFloats,
       gfx.BufferFlagBit.NONE,
     ));
     const indexBuffer = device.createBuffer(new gfx.BufferInfo(
       gfx.BufferUsageBit.INDEX,
       gfx.MemoryUsageBit.DEVICE,
-      textIndices.byteLength,
-      textIndices.BYTES_PER_ELEMENT,
+      textureIndices.byteLength,
+      textureIndices.BYTES_PER_ELEMENT,
       gfx.BufferFlagBit.NONE,
     ));
-    updateGfxBuffer(indexBuffer, textIndices);
+    updateGfxBuffer(indexBuffer, textureIndices);
     const renderingSubMesh = new RenderingSubMesh(
       [vertexBuffer],
-      textVertexAttributes,
+      textureVertexAttributes,
       gfx.PrimitiveMode.TRIANGLE_LIST,
       indexBuffer,
       null,
@@ -389,7 +645,7 @@ export class CueDocument extends CycloComponent {
     model.transform = this.node;
     model.initSubModel(0, renderingSubMesh, material);
     model.visFlags = this.node.layer;
-    model.priority = 1;
+    model.priority = 2;
     model.enabled = this.enabledInHierarchy;
     renderScene.addModel(model);
     return {
@@ -451,12 +707,12 @@ const textTextureCoordinates = [
   1, 0,
   1, 1,
 ] as const;
-const textVertexStrideFloats = 4;
-const textVertexAttributes = [
+const textureVertexStrideFloats = 4;
+const textureVertexAttributes = [
   new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
 ];
-const textIndices = new Uint16Array([
+const textureIndices = new Uint16Array([
   0, 1, 2,
   0, 2, 3,
 ]);
@@ -500,24 +756,37 @@ function writeVertexBuffer(
   }
 }
 
-function writeTextVertexBuffer(
+function writeTextureVertexBuffer(
   vertexBuffer: Float32Array,
-  paintText: CuePaintText,
+  paintTexture: Pick<CuePaintText, 'height' | 'width' | 'x' | 'y'>,
+  textureCoordinates: readonly number[],
 ): void {
   const positions = [
-    paintText.x, paintText.y - paintText.height,
-    paintText.x, paintText.y,
-    paintText.x + paintText.width, paintText.y,
-    paintText.x + paintText.width, paintText.y - paintText.height,
+    paintTexture.x, paintTexture.y - paintTexture.height,
+    paintTexture.x, paintTexture.y,
+    paintTexture.x + paintTexture.width, paintTexture.y,
+    paintTexture.x + paintTexture.width, paintTexture.y - paintTexture.height,
   ];
   for (let vertexIndex = 0; vertexIndex < verticesPerQuad; vertexIndex += 1) {
-    const vertexOffset = vertexIndex * textVertexStrideFloats;
+    const vertexOffset = vertexIndex * textureVertexStrideFloats;
     const vectorOffset = vertexIndex * 2;
     vertexBuffer[vertexOffset] = positions[vectorOffset] ?? 0;
     vertexBuffer[vertexOffset + 1] = positions[vectorOffset + 1] ?? 0;
-    vertexBuffer[vertexOffset + 2] = textTextureCoordinates[vectorOffset] ?? 0;
-    vertexBuffer[vertexOffset + 3] = textTextureCoordinates[vectorOffset + 1] ?? 0;
+    vertexBuffer[vertexOffset + 2] = textureCoordinates[vectorOffset] ?? 0;
+    vertexBuffer[vertexOffset + 3] = textureCoordinates[vectorOffset + 1] ?? 0;
   }
+}
+
+function spriteFrameTextureCoordinates(
+  spriteFrame: SpriteFrame,
+): readonly number[] {
+  const uv = spriteFrame.uv;
+  return [
+    uv[0] ?? 0, uv[1] ?? 0,
+    uv[4] ?? 0, uv[5] ?? 0,
+    uv[6] ?? 0, uv[7] ?? 0,
+    uv[2] ?? 0, uv[3] ?? 0,
+  ];
 }
 
 function normalizeRadii(
@@ -585,13 +854,13 @@ function updateModelBounds(
   model.updateWorldBound();
 }
 
-function updateTextModelBounds(
+function updateTextureModelBounds(
   model: renderer.scene.Model,
-  paintText: CuePaintText,
+  paintTexture: Pick<CuePaintText, 'height' | 'width' | 'x' | 'y'>,
 ): void {
   model.createBoundingShape(
-    new Vec3(paintText.x, paintText.y - paintText.height, 0),
-    new Vec3(paintText.x + paintText.width, paintText.y, 0),
+    new Vec3(paintTexture.x, paintTexture.y - paintTexture.height, 0),
+    new Vec3(paintTexture.x + paintTexture.width, paintTexture.y, 0),
   );
   model.updateWorldBound();
 }
@@ -610,18 +879,24 @@ function loadCueRoundedRectEffect(): Promise<EffectAsset> {
   return cueRoundedRectEffect;
 }
 
-function loadCueTextEffect(): Promise<EffectAsset> {
-  if (cueTextEffect instanceof EffectAsset) {
-    return Promise.resolve(cueTextEffect);
+function loadCueTextureEffect(): Promise<EffectAsset> {
+  if (cueTextureEffect instanceof EffectAsset) {
+    return Promise.resolve(cueTextureEffect);
   }
-  if (cueTextEffect) {
-    return cueTextEffect;
+  if (cueTextureEffect) {
+    return cueTextureEffect;
   }
-  cueTextEffect = loadAsset<EffectAsset>(cueTextEffectUuid).then((effect) => {
-    cueTextEffect = effect;
+  cueTextureEffect = loadAsset<EffectAsset>(cueTextureEffectUuid).then((effect) => {
+    cueTextureEffect = effect;
     return effect;
   });
-  return cueTextEffect;
+  return cueTextureEffect;
+}
+
+function isUuidImageSource(source: string): boolean {
+  return source.startsWith('uuid:')
+    && source.length > 'uuid:'.length
+    && !/\s/u.test(source.slice('uuid:'.length));
 }
 
 function loadAsset<TAsset extends Asset>(uuid: string): Promise<TAsset> {
