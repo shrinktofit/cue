@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { defineComponent, h, ref } from '@bsgames/cue';
+import { defineComponent, h, Length, ref, shallowRef, watchEffect, type CueElement } from '@bsgames/cue';
 
 const count = ref(1);
+const panel = shallowRef<CueElement>();
+watchEffect(() => {
+  if (panel.value) {
+    panel.value.style.width = Length.percent(count.value * 25);
+    panel.value.style.fontWeight = count.value === 1 ? 400 : 700;
+  }
+});
 const items = ref([
   'first',
   'second',
@@ -21,7 +28,7 @@ defineExpose({
 </script>
 
 <template>
-  <div>
+  <div ref="panel" style="height: 120px; background-color: #123456;">
     <counter-display :value="count">
       {{ count }}
     </counter-display>

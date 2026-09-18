@@ -1,0 +1,152 @@
+/// text-weight-stroke.cue.js
+
+import component from "./text-weight-stroke.cue.script.js";
+import { render } from "./text-weight-stroke.cue.template.js";
+import styleSheet from "./text-weight-stroke.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/text-weight-stroke.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// text-weight-stroke.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// text-weight-stroke.cue.template.js
+
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "body" }, [
+    _createElementVNode("div", { class: "title" }, "Player profile"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "value" }, "Level 24"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "outlined" }, "Outlined text"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "transparent" }, "Transparent stroke"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "named" }, "Named stroke color")
+  ]))
+}
+
+/// text-weight-stroke.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "fontWeight": 400,
+        "cueTextStrokeWidth": 0,
+        "cueTextStrokeColor": "currentColor"
+      },
+      "selectors": [
+        [
+          "body"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "fontWeight": 700,
+        "cueTextStrokeWidth": 2,
+        "cueTextStrokeColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        }
+      },
+      "selectors": [
+        [
+          "title"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "fontWeight": 650.5,
+        "cueTextStrokeWidth": 1.5,
+        "cueTextStrokeColor": {
+          "alpha": 0.501960813999176,
+          "blue": 30,
+          "green": 20,
+          "red": 10
+        }
+      },
+      "selectors": [
+        [
+          "value"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "cueTextStrokeWidth": 3,
+        "cueTextStrokeColor": "currentColor"
+      },
+      "selectors": [
+        [
+          "outlined"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "cueTextStrokeWidth": 2,
+        "cueTextStrokeColor": {
+          "alpha": 0,
+          "blue": 0,
+          "green": 0,
+          "red": 0
+        }
+      },
+      "selectors": [
+        [
+          "transparent"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "cueTextStrokeColor": {
+          "alpha": 1,
+          "blue": 153,
+          "green": 51,
+          "red": 102
+        }
+      },
+      "selectors": [
+        [
+          "named"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "fontWeight": 1
+      },
+      "selectors": [
+        [
+          "minimum"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "fontWeight": 1000
+      },
+      "selectors": [
+        [
+          "maximum"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

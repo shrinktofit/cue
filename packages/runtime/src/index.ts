@@ -15,4 +15,28 @@ export { globalElementRegistry } from './element/global-element-registry.js';
 export { Text } from './element/text.js';
 export { createCueRenderer } from './vue/create-cue-renderer.js';
 
+export { type CueStyle } from './style/cue-style.js';
+export { Length, LengthUnit } from './style/length.js';
+export {
+  CueAlignContent,
+  CueAlignItems,
+  CueAlignSelf,
+  CueBorderStyle,
+  CueBoxSizing,
+  CueColorKeyword,
+  CueDimensionKeyword,
+  CueDisplay,
+  CueFlexDirection,
+  CueFlexWrap,
+  CueJustifyContent,
+  CueLineHeightKeyword,
+  CueMaxDimensionKeyword,
+  CueOverflow,
+  CuePosition,
+  CueTextAlign,
+  CueWhiteSpace,
+  type CueColor,
+  type CueColorValue,
+} from '@bsgames/cue-style-schema';
+
 export {};

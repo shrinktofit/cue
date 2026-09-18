@@ -46,6 +46,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
 - Box/Flex 只覆盖无 intrinsic measurement 的 box-level 子集；尚无几何断言矩阵、完整文本/inline 语义和 Grid。
 - Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
+- 本轮 Position / Style API / TTF 描边与 `game-ui-showcase/player-profile` 的交付状态见 implementation-status；后续仍需 production / Native、长期资源释放和视觉回归 Gate。功能计划的完成项待用户确认后再移除。
 
 ### 2.3 从早期 Cue 实现保留与舍弃的内容
 
@@ -77,6 +78,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 使用标准 Web CSS 名称与尽可能一致的语义，不创建平行的私有样式词汇。
 - Taffy 负责 Block/Flex/Grid；inline layout 由 Cue 自己负责。
 - CSS parser/compiler 仅在开发和构建阶段存在；runtime 自己执行 cascade、inheritance、variables、computed values 和 invalidation。
+- 运行时动态样式通过 `CueElement.style` 类型化 API 修改；状态切换使用预编译 class。静态 style attribute 在编译期生成 IR，不支持运行时解析 CSS 字符串或 Vue `:style`。
 - 普通圆角、边框、outline、gradient 走参数化 GPU 绘制。
 - 对外只提供 Pointer Events 作为鼠标/触控/笔的统一模型；键盘、IME、focus、wheel 独立保留。
 - UI 动画以 transition、keyframes 和 `element.animate()` 为入口，不让 Cocos Tween 直接写 computed style。

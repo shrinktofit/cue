@@ -1,6 +1,6 @@
 # Cue Implementation Status
 
-更新日期：2026-09-17
+更新日期：2026-09-18
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
@@ -72,8 +72,11 @@
 | Universal / attribute selector | ❌ | 尚未实现 |
 | Descendant / child / sibling combinator | ❌ | 尚未实现 |
 | Pseudo-class / pseudo-element | ❌ | 尚未实现 |
-| Inline `style` attribute | ❌ | renderer 会保存 property，但 cascade 不消费它 |
-| Inheritance | ❌ | 尚未实现 |
+| 静态 `style` attribute | ✅[^inline-style] | 编译期 Lightning CSS → IR，保留 normal / important |
+| `CueElement.style` 类型化 API | ✅[^style-api] | px / %、结构化颜色、font-family 名称、longhand enum；修改与移除 |
+| 动态 CSS 字符串 / Vue `:style` | ❌ | 明确不支持；使用类型化 API 或动态 class，不引入 runtime parser |
+| 已支持文本属性的继承 | ✅ | color、font、line-height、text-align、white-space 与 Cue text stroke |
+| 通用属性继承 / CSS-wide keywords | ❌ | 尚未实现完整 CSS 继承模型 |
 | `initial` / `inherit` / `unset` / `revert` | ❌ | 尚未实现 |
 | Custom properties 与 `var()` | ❌ | 尚未实现 |
 | Cascade layers | ❌ | 尚未实现 |
@@ -105,7 +108,9 @@
 | `em` / `rem` / viewport 等长度单位 | ❌ | 尚未实现 |
 | `calc()` / `min()` / `max()` / `clamp()` | ❌ | 尚未实现 |
 | Intrinsic size keywords | ❌ | `min-content`、`max-content`、`fit-content` 尚未实现为用户样式 |
-| `position` / inset | ❌ | 尚未实现 |
+| `position: static / relative / absolute` | ✅[^position] | 相对偏移、脱离文档流、最近 positioned / transformed containing block |
+| `top` / `right` / `bottom` / `left` / `inset` | ✅[^position] | px、%、auto，包含负偏移 |
+| `position: fixed / sticky`、logical inset | ❌ | 尚未实现 |
 | `overflow` | ✅[^clip] | 等轴 `visible`、`hidden`、`clip` |
 | Scrolling | ❌ | `overflow: hidden` 尚不提供程序化滚动，`auto` / `scroll` 尚未实现 |
 | `aspect-ratio` | ❌ | 尚未实现 |
@@ -115,7 +120,7 @@
 | CSS 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
 | `color` | ✅[^text-raster] | RGB 颜色及 alpha；按标准继承 |
-| `font-family` | ✅[^text-raster] | 标准 fallback list；字体须已由运行平台注册 |
+| `font-family` | ✅[^text-raster] | 标准 fallback list；可由 `loadCueFont(TTFFont / UUID)` 加载项目 TTF |
 | `font-size` | ✅[^text-raster] | `px`；按标准继承 |
 | `line-height` | ✅[^text-raster] | `normal` 与 `px`；按标准继承 |
 | `text-align` | ✅[^text-align] | `start`、`end`、`left`、`right`、`center`；按标准继承 |
@@ -124,7 +129,10 @@
 | 显式 segment break | ✅[^text-wrap] | 在 `pre`、`pre-wrap`、`pre-line` 中保留；在 `normal`、`nowrap` 中折叠 |
 | `white-space: break-spaces` | ❌ | 尚未实现 preserved-space 的逐空格换行与行尾占位语义 |
 | `overflow-wrap` / `word-break` / `line-break` / `hyphens` | ❌ | 当前使用这些属性的标准初始行为，不接受非初始值 |
-| `font-weight` / `font-style` | ❌ | 尚未进入 Style IR |
+| `font-weight: normal / bold / 1..1000` | ✅[^text-raster] | 测量与绘制使用相同 weight；按标准继承 |
+| `font-weight: bolder / lighter`、`font-style` | ❌ | 尚未实现 |
+| `-cue-text-stroke` / `-cue-text-stroke-width` / `-cue-text-stroke-color` | ✅[^text-stroke] | Cue 专有描边，不伪装成标准 text-shadow |
+| `@font-face` / URL 字体加载 | ❌ | 当前通过 Cocos TTFFont asset + `loadCueFont` 加载 |
 | `text-align: justify` / `justify-all` | ❌ | 依赖尚未实现的 inline formatting 与空白分配 |
 | 字距与词距 | ❌ | `letter-spacing`、`word-spacing` 尚未实现 |
 | 完整 shaping / bidi / fallback diagnostics | ❌ | 当前委托 Canvas 2D，不声明跨平台一致性 |
@@ -162,7 +170,7 @@
 | Last baseline / self-start / self-end | ❌ | 尚未进入 Style IR |
 | `direction`、writing modes 与 RTL | ❌ | 主轴只按当前物理坐标计算 |
 | Anonymous text flex items | ❌ | `Text` 不进入布局树 |
-| Absolutely positioned flex children | ❌ | `position` 尚未实现 |
+| Absolutely positioned flex children | ✅[^position] | 不参与 flex 占位；auto inset 使用原 formatting context 的 static position |
 | Collapsed flex items（`visibility: collapse`） | ❌ | `visibility` 尚未实现 |
 | CSS Flexbox conformance test suite | ❌ | 当前只有 compiler fixture 和可视化 playground，没有几何断言矩阵 |
 
@@ -204,8 +212,8 @@
 | CSS 2D transform | ✅[^transform] | 作用于元素及其后代，不改变 layout |
 | `-cue-opacity` | ✅[^cue-opacity] | 0～1，祖先与子元素的值累乘后分别作用于绘制图元 |
 | Web CSS `opacity` / group compositing | ❌ | 标准属性会报错；尚无离屏子树合成 |
-| Flex item `z-index` paint order | ✅[^z-index] | 直接 flex item 按整数层级稳定排序 |
-| 完整 CSS stacking context | ❌ | 尚未实现 auto ancestor 穿透、positioned elements 等完整规则 |
+| Positioned sibling / Flex item `z-index` paint order | ✅[^z-index] | 同父级按负层级、normal flow、positioned auto/0、正层级绘制 |
+| 完整 CSS stacking context | ❌ | 尚未实现跨 subtree 的 positioned descendants / auto ancestor 排序 |
 | 整文本块 texture paint | ✅[^text-raster] | 每个纯文本元素一张纹理和一个 quad |
 | Glyph atlas / SDF text | ❌ | 当前阶段明确不引入 |
 | SpriteFrame image paint | ✅[^cue-image] | 每个 `cue-image` 使用 SpriteFrame texture / UV 绘制一个 quad |
@@ -246,6 +254,9 @@
 | Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
 | Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸与显式拉伸 |
 | Decoration playground 可视化验收 | ✅[^decoration-gallery] | 独立页面组合验收 border、radius、outline、shadow、background、overflow、transform 与 `-cue-opacity` |
+| Position playground | ✅ | 独立页面验证 relative、absolute、四边偏移与定位祖先 |
+| Style API playground | ✅ | 独立页面验证类型化进度/颜色更新、优先级与清除覆盖 |
+| Game UI Showcase | ✅ | 独立 Cocos 项目，case registry + tabs；首个 `player-profile` case |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
 | Production Web smoke | ❌ | 尚未形成发布 Gate |
@@ -254,6 +265,14 @@
 | Performance / bundle-size baseline | ❌ | 尚未建立可重复测量 |
 
 ## 已知 CSS 差异脚注
+
+[^inline-style]: 静态 attribute 仅在编译期使用 Lightning CSS；inline normal 高于 stylesheet normal、低于 stylesheet important，inline important 高于 stylesheet important。支持范围同静态 stylesheet，没有 runtime CSS parser。
+
+[^style-api]: `CueElement.style` 是类型化 longhand API，不是 CSS 文本接口。长度用 px 数值 / `Length.px` / `Length.percent`，保留属性合法的 keyword；只支持 px 的字段不接受百分比。`lineHeight` 不接收无单位 number，防止把 CSS 倍数当作 px。API 值覆盖静态 normal，不覆盖静态 important；赋 undefined 移除覆盖。动态资源仅接受已规范化 UUID，CSS variables 与完整 CSS-wide keywords 未实现。详见 [Style API and fonts](style-bindings-and-fonts.md)。
+
+[^position]: 仅支持当前 LTR Block/Flex 子集，绝对定位的百分比以 containing block 的 padding box 为基准；relative 只改变自身及子树的绘制位置，不改变后续兄弟的流内占位。绝对定位寻找最近非 static 或带 transform 的祖先；无此祖先时使用 CueDocument 的 UITransform 尺寸（纯 runtime 调用可传 viewport）。完整 CSS stacking context、fixed / sticky、writing modes 尚未实现。
+
+[^text-stroke]: 这是 Cue 自有扩展，三个属性均继承。`-cue-text-stroke` 接受非负 px 宽度及支持的 CSS 颜色；省略宽度重置为 0，省略颜色重置为 currentColor。采用 Canvas 的居中圆角 stroke 后 fill；纹理会为笔画/描边外溢扩边，layout advance 与 line-height 不随描边变大。它不是 CSS text-shadow，也不提供外侧-only 描边。
 
 [^display]: Cue 当前只实现 block-level `display: block` 与 `display: flex`。标准 CSS 的初始值 `inline`、`inline-flex`、`none`、list-item、table 等 display 类型尚未支持；block layout 也尚无 inline formatting、float、margin collapsing 等完整浏览器语义。非 `div` 元素若未显式声明已支持的 display，会在布局阶段报错。
 
@@ -299,6 +318,6 @@
 
 [^cue-opacity]: 这是经明确选择的 Cue 专有属性，不是 Web CSS `opacity` 的别名。它不继承，但渲染时将祖先与当前元素的 `-cue-opacity` 数值累乘，并分别调整背景、边框、outline、阴影、图片与文字图元的 alpha；子元素重叠处会透出下层，行为接近 Unity UI Toolkit USS opacity。标准 CSS `opacity` 对子树整体合成，Cue 尚未实现，所有值都会产生 compiler error。
 
-[^z-index]: 当前只实现 `display: flex` 容器的直接 item 排序，`auto` 按标准当前层级处理，整数值稳定排序。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
+[^z-index]: 当前实现同父级 positioned elements 与直接 flex items 的绘制顺序：负整数层级在 normal flow 前；positioned `auto` / `0` 和显式 `z-index: 0` 的 flex item 在 normal flow 后；正整数层级最后绘制，同层保持原有顺序。非 flex 的 static 元素不应用 `z-index`。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
 
 [^decoration-gallery]: Decoration playground 位于独立 examples 仓库，以 Cocos UI 作为控制面，编译产物写入 ignored 目录；它用于人工视觉验收，不等同于像素级 conformance suite。

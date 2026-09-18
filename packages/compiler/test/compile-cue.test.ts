@@ -14,6 +14,7 @@ const fixtureNames = (await readdir(fixturesDirectory, {
 
 interface CompileFixtureOptions extends CompileCueOptions {
   backgroundImageSources?: Record<string, string>;
+  expectedOk?: boolean;
 }
 
 describe('compileCue', () => {
@@ -22,7 +23,7 @@ describe('compileCue', () => {
       /// @case
       /// A compiler fixture supplies Cue source and JSON-serializable compiler options.
       /// @expect
-      /// Compilation succeeds and its complete generated JavaScript files match the file snapshot.
+      /// Compilation matches the expected outcome and snapshots every generated file or diagnostic.
       const fixtureDirectory = join(fixturesDirectory, fixtureName);
       const [source, optionsSource] = await Promise.all([
         readFile(join(fixtureDirectory, 'code.vue'), 'utf8'),
@@ -31,6 +32,7 @@ describe('compileCue', () => {
       const fixtureOptions = JSON.parse(optionsSource) as CompileFixtureOptions;
       const {
         backgroundImageSources,
+        expectedOk = true,
         ...options
       } = fixtureOptions;
       const result = compileCue(source, {
@@ -53,8 +55,13 @@ describe('compileCue', () => {
           : {}),
       });
 
-      expect(result.ok).toBe(true);
+      expect(result.ok).toBe(expectedOk);
       if (!result.ok) {
+        const output = result.errors
+          .map((error, index) => `/// error ${index + 1}\n\n${typeof error === 'string' ? error : error.message}`)
+          .join('\n\n');
+        await expect(output)
+          .toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
         return;
       }
       expect(result.files.length).toBeGreaterThan(1);
@@ -107,6 +114,26 @@ describe('compileCue', () => {
     expect(templateFile?.code).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
     expect(templateFile?.code).not.toContain('./icon.png');
     expect(templateFile?.code).not.toContain('_resolveComponent("cue-image")');
+  });
+
+  it('locates dynamic style diagnostics at the original attribute', () => {
+    /// @case
+    /// A template binds a JavaScript style object to an element on the second source line.
+    /// @expect
+    /// Compilation rejects the unsupported binding and retains its source line and attribute text.
+    const result = compileCue('<template>\n  <div :style="appearance" />\n</template>', {
+      filename: '/project/ui/card.cue',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.errors[0]).toMatchObject({
+      loc: {
+        source: ':style="appearance"',
+        start: { column: 8, line: 2 },
+      },
+    });
   });
 
   it('rejects a cue-image source outside the supported source schemes', () => {

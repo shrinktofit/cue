@@ -111,7 +111,21 @@ export enum CueOverflow {
   visible = 'visible',
 }
 
+export enum CuePosition {
+  static = 'static',
+  relative = 'relative',
+  absolute = 'absolute',
+}
+
 export enum CueStyleProperty {
+  position = 'position',
+  top = 'top',
+  right = 'right',
+  bottom = 'bottom',
+  left = 'left',
+  fontWeight = 'fontWeight',
+  cueTextStrokeWidth = 'cueTextStrokeWidth',
+  cueTextStrokeColor = 'cueTextStrokeColor',
   alignContent = 'alignContent',
   alignItems = 'alignItems',
   alignSelf = 'alignSelf',
@@ -235,6 +249,14 @@ export type CueLineHeight = number | CueLineHeightKeyword;
 export type CueCornerRadius = readonly [CueLengthPercentage, CueLengthPercentage];
 
 export interface CueStyleDeclarations {
+  [CueStyleProperty.position]?: CuePosition;
+  [CueStyleProperty.top]?: CueDimension;
+  [CueStyleProperty.right]?: CueDimension;
+  [CueStyleProperty.bottom]?: CueDimension;
+  [CueStyleProperty.left]?: CueDimension;
+  [CueStyleProperty.fontWeight]?: number;
+  [CueStyleProperty.cueTextStrokeWidth]?: number;
+  [CueStyleProperty.cueTextStrokeColor]?: CueColorValue;
   [CueStyleProperty.alignContent]?: CueAlignContent;
   [CueStyleProperty.alignItems]?: CueAlignItems;
   [CueStyleProperty.alignSelf]?: CueAlignSelf;

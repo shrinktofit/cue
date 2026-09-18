@@ -10,6 +10,7 @@ import {
   CueJustifyContent,
   CueMaxDimensionKeyword,
   CueOverflow,
+  CuePosition,
   CueTextAlign,
   type CueColor,
   type CueDimension,
@@ -28,6 +29,7 @@ import initializeTaffy, {
   FlexDirection,
   FlexWrap,
   JustifyContent,
+  Position,
   Style,
   TaffyTree,
   type Dimension,
@@ -200,7 +202,12 @@ export interface CueTextMeasurer {
 interface CueLayoutRecord {
   children: CueLayoutRecord[];
   element: CueElement;
+  layoutChildren: bigint[];
+  layoutParent: CueLayoutRecord | undefined;
   node: bigint;
+  parent: CueLayoutRecord | undefined;
+  position: Point<number>;
+  staticPositionNode?: bigint;
   style: ComputedCueElementStyle;
   image?: SpriteFrame;
   text?: string;
@@ -223,6 +230,12 @@ type CueIntrinsicLayoutContext = CueImageLayoutContext | CueTextLayoutContext;
 enum CueIntrinsicContentKind {
   image = 'image',
   text = 'text',
+}
+
+enum StaticPositionAlignment {
+  start = 0,
+  center = 0.5,
+  end = 1,
 }
 
 const alignContentByCueValue: Record<CueAlignContent, AlignContent> = {
@@ -306,6 +319,7 @@ export function createCuePaintList(
   textMeasurer: CueTextMeasurer,
   imageSourceLookup: CueImageSourceLookup,
   backgroundSourceLookup: CueBackgroundSourceLookup,
+  viewport?: Size<number>,
 ): CuePaintList {
   if (!cueLayoutInitialized) {
     throw new Error('Cue layout must be initialized before computing a paint list.');
@@ -329,8 +343,7 @@ export function createCuePaintList(
         imageSourceLookup,
       )]
       : []);
-    children.sort((left, right) => left.style.order - right.style.order);
-    const rootStyle = new Style();
+    const rootStyle = new Style(viewport === undefined ? {} : { size: viewport });
     let rootNode: bigint;
     try {
       rootNode = tree.newWithChildren(
@@ -340,23 +353,119 @@ export function createCuePaintList(
     } finally {
       rootStyle.free();
     }
+    const layoutChildren = children.map((child) => child.node);
+    const absoluteRecords: CueLayoutRecord[] = [];
+    connectLayoutChildren(tree, children, undefined, undefined, layoutChildren, absoluteRecords);
+    tree.setChildren(rootNode, layoutChildren);
+    const availableSpace = viewport ?? {
+      height: 'max-content' as const,
+      width: 'max-content' as const,
+    };
+    const measureFunction = createMeasureFunction(textMeasurer);
     tree.computeLayoutWithMeasure(
       rootNode,
-      {
-        height: 'max-content',
-        width: 'max-content',
-      },
-      createMeasureFunction(textMeasurer),
+      availableSpace,
+      measureFunction,
     );
+    if (absoluteRecords.some((record) => record.staticPositionNode !== undefined)) {
+      updateStaticPositionPlaceholders(tree, absoluteRecords);
+      tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
+    }
+    updateLayoutPositions(tree, children);
+    for (const record of absoluteRecords) {
+      if (
+        record.style.width !== 'auto'
+        || (record.style.left !== 'auto' && record.style.right !== 'auto')
+      ) {
+        continue;
+      }
+      const layout = tree.getLayout(record.node);
+      const containingLayout = tree.getLayout(record.layoutParent?.node ?? rootNode);
+      const sizingStyle = createTaffyStyle(record.element, record.style);
+      try {
+        const containingWidth = containingLayout.width - containingLayout.borderLeft - containingLayout.borderRight;
+        const containingHeight = containingLayout.height - containingLayout.borderTop - containingLayout.borderBottom;
+        const alignment = staticHorizontalAlignment(record);
+        const anchor = record.position.x
+          + layout.width * alignment
+          - (record.layoutParent?.position.x ?? 0)
+          - containingLayout.borderLeft;
+        const remainingStart = anchor - layout.marginLeft;
+        const remainingEnd = containingWidth - anchor - layout.marginRight;
+        const availableWidth = Math.max(0,
+          record.style.left !== 'auto'
+            ? containingWidth - pixelLength(record.style.left, containingWidth) - layout.marginLeft - layout.marginRight
+            : record.style.right !== 'auto'
+              ? containingWidth - pixelLength(record.style.right, containingWidth) - layout.marginLeft - layout.marginRight
+              : alignment === StaticPositionAlignment.center
+                ? 2 * Math.min(remainingStart, remainingEnd)
+                : alignment === StaticPositionAlignment.end ? remainingStart : remainingEnd);
+        // Taffy's block absolute sizing does not subtract insets from available
+        // space. Measure this subtree with CSS shrink-to-fit space, retaining the
+        // real containing block as the basis for its percentage box properties.
+        sizingStyle.size = { height: pixelDimension(record.style.height, containingHeight), width: 'auto' };
+        sizingStyle.minSize = {
+          height: pixelDimension(record.style.minHeight, containingHeight),
+          width: pixelDimension(record.style.minWidth, containingWidth),
+        };
+        sizingStyle.maxSize = {
+          height: pixelDimension(record.style.maxHeight, containingHeight),
+          width: pixelDimension(record.style.maxWidth, containingWidth),
+        };
+        sizingStyle.padding = {
+          bottom: layout.paddingBottom,
+          left: layout.paddingLeft,
+          right: layout.paddingRight,
+          top: layout.paddingTop,
+        };
+        sizingStyle.margin = { bottom: 0, left: 0, right: 0, top: 0 };
+        sizingStyle.inset = { bottom: 'auto', left: 'auto', right: 'auto', top: 'auto' };
+        tree.setStyle(record.node, sizingStyle);
+        const measurementContainerStyle = new Style({
+          display: Display.Block,
+          size: { height: containingHeight, width: availableWidth },
+        });
+        const parentNode = record.layoutParent?.node ?? rootNode;
+        tree.removeChild(parentNode, record.node);
+        const measurementNode = tree.newWithChildren(measurementContainerStyle, [record.node]);
+        const finalStyle = createTaffyStyle(record.element, record.style);
+        try {
+          tree.computeLayoutWithMeasure(measurementNode, { height: containingHeight, width: availableWidth }, measureFunction);
+          const intrinsicLayout = tree.getLayout(record.node);
+          try {
+            finalStyle.width = record.style.boxSizing === CueBoxSizing.borderBox
+              ? intrinsicLayout.width
+              : Math.max(0, intrinsicLayout.width
+              - intrinsicLayout.paddingLeft - intrinsicLayout.paddingRight
+              - intrinsicLayout.borderLeft - intrinsicLayout.borderRight);
+          } finally {
+            intrinsicLayout.free();
+          }
+          tree.removeChild(measurementNode, record.node);
+          tree.setChildren(parentNode, record.layoutParent?.layoutChildren ?? layoutChildren);
+          tree.setStyle(record.node, finalStyle);
+        } finally {
+          tree.remove(measurementNode);
+          measurementContainerStyle.free();
+          finalStyle.free();
+        }
+      } finally {
+        sizingStyle.free();
+        containingLayout.free();
+        layout.free();
+      }
+      tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
+      updateStaticPositionPlaceholders(tree, absoluteRecords);
+      tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
+      updateLayoutPositions(tree, children);
+    }
 
     const paintList: CuePaintList = {
       commands: [],
     };
     appendPaintCommands(
       tree,
-      children,
-      0,
-      0,
+      paintOrderedChildren(children, false),
       textMeasurer,
       backgroundSourceLookup,
       identityCueAffineTransform,
@@ -376,12 +485,16 @@ function createLayoutRecord(
   styleSheets: readonly CueStyleSheet[],
   inheritedTextStyle: ComputedCueTextStyle,
   imageSourceLookup: CueImageSourceLookup,
+  isFlexItem = false,
 ): CueLayoutRecord {
   const style = computeCueElementStyle(
     element,
     styleSheets,
     inheritedTextStyle,
   );
+  if (style.display === undefined && (style.position === CuePosition.absolute || isFlexItem)) {
+    style.display = CueDisplay.block;
+  }
   const elementChildren = element.children.filter(
     (node) => node instanceof CueElement,
   );
@@ -406,8 +519,11 @@ function createLayoutRecord(
     styleSheets,
     style,
     imageSourceLookup,
+    style.display === CueDisplay.flex,
   ));
-  children.sort((left, right) => left.style.order - right.style.order);
+  if (style.display === CueDisplay.flex) {
+    children.sort((left, right) => left.style.order - right.style.order);
+  }
   const text = !(element instanceof CueImageElement)
     && elementChildren.length === 0
     && directText.length > 0
@@ -443,11 +559,157 @@ function createLayoutRecord(
   return {
     children,
     element,
+    layoutChildren: children.map((child) => child.node),
+    layoutParent: undefined,
     node,
+    parent: undefined,
+    position: { x: 0, y: 0 },
     style,
     ...(image === undefined ? {} : { image }),
     ...(text === undefined ? {} : { text }),
   };
+}
+
+function connectLayoutChildren(
+  tree: TaffyTree,
+  children: readonly CueLayoutRecord[],
+  parent: CueLayoutRecord | undefined,
+  containingBlock: CueLayoutRecord | undefined,
+  rootChildren: bigint[],
+  absoluteRecords: CueLayoutRecord[],
+): void {
+  for (const record of children) {
+    record.parent = parent;
+    record.layoutParent = parent;
+    if (record.style.position === CuePosition.absolute) {
+      absoluteRecords.push(record);
+      record.layoutParent = containingBlock;
+      if (parent !== containingBlock) {
+        const parentChildren = parent?.layoutChildren ?? rootChildren;
+        const index = parentChildren.indexOf(record.node);
+        if (
+          (record.style.left === 'auto' && record.style.right === 'auto')
+          || (record.style.top === 'auto' && record.style.bottom === 'auto')
+        ) {
+          // A static-position placeholder must remain in the original formatting
+          // context even though the box is sized by a different containing block.
+          const placeholderStyle = new Style({ position: Position.Absolute });
+          try {
+            record.staticPositionNode = tree.newLeaf(placeholderStyle);
+          } finally {
+            placeholderStyle.free();
+          }
+          parentChildren.splice(index, 1, record.staticPositionNode);
+        } else {
+          parentChildren.splice(index, 1);
+        }
+        (containingBlock?.layoutChildren ?? rootChildren).push(record.node);
+      }
+    }
+    connectLayoutChildren(
+      tree,
+      record.children,
+      record,
+      record.style.position !== CuePosition.static || record.style.transform.length > 0
+        ? record
+        : containingBlock,
+      rootChildren,
+      absoluteRecords,
+    );
+    tree.setChildren(record.node, record.layoutChildren);
+  }
+}
+
+function updateLayoutPositions(
+  tree: TaffyTree,
+  records: readonly CueLayoutRecord[],
+): void {
+  for (const record of records) {
+    const layout = tree.getLayout(record.node);
+    try {
+      record.position = {
+        x: (record.layoutParent?.position.x ?? 0) + layout.x,
+        y: (record.layoutParent?.position.y ?? 0) + layout.y,
+      };
+    } finally {
+      layout.free();
+    }
+    if (record.staticPositionNode !== undefined) {
+      const staticLayout = tree.getLayout(record.staticPositionNode);
+      try {
+        if (record.style.left === 'auto' && record.style.right === 'auto') {
+          record.position.x = (record.parent?.position.x ?? 0) + staticLayout.x;
+        }
+        if (record.style.top === 'auto' && record.style.bottom === 'auto') {
+          record.position.y = (record.parent?.position.y ?? 0) + staticLayout.y;
+        }
+      } finally {
+        staticLayout.free();
+      }
+    }
+    updateLayoutPositions(tree, record.children);
+  }
+}
+
+function updateStaticPositionPlaceholders(
+  tree: TaffyTree,
+  records: readonly CueLayoutRecord[],
+): void {
+  for (const record of records) {
+    if (record.staticPositionNode === undefined) {
+      continue;
+    }
+    const layout = tree.getLayout(record.node);
+    const placeholderStyle = new Style({
+      alignSelf: alignSelfByCueValue[record.style.alignSelf ?? CueAlignSelf.auto],
+      boxSizing: BoxSizing.BorderBox,
+      margin: {
+        bottom: layout.marginBottom,
+        left: layout.marginLeft,
+        right: layout.marginRight,
+        top: layout.marginTop,
+      },
+      position: Position.Absolute,
+      size: layout.size as Size<number>,
+    });
+    try {
+      tree.setStyle(record.staticPositionNode, placeholderStyle);
+    } finally {
+      placeholderStyle.free();
+      layout.free();
+    }
+  }
+}
+
+function staticHorizontalAlignment(record: CueLayoutRecord): StaticPositionAlignment {
+  const parentStyle = record.parent?.style;
+  if (parentStyle?.display !== CueDisplay.flex) {
+    return StaticPositionAlignment.start;
+  }
+  const isRow = parentStyle.flexDirection === CueFlexDirection.row
+    || parentStyle.flexDirection === CueFlexDirection.rowReverse;
+  const reverse = isRow
+    ? parentStyle.flexDirection === CueFlexDirection.rowReverse
+    : parentStyle.flexWrap === CueFlexWrap.wrapReverse;
+  const alignment = isRow
+    ? parentStyle.justifyContent
+    : record.style.alignSelf === undefined || record.style.alignSelf === CueAlignSelf.auto
+      ? parentStyle.alignItems
+      : record.style.alignSelf;
+  switch (alignment) {
+  case CueJustifyContent.center:
+  case CueJustifyContent.spaceAround:
+  case CueJustifyContent.spaceEvenly:
+    return StaticPositionAlignment.center;
+  case CueJustifyContent.end:
+    return StaticPositionAlignment.end;
+  case CueJustifyContent.start:
+    return StaticPositionAlignment.start;
+  case CueJustifyContent.flexEnd:
+    return reverse ? StaticPositionAlignment.start : StaticPositionAlignment.end;
+  default:
+    return reverse ? StaticPositionAlignment.end : StaticPositionAlignment.start;
+  }
 }
 
 function imageForSource(
@@ -586,11 +848,20 @@ function createTaffyStyle(
       right: toTaffyLengthPercentage(style.paddingRight),
       top: toTaffyLengthPercentage(style.paddingTop),
     },
+    position: style.position === CuePosition.absolute ? Position.Absolute : Position.Relative,
     size: {
       height: toTaffyDimension(style.height),
       width: toTaffyDimension(style.width),
     },
   };
+  if (style.position !== CuePosition.static) {
+    properties.inset = {
+      bottom: style.bottom,
+      left: style.left,
+      right: style.right,
+      top: style.top,
+    };
+  }
   if (style.alignContent !== undefined) {
     properties.alignContent = alignContentByCueValue[style.alignContent];
   }
@@ -614,6 +885,10 @@ function toTaffyDimension(value: CueDimension): Dimension {
   return value;
 }
 
+function pixelDimension(value: CueDimension | CueMaxDimension, basis: number): Dimension {
+  return value === 'auto' || value === CueMaxDimensionKeyword.none ? 'auto' : pixelLength(value, basis);
+}
+
 function toTaffyMaxDimension(value: CueMaxDimension): Dimension {
   return value === CueMaxDimensionKeyword.none ? 'auto' : value;
 }
@@ -627,8 +902,6 @@ function toTaffyLengthPercentage(
 function appendPaintCommands(
   tree: TaffyTree,
   records: readonly CueLayoutRecord[],
-  parentX: number,
-  parentY: number,
   textMeasurer: CueTextMeasurer,
   backgroundSourceLookup: CueBackgroundSourceLookup,
   parentTransform: CueAffineTransform,
@@ -651,10 +924,9 @@ function appendPaintCommands(
     let contentWidth: number;
     let contentHeight: number;
     try {
-      const position = layout.position as Point<number>;
       const size = layout.size as Size<number>;
-      x = parentX + position.x;
-      y = parentY + position.y;
+      x = record.position.x;
+      y = record.position.y;
       width = size.width;
       height = size.height;
       contentX = x + layout.borderLeft + layout.paddingLeft;
@@ -979,11 +1251,7 @@ function appendPaintCommands(
     }
     appendPaintCommands(
       tree,
-      record.style.display === CueDisplay.flex
-        ? paintOrderedChildren(record.children)
-        : record.children,
-      x,
-      y,
+      paintOrderedChildren(record.children, record.style.display === CueDisplay.flex),
       textMeasurer,
       backgroundSourceLookup,
       transform,
@@ -1002,10 +1270,22 @@ function appendPaintCommands(
 
 function paintOrderedChildren(
   children: readonly CueLayoutRecord[],
+  isFlexContainer: boolean,
 ): CueLayoutRecord[] {
-  return [...children].sort((left, right) => (
-    numericZIndex(left.style.zIndex) - numericZIndex(right.style.zIndex)
-  ));
+  return [...children].sort((left, right) => {
+    const leftPositioned = left.style.position !== CuePosition.static;
+    const rightPositioned = right.style.position !== CuePosition.static;
+    const leftZIndex = numericZIndex(isFlexContainer || leftPositioned ? left.style.zIndex : 'auto');
+    const rightZIndex = numericZIndex(isFlexContainer || rightPositioned ? right.style.zIndex : 'auto');
+    if (leftZIndex !== rightZIndex || leftZIndex !== 0) {
+      return leftZIndex - rightZIndex;
+    }
+    // Normal-flow boxes paint before positioned auto/zero boxes. A flex item's
+    // explicit z-index:0 also establishes the zero-level stacking phase.
+    const leftZeroLevel = leftPositioned || (isFlexContainer && left.style.zIndex !== 'auto');
+    const rightZeroLevel = rightPositioned || (isFlexContainer && right.style.zIndex !== 'auto');
+    return Number(leftZeroLevel) - Number(rightZeroLevel);
+  });
 }
 
 function numericZIndex(value: number | 'auto'): number {

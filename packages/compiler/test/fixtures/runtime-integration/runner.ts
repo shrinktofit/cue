@@ -4,6 +4,7 @@ import {
   CueRootElement,
   createCueRenderer,
   globalElementRegistry,
+  Length,
   nextTick,
   Text,
   type CueNode,
@@ -44,6 +45,7 @@ export async function runVerticalSlice() {
   const exposed = app.mount(root) as unknown as {
     advance(): void;
   };
+  await nextTick();
   const container = root.children[0];
   if (!(container instanceof CueElement)) {
     throw new TypeError('Expected the compiled component to render a CueElement container.');
@@ -58,6 +60,8 @@ export async function runVerticalSlice() {
   const firstElement = findDirectElement(container, 'first');
   const secondElement = findDirectElement(container, 'second');
   const initialText = collectText(container);
+  const initialWidthMatches = JSON.stringify(container.style.width) === JSON.stringify(Length.percent(25));
+  const initialFontWeight = container.style.fontWeight;
 
   exposed.advance();
   await nextTick();
@@ -71,11 +75,15 @@ export async function runVerticalSlice() {
     containerPreserved: updatedContainer === container,
     customElementPreserved: updatedContainer.children.includes(customElement),
     initialText,
+    initialWidthMatches,
+    initialFontWeight,
     keyedElementsPreserved: (
       findDirectElement(updatedContainer, 'first') === firstElement
       && findDirectElement(updatedContainer, 'second') === secondElement
     ),
     updatedText: collectText(updatedContainer),
+    updatedWidthMatches: JSON.stringify(updatedContainer.style.width) === JSON.stringify(Length.percent(50)),
+    updatedFontWeight: updatedContainer.style.fontWeight,
     rootIsEmptyAfterUnmount: false,
   };
 

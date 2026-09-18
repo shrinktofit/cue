@@ -1,0 +1,108 @@
+/// position-inset.cue.js
+
+import component from "./position-inset.cue.script.js";
+import { render } from "./position-inset.cue.template.js";
+import styleSheet from "./position-inset.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/position-inset.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// position-inset.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// position-inset.cue.template.js
+
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "container" }, [
+    _createElementVNode("div", { class: "absolute" }, "Pinned overlay"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "inset" }, "Inset shorthand"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "relative" }, "Relative offset"),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "static" }, "Normal flow")
+  ]))
+}
+
+/// position-inset.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "position": "relative",
+        "width": 320,
+        "height": 180
+      },
+      "selectors": [
+        [
+          "container"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "position": "absolute",
+        "top": 5,
+        "right": "6%",
+        "bottom": 0,
+        "left": "auto"
+      },
+      "selectors": [
+        [
+          "absolute"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "position": "absolute",
+        "top": "10%",
+        "right": 12,
+        "bottom": "auto",
+        "left": -4
+      },
+      "selectors": [
+        [
+          "inset"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "position": "relative",
+        "top": -12,
+        "left": "25%"
+      },
+      "selectors": [
+        [
+          "relative"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "position": "static",
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "selectors": [
+        [
+          "static"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

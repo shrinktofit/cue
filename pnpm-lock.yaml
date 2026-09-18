@@ -83,7 +83,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
 
   packages/compiler:
     dependencies:
@@ -96,6 +96,9 @@ importers:
       '@vue/compiler-sfc':
         specifier: ^3.5.42
         version: 3.5.42
+      color-name:
+        specifier: ^2.1.1
+        version: 2.1.1
       lightningcss:
         specifier: ^1.33.0
         version: 1.33.0
@@ -106,6 +109,9 @@ importers:
       '@bsgames/cue-workflow':
         specifier: workspace:*
         version: link:../workflow
+      '@types/color-name':
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5
@@ -114,7 +120,7 @@ importers:
         version: 8.2.2(@types/node@25.9.5)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
 
   packages/extension:
     dependencies:
@@ -151,7 +157,7 @@ importers:
         version: 8.2.2(@types/node@25.9.5)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
       vue:
         specifier: ^3.5.42
         version: 3.5.42(typescript@6.0.3)
@@ -179,7 +185,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
@@ -216,7 +222,7 @@ importers:
         version: 8.2.2(@types/node@25.9.5)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
 
   packages/style-schema:
     devDependencies:
@@ -228,7 +234,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5))
+        version: 4.1.11(@types/node@25.9.5)
 
   packages/workflow:
     devDependencies:
@@ -494,6 +500,9 @@ packages:
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
+
+  '@types/color-name@2.0.0':
+    resolution: {integrity: sha512-63mTjolMJv75upGaUbT6J3lRDWl6pETPQsaWni9w3dMArhNBpgtHkX8ISb9zLV3YYLPA/SMk8ZGALa3k9WY/aQ==}
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
@@ -1462,7 +1471,6 @@ packages:
       '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -1760,6 +1768,8 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
+
+  '@types/color-name@2.0.0': {}
 
   '@types/deep-eql@4.0.2': {}
 
@@ -2672,7 +2682,7 @@ snapshots:
       '@types/node': 25.9.5
       fsevents: 2.3.3
 
-  vitest@4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)):
+  vitest@4.1.11(@types/node@25.9.5):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@25.9.5))
@@ -2697,7 +2707,18 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.9.5
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   vscode-uri@3.2.0: {}
 

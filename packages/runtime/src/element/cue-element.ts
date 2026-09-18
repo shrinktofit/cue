@@ -1,4 +1,5 @@
 import { CueNode } from './cue-node.js';
+import type { CueStyle } from '../style/cue-style.js';
 
 export let getCueElementProperties: (
   element: CueElement,
@@ -15,6 +16,8 @@ export abstract class CueElement extends CueNode {
   constructor(readonly tagName: string) {
     super();
   }
+
+  readonly style: CueStyle = {};
 
   get children(): readonly CueNode[] {
     return this.#children;
@@ -76,6 +79,9 @@ export abstract class CueElement extends CueNode {
   static {
     getCueElementProperties = (element) => element.#properties;
     patchCueElementProperty = (element, name, previousValue, nextValue) => {
+      if (name === 'style' && nextValue !== undefined && nextValue !== null) {
+        throw new TypeError('Runtime CSS style bindings are unsupported. Use the typed CueElement.style API.');
+      }
       if (previousValue === nextValue) {
         return;
       }

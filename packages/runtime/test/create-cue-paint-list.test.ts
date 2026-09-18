@@ -1,6 +1,7 @@
 import {
   CueDisplay,
   CueOverflow,
+  CuePosition,
   cueStyleSchemaVersion,
   type CueColor,
   type CueStyleSheet,
@@ -99,6 +100,80 @@ beforeAll(async () => {
 });
 
 describe('createCuePaintList', () => {
+  test.each([
+    { display: CueDisplay.block, position: CuePosition.relative },
+    { display: CueDisplay.block, position: CuePosition.absolute },
+    { display: CueDisplay.flex, position: CuePosition.relative },
+    { display: CueDisplay.flex, position: CuePosition.absolute },
+  ])('paints $position auto-level siblings after $display normal flow', ({ display, position }) => {
+    /// @case
+    /// A positioned box precedes a normal-flow box and overlaps its layout area.
+    /// @expect
+    /// The normal-flow box paints first; relative and absolute auto-level boxes remain on top.
+    const root = new CueRootElement();
+    const container = elementWithClass('container');
+    container.insertBefore(elementWithClass('positioned'));
+    container.insertBefore(elementWithClass('normal'));
+    root.insertBefore(container);
+
+    const paintList = createCuePaintList(root, [{
+      rules: [
+        { declarations: { display, height: 100, position: CuePosition.relative, width: 200 }, selectors: [['container']] },
+        { declarations: { backgroundColor: red, height: 40, left: 20, position, top: 20, width: 40 }, selectors: [['positioned']] },
+        { declarations: { backgroundColor: blue, height: 40, width: 40 }, selectors: [['normal']] },
+      ],
+      version: cueStyleSchemaVersion,
+    }], textMeasurer, () => undefined, () => undefined);
+
+    expect(paintList.commands.flatMap((command) => command.kind === CuePaintCommandKind.rect
+      ? [command.paint.color]
+      : [])).toEqual([blue, red]);
+  });
+
+  test.each([CueDisplay.block, CueDisplay.flex])('orders %s siblings by CSS paint phase and stable integer z-index', (display) => {
+    /// @case
+    /// Mix negative, normal, auto, zero and positive levels, with a static box declaring z-index:0.
+    /// @expect
+    /// Normal flow precedes positioned zero levels; static z-index participates only for flex items.
+    const root = new CueRootElement();
+    const container = elementWithClass('container');
+    const cases = [
+      { color: 1, name: 'positive-high', position: CuePosition.relative, zIndex: 3 },
+      { color: 2, name: 'positioned-auto', position: CuePosition.relative, zIndex: 'auto' as const },
+      { color: 3, name: 'static-zero', position: CuePosition.static, zIndex: 0 },
+      { color: 4, name: 'normal', position: CuePosition.static, zIndex: 'auto' as const },
+      { color: 5, name: 'negative', position: CuePosition.relative, zIndex: -1 },
+      { color: 6, name: 'positioned-zero', position: CuePosition.absolute, zIndex: 0 },
+      { color: 7, name: 'positive-low', position: CuePosition.relative, zIndex: 1 },
+    ];
+    for (const entry of cases) {
+      container.insertBefore(elementWithClass(entry.name));
+    }
+    root.insertBefore(container);
+    const paintList = createCuePaintList(root, [{
+      rules: [
+        { declarations: { display, height: 100, position: CuePosition.relative, width: 500 }, selectors: [['container']] },
+        ...cases.map((entry) => ({
+          declarations: {
+            backgroundColor: { alpha: 1, blue: 0, green: 0, red: entry.color },
+            height: 20,
+            position: entry.position,
+            width: 20,
+            zIndex: entry.zIndex,
+          },
+          selectors: [[entry.name]],
+        })),
+      ],
+      version: cueStyleSchemaVersion,
+    }], textMeasurer, () => undefined, () => undefined);
+
+    expect(paintList.commands.flatMap((command) => command.kind === CuePaintCommandKind.rect
+      ? [command.paint.color.red]
+      : [])).toEqual(display === CueDisplay.flex
+      ? [5, 4, 2, 3, 6, 7, 1]
+      : [5, 3, 4, 2, 6, 7, 1]);
+  });
+
   test('clips descendants, applies flex-item z-index order, and skips zero Cue-opacity subtrees', () => {
     const root = new CueRootElement();
     const container = elementWithClass('container');

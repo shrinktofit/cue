@@ -11,11 +11,18 @@ export default Object.assign(component, {
 /// runtime-integration.cue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
-import { defineComponent, h, ref } from '@bsgames/cue';
+import { defineComponent, h, Length, ref, shallowRef, watchEffect } from '@bsgames/cue';
 const __sfc__ = /*@__PURE__*/ _defineComponent({
     __name: 'runtime-integration',
     setup(__props, { expose: __expose }) {
         const count = ref(1);
+        const panel = shallowRef();
+        watchEffect(() => {
+            if (panel.value) {
+                panel.value.style.width = Length.percent(count.value * 25);
+                panel.value.style.fontWeight = count.value === 1 ? 400 : 700;
+            }
+        });
         const items = ref([
             'first',
             'second',
@@ -30,7 +37,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
         __expose({
             advance,
         });
-        const __returned__ = { count, items, StatusLabel, advance };
+        const __returned__ = { count, panel, items, StatusLabel, advance };
         Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
         return __returned__;
     }
@@ -42,7 +49,10 @@ export default __sfc__;
 import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, createVNode as _createVNode, renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, createTextVNode as _createTextVNode, createCommentVNode as _createCommentVNode } from "@bsgames/cue"
 
 export function render(_ctx, _cache, $props, $setup, $data, $options) {
-  return (_openBlock(), _createElementBlock("div", null, [
+  return (_openBlock(), _createElementBlock("div", {
+    ref: "panel",
+    __cueInlineStyle: {"declarations":{"backgroundColor":{"alpha":1,"blue":86,"green":52,"red":18},"height":120},"selectors":[["cue-inline"]]}
+  }, [
     _createElementVNode("counter-display", { value: $setup.count }, _toDisplayString($setup.count), 9 /* TEXT, PROPS */, ["value"]),
     _createTextVNode(),
     _createVNode($setup["StatusLabel"]),
@@ -68,5 +78,5 @@ export function render(_ctx, _cache, $props, $setup, $data, $options) {
     ($setup.count > 1)
       ? (_openBlock(), _createElementBlock("div", { key: 0 }, "ready"))
       : _createCommentVNode("v-if", true)
-  ]))
+  ], 512 /* NEED_PATCH */))
 }

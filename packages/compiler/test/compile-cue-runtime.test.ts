@@ -11,9 +11,13 @@ interface RuntimeIntegrationResult {
   containerPreserved: boolean;
   customElementPreserved: boolean;
   initialText: string[];
+  initialWidthMatches: boolean;
+  initialFontWeight: number;
   keyedElementsPreserved: boolean;
   rootIsEmptyAfterUnmount: boolean;
   updatedText: string[];
+  updatedWidthMatches: boolean;
+  updatedFontWeight: number;
 }
 
 interface RuntimeIntegrationModule {
@@ -108,6 +112,8 @@ describe('compiled Cue runtime integration', () => {
       componentElementPreserved: true,
       containerPreserved: true,
       customElementPreserved: true,
+      initialWidthMatches: true,
+      initialFontWeight: 400,
       initialText: [
         '1',
         'count:1',
@@ -116,6 +122,8 @@ describe('compiled Cue runtime integration', () => {
       ],
       keyedElementsPreserved: true,
       rootIsEmptyAfterUnmount: true,
+      updatedWidthMatches: true,
+      updatedFontWeight: 700,
       updatedText: [
         '2',
         'count:2',

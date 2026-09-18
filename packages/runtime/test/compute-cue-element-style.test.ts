@@ -30,6 +30,9 @@ const styleSheet: CueStyleSheet = {
           'sans-serif',
         ],
         fontSize: 24,
+        fontWeight: 700,
+        cueTextStrokeWidth: 2,
+        cueTextStrokeColor: CueColorKeyword.currentColor,
         lineHeight: 30,
         textAlign: CueTextAlign.center,
         whiteSpace: CueWhiteSpace.preWrap,
@@ -61,12 +64,19 @@ const styleSheet: CueStyleSheet = {
 
 describe('computeCueElementStyle', () => {
   test('uses Web CSS initial values for supported inherited text properties', () => {
+    /// @case
+    /// A new element has no text declarations or inherited parent style.
+    /// @expect
+    /// Standard text defaults and the disabled Cue stroke defaults are applied.
     const style = computeCueElementStyle(new DivElement(), []);
 
     expect({
       color: style.color,
       fontFamily: style.fontFamily,
       fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      cueTextStrokeWidth: style.cueTextStrokeWidth,
+      cueTextStrokeColor: style.cueTextStrokeColor,
       lineHeight: style.lineHeight,
       textAlign: style.textAlign,
       whiteSpace: style.whiteSpace,
@@ -77,6 +87,10 @@ describe('computeCueElementStyle', () => {
   });
 
   test('inherits text properties and lets matching declarations override them', () => {
+    /// @case
+    /// A child overrides its color beneath a parent with bold outlined text.
+    /// @expect
+    /// It inherits the parent's weight, stroke width, and computed stroke color.
     const parent = new DivElement();
     patchCueElementProperty(parent, 'class', undefined, 'parent');
     const parentStyle = computeCueElementStyle(parent, [styleSheet]);
@@ -101,6 +115,14 @@ describe('computeCueElementStyle', () => {
         'sans-serif',
       ],
       fontSize: 24,
+      fontWeight: 700,
+      cueTextStrokeWidth: 2,
+      cueTextStrokeColor: {
+        alpha: 0.75,
+        blue: 30,
+        green: 20,
+        red: 10,
+      },
       lineHeight: 30,
       textAlign: CueTextAlign.center,
       whiteSpace: CueWhiteSpace.preWrap,

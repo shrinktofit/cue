@@ -9,6 +9,7 @@ import {
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
   CueOverflow,
+  CuePosition,
   CueStyleProperty,
   CueTextAlign,
   CueWhiteSpace,
@@ -27,6 +28,7 @@ import {
   type CueMargin,
   type CueMaxDimension,
   type CueStyleDeclarations,
+  type CueStyleRule,
   type CueStyleSheet,
 } from '@bsgames/cue-style-schema';
 import {
@@ -34,8 +36,12 @@ import {
   type CueElement,
 } from '../element/cue-element.js';
 import { DivElement } from '../element/div-element.js';
+import { encodeCueStyle } from './cue-inline-style.js';
 
 export interface ComputedCueTextStyle {
+  fontWeight: number;
+  cueTextStrokeWidth: number;
+  cueTextStrokeColor: CueColor;
   color: CueColor;
   fontFamily: readonly string[];
   fontSize: number;
@@ -49,6 +55,11 @@ export interface ComputedCueBoxShadow extends Omit<CueBoxShadow, 'color'> {
 }
 
 export interface ComputedCueElementStyle extends ComputedCueTextStyle {
+  position: CuePosition;
+  top: CueDimension;
+  right: CueDimension;
+  bottom: CueDimension;
+  left: CueDimension;
   alignContent?: CueAlignContent;
   alignItems?: CueAlignItems;
   alignSelf?: CueAlignSelf;
@@ -117,6 +128,9 @@ interface DeclarationCandidate {
 const cueStyleProperties = Object.values(CueStyleProperty);
 
 export const initialCueTextStyle: ComputedCueTextStyle = {
+  fontWeight: 400,
+  cueTextStrokeWidth: 0,
+  cueTextStrokeColor: { alpha: 1, blue: 0, green: 0, red: 0 },
   color: {
     alpha: 1,
     blue: 0,
@@ -176,7 +190,21 @@ export function computeCueElementStyle(
     }
   }
 
+  // Private compiler output, never CSS source text.
+  const inlineStyle = getCueElementProperties(element).get('__cueInlineStyle') as CueStyleRule | undefined;
+  applyDeclarations(declarations, candidates, inlineStyle?.declarations, false, order + 1, Infinity);
+  applyDeclarations(declarations, candidates, inlineStyle?.importantDeclarations, true, order + 1, Infinity);
+  applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, Infinity);
+
   const computedStyle: ComputedCueElementStyle = {
+    position: CuePosition.static,
+    top: CueDimensionKeyword.auto,
+    right: CueDimensionKeyword.auto,
+    bottom: CueDimensionKeyword.auto,
+    left: CueDimensionKeyword.auto,
+    fontWeight: inheritedTextStyle.fontWeight,
+    cueTextStrokeWidth: inheritedTextStyle.cueTextStrokeWidth,
+    cueTextStrokeColor: inheritedTextStyle.cueTextStrokeColor,
     backgroundColor: {
       alpha: 0,
       blue: 0,
@@ -246,6 +274,10 @@ export function computeCueElementStyle(
     zIndex: 'auto',
   };
   Object.assign(computedStyle, declarations);
+  computedStyle.cueTextStrokeColor = computedBorderColor(
+    declarations.cueTextStrokeColor ?? inheritedTextStyle.cueTextStrokeColor,
+    computedStyle.color,
+  );
   computedStyle.borderBottomColor = computedBorderColor(
     declarations.borderBottomColor,
     computedStyle.color,

@@ -18,11 +18,13 @@
     "@bsgames/cue-style-schema": "workspace:*",
     "@vue/compiler-core": "^3.5.42",
     "@vue/compiler-sfc": "^3.5.42",
+    "color-name": "^2.1.1",
     "lightningcss": "^1.33.0",
     "typescript": "catalog:"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",
+    "@types/color-name": "^2.0.0",
     "@types/node": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

@@ -1,0 +1,9 @@
+{
+  "filename": "/fixtures/static-inline-style.cue",
+  "backgroundImageSources": {
+    "./badge.png": "uuid:cb09da6a-4f20-485c-93a8-db46692a05b3@f9941"
+  },
+  "customElements": [
+    "status-badge"
+  ]
+}

@@ -1,0 +1,19 @@
+/// error 1
+
+Dynamic :style bindings are not supported. Update the element's typed CueElement.style properties instead.
+
+/// error 2
+
+Dynamic :style bindings are not supported. Update the element's typed CueElement.style properties instead.
+
+/// error 3
+
+Dynamic :style bindings are not supported. Update the element's typed CueElement.style properties instead.
+
+/// error 4
+
+Dynamic :style bindings are not supported. Update the element's typed CueElement.style properties instead.
+
+/// error 5
+
+__cueInlineStyle is reserved for Cue compiler output.

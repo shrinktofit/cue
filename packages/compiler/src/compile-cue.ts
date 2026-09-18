@@ -1,8 +1,12 @@
 import {
+  ConstantTypes,
+  createSimpleExpression,
   ElementTypes,
   NodeTypes,
   type AttributeNode,
+  type ElementNode,
   type NodeTransform,
+  type RootNode,
 } from '@vue/compiler-core';
 import {
   compileScript,
@@ -17,7 +21,10 @@ import {
   ScriptTarget,
   transpileModule,
 } from 'typescript';
-import { compileCueStyle } from './compile-cue-style.js';
+import {
+  compileCueInlineStyle,
+  compileCueStyle,
+} from './compile-cue-style.js';
 
 export const cueFileExtension = '.cue';
 export const cueRuntimeModuleName = '@bsgames/cue';
@@ -63,8 +70,20 @@ export type CompileCueResult = {
 };
 
 export function compileCue(source: string, options: CompileCueOptions): CompileCueResult {
+  const configuredCustomElements = new Set(options.customElements);
+  const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
+  const isCustomElement = (tagName: string): boolean => (
+    tagName === 'cue-image'
+    || configuredCustomElements.has(tagName)
+    || configuredIsCustomElement?.(tagName) === true
+  );
   const parsed = parse(source, {
     filename: options.filename,
+    templateParseOptions: {
+      ...options.templateCompilerOptions,
+      isCustomElement,
+      whitespace: 'preserve',
+    },
   });
 
   if (parsed.errors.length > 0) {
@@ -75,6 +94,18 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   }
 
   const descriptor = parsed.descriptor;
+  // Lower raw attributes before Vue's DOM transform rewrites static CSS into
+  // a JavaScript style object. Clone the parser's cached AST before changing it.
+  const templateAst = descriptor.template?.ast
+    ? structuredClone(descriptor.template.ast)
+    : undefined;
+  const inlineStyleErrors: CompileCueError[] = [];
+  if (templateAst) {
+    compileTemplateInlineStyles(templateAst, options, inlineStyleErrors);
+  }
+  if (inlineStyleErrors.length > 0) {
+    return { ok: false, errors: inlineStyleErrors };
+  }
   const compiledStyle = compileCueStyle(
     descriptor.styles.map((style) => style.content),
     options.filename,
@@ -89,16 +120,10 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
 
   const id = options.id ?? options.filename;
   const imageSourceErrors: CompileCueError[] = [];
-  const configuredCustomElements = new Set(options.customElements);
-  const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
   const templateCompilerOptions = {
     ...options.templateCompilerOptions,
     hoistStatic: false,
-    isCustomElement: (tagName: string) => (
-      tagName === 'cue-image'
-      || configuredCustomElements.has(tagName)
-      || configuredIsCustomElement?.(tagName) === true
-    ),
+    isCustomElement,
     nodeTransforms: [
       createCueImageSourceTransform(options, imageSourceErrors),
       ...(options.templateCompilerOptions?.nodeTransforms ?? []),
@@ -117,6 +142,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     : undefined;
   const template = descriptor.template
     ? compileTemplate({
+      ...(templateAst ? { ast: templateAst } : {}),
       id,
       filename: options.filename,
       source: descriptor.template.content,
@@ -219,6 +245,71 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
         : []),
     ],
   };
+}
+
+function compileTemplateInlineStyles(
+  node: RootNode | ElementNode,
+  options: CompileCueOptions,
+  errors: CompileCueError[],
+): void {
+  if (node.type === NodeTypes.ELEMENT) {
+    for (let index = 0; index < node.props.length; ++index) {
+      const property = node.props[index]!;
+      const name = property.type === NodeTypes.ATTRIBUTE
+        ? property.name
+        : property.name === 'bind'
+          && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+          && property.arg.isStatic
+          ? property.arg.content
+          : undefined;
+      if (name === '__cueInlineStyle') {
+        errors.push(Object.assign(
+          new SyntaxError('__cueInlineStyle is reserved for Cue compiler output.'),
+          { loc: property.loc },
+        ));
+        continue;
+      }
+      if (name !== 'style') {
+        continue;
+      }
+      if (property.type === NodeTypes.DIRECTIVE) {
+        errors.push(Object.assign(
+          new SyntaxError('Dynamic :style bindings are not supported. Update the element\'s typed CueElement.style properties instead.'),
+          { loc: property.loc },
+        ));
+        continue;
+      }
+      const result = compileCueInlineStyle(
+        property.value?.content ?? '',
+        options.filename,
+        options.canonicalizeBackgroundImageSource,
+      );
+      errors.push(...result.errors.map((error) => Object.assign(error, { loc: property.loc })));
+      if (!result.rule) {
+        node.props.splice(index, 1);
+        --index;
+        continue;
+      }
+      node.props[index] = {
+        arg: createSimpleExpression('__cueInlineStyle', true, property.loc),
+        exp: createSimpleExpression(
+          JSON.stringify(result.rule),
+          false,
+          property.loc,
+          ConstantTypes.CAN_STRINGIFY,
+        ),
+        loc: property.loc,
+        modifiers: [],
+        name: 'bind',
+        type: NodeTypes.DIRECTIVE,
+      };
+    }
+  }
+  for (const child of node.children) {
+    if (child.type === NodeTypes.ELEMENT) {
+      compileTemplateInlineStyles(child, options, errors);
+    }
+  }
 }
 
 function createCueImageSourceTransform(

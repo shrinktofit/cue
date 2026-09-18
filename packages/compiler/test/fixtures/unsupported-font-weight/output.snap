@@ -1,0 +1,11 @@
+/// error 1
+
+Cue supports font-weight: normal, bold, or a number from 1 to 1000.
+
+/// error 2
+
+Cue supports font-weight: normal, bold, or a number from 1 to 1000.
+
+/// error 3
+
+Cue supports font-weight: normal, bold, or a number from 1 to 1000.

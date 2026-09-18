@@ -1,0 +1,39 @@
+/// error 1
+
+Cue supports position: static, relative, or absolute.
+
+/// error 2
+
+Cue supports position: static, relative, or absolute.
+
+/// error 3
+
+Cue supports font-weight: normal, bold, or a number from 1 to 1000.
+
+/// error 4
+
+Cue supports font-weight: normal, bold, or a number from 1 to 1000.
+
+/// error 5
+
+Cue text stroke requires a nonnegative px width and/or a supported CSS color.
+
+/// error 6
+
+Cue text stroke requires a nonnegative px width and/or a supported CSS color.
+
+/// error 7
+
+Cue text stroke requires a nonnegative px width and/or a supported CSS color.
+
+/// error 8
+
+Cue text stroke requires a nonnegative px width and/or a supported CSS color.
+
+/// error 9
+
+Unsupported Cue text stroke declaration: -cue-text-stroke-color
+
+/// error 10
+
+Cue text stroke requires a nonnegative px width and/or a supported CSS color.

@@ -19,6 +19,7 @@ import {
   RenderingSubMesh,
   SpriteFrame,
   Texture2D,
+  UITransform,
   Vec3,
   view,
   type Asset,
@@ -56,7 +57,7 @@ import {
 } from '../style/cue-style-sheet-collection.js';
 import { computeCueElementStyle } from '../style/compute-cue-element-style.js';
 import { createCueRenderer } from '../vue/create-cue-renderer.js';
-import { CanvasTextRasterizer } from './canvas-text-rasterizer.js';
+import { CanvasTextRasterizer, type RasterizedCueText } from './canvas-text-rasterizer.js';
 import { transformCuePaintPoint } from '../render/cue-affine-transform.js';
 
 const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
@@ -80,6 +81,7 @@ interface CueRenderRecord {
 type CueShadowRenderRecord = CueRenderRecord;
 
 interface CueTextRenderRecord {
+  readonly bounds: RasterizedCueText['bounds'];
   readonly baseMaterial: Material;
   readonly cacheKey: string;
   readonly localVertexBuffer: Float32Array;
@@ -172,7 +174,6 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onUpdate(): void {
-    this.#syncImageAssets();
     const textRasterizer = this.#textRasterizer;
     if (
       !this.#backgroundEffect
@@ -183,12 +184,14 @@ export class CueDocument extends CycloComponent {
     ) {
       return;
     }
+    this.#syncImageAssets();
     const paintList = createCuePaintList(
       this.#rootElement,
       this.#styleSheetCollection?.styleSheets ?? [],
       textRasterizer,
       (source) => this.#imageAssets.get(source),
       (source) => this.#backgroundAssets.get(source),
+      this.getComponent(UITransform)?.contentSize,
     );
     this.#syncRenderRecords(paintList);
   }
@@ -1122,6 +1125,11 @@ export class CueDocument extends CycloComponent {
         color: paintText.style.color,
         fontFamily: paintText.style.fontFamily,
         fontSize: paintText.style.fontSize,
+        fontWeight: paintText.style.fontWeight,
+        fontRevision: textRasterizer.fontRevision,
+        cueTextStrokeColor: paintText.style.cueTextStrokeColor,
+        cueTextStrokeWidth: paintText.style.cueTextStrokeWidth,
+        height: paintText.height,
         lineHeight: paintText.style.lineHeight,
         lines: paintText.lines,
         pixelScale: textRasterizer.pixelScale,
@@ -1151,7 +1159,13 @@ export class CueDocument extends CycloComponent {
       }
       writeTextureVertexBuffer(
         renderRecord.localVertexBuffer,
-        paintText,
+        {
+          ...paintText,
+          x: paintText.x + renderRecord.bounds.x,
+          y: paintText.y - renderRecord.bounds.y,
+          width: renderRecord.bounds.width,
+          height: renderRecord.bounds.height,
+        },
         textTextureCoordinates,
       );
       configureClipRead(renderRecord.material, paintText.clipDepth);
@@ -1245,6 +1259,7 @@ export class CueDocument extends CycloComponent {
     return {
       baseMaterial,
       cacheKey,
+      bounds: rasterizedText.bounds,
       localVertexBuffer,
       material,
       model,
