@@ -9,6 +9,7 @@ import {
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
   CueOverflow,
+  CuePointerEvents,
   CuePosition,
   CueStyleProperty,
   CueTextAlign,
@@ -55,6 +56,7 @@ export interface ComputedCueBoxShadow extends Omit<CueBoxShadow, 'color'> {
 }
 
 export interface ComputedCueElementStyle extends ComputedCueTextStyle {
+  pointerEvents: CuePointerEvents;
   position: CuePosition;
   top: CueDimension;
   right: CueDimension;
@@ -149,7 +151,7 @@ export const initialCueTextStyle: ComputedCueTextStyle = {
 export function computeCueElementStyle(
   element: CueElement,
   styleSheets: readonly CueStyleSheet[],
-  inheritedTextStyle: ComputedCueTextStyle = initialCueTextStyle,
+  inheritedTextStyle: ComputedCueTextStyle & { pointerEvents?: CuePointerEvents } = initialCueTextStyle,
 ): ComputedCueElementStyle {
   const classNames = readClassNames(getCueElementProperties(element).get('class'));
   const candidates = new Map<CueStyleProperty, DeclarationCandidate>();
@@ -197,6 +199,7 @@ export function computeCueElementStyle(
   applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, Infinity);
 
   const computedStyle: ComputedCueElementStyle = {
+    pointerEvents: inheritedTextStyle.pointerEvents ?? CuePointerEvents.auto,
     position: CuePosition.static,
     top: CueDimensionKeyword.auto,
     right: CueDimensionKeyword.auto,

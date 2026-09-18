@@ -8,10 +8,14 @@ import {
 import type { CueNode } from '../element/cue-node.js';
 import { globalElementRegistry } from '../element/global-element-registry.js';
 import { Text } from '../element/text.js';
+import { patchCueEvent } from './patch-cue-event.js';
 
 export function createCueRenderer(): Renderer<CueElement> {
   return createRenderer<CueNode, CueElement>({
-    patchProp(element, name, previousValue, nextValue) {
+    patchProp(element, name, previousValue, nextValue, _namespace, parentComponent) {
+      if (patchCueEvent(element, name, nextValue, parentComponent)) {
+        return;
+      }
       patchCueElementProperty(element, name, previousValue, nextValue);
     },
     insert(child, parent, anchor) {

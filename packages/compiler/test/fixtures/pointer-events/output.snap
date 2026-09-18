@@ -1,0 +1,78 @@
+/// pointer-events.cue.js
+
+import component from "./pointer-events.cue.script.js";
+import { render } from "./pointer-events.cue.template.js";
+import styleSheet from "./pointer-events.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/pointer-events.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// pointer-events.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// pointer-events.cue.template.js
+
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, withModifiers as _withModifiers, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", {
+    class: "overlay",
+    onPointerdown: _cache[2] || (_cache[2] = _withModifiers((...args) => (_ctx.handle && _ctx.handle(...args)), ["stop"])),
+    onPointermovePassive: _cache[3] || (_cache[3] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointerupOnce: _cache[4] || (_cache[4] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointercancel: _cache[5] || (_cache[5] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointeroverCapture: _cache[6] || (_cache[6] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointerout: _cache[7] || (_cache[7] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointerenter: _cache[8] || (_cache[8] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onPointerleave: _cache[9] || (_cache[9] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onGotpointercapture: _cache[10] || (_cache[10] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onLostpointercapture: _cache[11] || (_cache[11] = (...args) => (_ctx.handle && _ctx.handle(...args))),
+    onClick: _cache[12] || (_cache[12] = _withModifiers((...args) => (_ctx.handle && _ctx.handle(...args)), ["self","prevent"]))
+  }, [
+    _createElementVNode("div", { __cueInlineStyle: {"declarations":{"pointerEvents":"auto"},"selectors":[["cue-inline"]]} }),
+    _createTextVNode(),
+    _createElementVNode("cue-image", {
+      src: "uuid:image",
+      onPointerdown: _cache[0] || (_cache[0] = (...args) => (_ctx.handle && _ctx.handle(...args)))
+    }, null, 32 /* NEED_HYDRATION */),
+    _createTextVNode(),
+    _createElementVNode("custom-control", {
+      onClick: _cache[1] || (_cache[1] = (...args) => (_ctx.handle && _ctx.handle(...args)))
+    })
+  ], 32 /* NEED_HYDRATION */))
+}
+
+/// pointer-events.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "pointerEvents": "none"
+      },
+      "selectors": [
+        [
+          "overlay"
+        ]
+      ]
+    },
+    {
+      "importantDeclarations": {
+        "pointerEvents": "auto"
+      },
+      "selectors": [
+        [
+          "interactive"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

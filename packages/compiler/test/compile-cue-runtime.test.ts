@@ -24,10 +24,6 @@ interface RuntimeIntegrationModule {
   runVerticalSlice(): Promise<RuntimeIntegrationResult>;
 }
 
-const fixtureDirectory = fileURLToPath(new URL(
-  './fixtures/runtime-integration',
-  import.meta.url,
-));
 const runtimeEntry = fileURLToPath(new URL(
   '../../runtime/src/index.ts',
   import.meta.url,
@@ -49,64 +45,7 @@ describe('compiled Cue runtime integration', () => {
     /// keyed children, and conditional content.
     /// @expect
     /// The compiler output mounts and updates as one stable public CueElement tree.
-    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'cue-runtime-integration-'));
-    temporaryDirectories.push(temporaryDirectory);
-    const [source, optionsSource, runnerSource] = await Promise.all([
-      readFile(join(fixtureDirectory, 'code.vue'), 'utf8'),
-      readFile(join(fixtureDirectory, 'opts.json'), 'utf8'),
-      readFile(join(fixtureDirectory, 'runner.ts'), 'utf8'),
-    ]);
-    const result = compileCue(
-      source,
-      JSON.parse(optionsSource) as CompileCueOptions,
-    );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-
-    await Promise.all([
-      ...result.files.map(({ code, fileName }) => writeFile(
-        join(temporaryDirectory, fileName),
-        code,
-        'utf8',
-      )),
-      writeFile(join(temporaryDirectory, 'runner.ts'), runnerSource, 'utf8'),
-    ]);
-
-    const bundleDirectory = join(temporaryDirectory, 'bundle');
-    await build({
-      configFile: false,
-      define: {
-        __VUE_OPTIONS_API__: 'true',
-        __VUE_PROD_DEVTOOLS__: 'false',
-        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
-      },
-      logLevel: 'silent',
-      resolve: {
-        alias: {
-          '@bsgames/cue': runtimeEntry,
-        },
-      },
-      build: {
-        emptyOutDir: true,
-        lib: {
-          entry: join(temporaryDirectory, 'runner.ts'),
-          fileName: 'runtime-integration',
-          formats: [
-            'es',
-          ],
-        },
-        minify: false,
-        outDir: bundleDirectory,
-        target: 'esnext',
-      },
-    });
-
-    const integrationModule = await import(
-      pathToFileURL(join(bundleDirectory, 'runtime-integration.js')).href,
-    ) as RuntimeIntegrationModule;
+    const integrationModule = await executeCompiledFixture('runtime-integration') as RuntimeIntegrationModule;
 
     await expect(integrationModule.runVerticalSlice()).resolves.toEqual({
       componentElementPreserved: true,
@@ -133,4 +72,93 @@ describe('compiled Cue runtime integration', () => {
       ],
     });
   });
+
+  it('executes generated pointer event modifiers in their declared order', async () => {
+    /// @case
+    /// Compiled native handlers combine stop, prevent, and self in different orders.
+    /// @expect
+    /// Every imported helper exists, guards preserve order, and handlers receive their arguments and return values.
+    const integrationModule = await executeCompiledFixture('pointer-modifiers') as {
+      runPointerModifiers(): { calls: string[]; returnValue: string };
+    };
+    expect(integrationModule.runPointerModifiers()).toEqual({
+      calls: ['stop', 'prevent', 'handler:own', 'stop', 'prevent', 'prevent', 'handler:own-pointer'],
+      returnValue: 'handled',
+    });
+  });
+
+  it('preserves Vue component custom event names and dynamic bindings', async () => {
+    /// @case
+    /// A component emits custom and keyboard-named events through static, dynamic, and object bindings.
+    /// @expect
+    /// Vue handles custom event names normally and .once still invokes its listener only once.
+    const integrationModule = await executeCompiledFixture('component-custom-events') as {
+      runComponentCustomEvents(): string[];
+    };
+    expect(integrationModule.runComponentCustomEvents()).toEqual([
+      'changed', 'custom-keydown', 'first-ready', 'dynamic', 'mapped',
+    ]);
+  });
 });
+
+async function executeCompiledFixture(fixtureName: string): Promise<unknown> {
+  const fixtureDirectory = fileURLToPath(new URL('./fixtures/' + fixtureName, import.meta.url));
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'cue-runtime-integration-'));
+  temporaryDirectories.push(temporaryDirectory);
+  const [source, optionsSource, runnerSource] = await Promise.all([
+    readFile(join(fixtureDirectory, 'code.vue'), 'utf8'),
+    readFile(join(fixtureDirectory, 'opts.json'), 'utf8'),
+    readFile(join(fixtureDirectory, 'runner.ts'), 'utf8'),
+  ]);
+  const result = compileCue(
+    source,
+    JSON.parse(optionsSource) as CompileCueOptions,
+  );
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    return;
+  }
+
+  await Promise.all([
+    ...result.files.map(({ code, fileName }) => writeFile(
+      join(temporaryDirectory, fileName),
+      code,
+      'utf8',
+    )),
+    writeFile(join(temporaryDirectory, 'runner.ts'), runnerSource, 'utf8'),
+  ]);
+
+  const bundleDirectory = join(temporaryDirectory, 'bundle');
+  await build({
+    configFile: false,
+    define: {
+      __VUE_OPTIONS_API__: 'true',
+      __VUE_PROD_DEVTOOLS__: 'false',
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+    },
+    logLevel: 'silent',
+    resolve: {
+      alias: {
+        '@bsgames/cue': runtimeEntry,
+      },
+    },
+    build: {
+      emptyOutDir: true,
+      lib: {
+        entry: join(temporaryDirectory, 'runner.ts'),
+        fileName: 'runtime-integration',
+        formats: [
+          'es',
+        ],
+      },
+      minify: false,
+      outDir: bundleDirectory,
+      target: 'esnext',
+    },
+  });
+
+  return import(
+    pathToFileURL(join(bundleDirectory, 'runtime-integration.js')).href,
+  );
+}

@@ -53,7 +53,7 @@
 | 纯文本元素的 intrinsic measure | ✅[^text-raster] | 文本宽高参与 Taffy Block/Flex 布局 |
 | 整文本块 TTF 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
 | Inline formatting context | ❌ | 混合文本与子元素、`span`、`br` 和跨 run 排版尚未实现；纯文本 Element 已有独立换行路径 |
-| DOM 风格事件派发 | ❌ | 尚未实现 |
+| DOM 风格事件派发 | ✅[^input] | CueEvent / CuePointerEvent；捕获、目标、冒泡、取消、once / passive |
 | Element 生命周期 / document 归属 | ❌ | 尚未形成完整 attach / detach 契约 |
 
 ## CSS Selector 与 Cascade
@@ -225,8 +225,11 @@
 
 | 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
-| Hit testing | ❌ | 尚未实现 |
-| Pointer Events / pointer capture | ❌ | 尚未实现 |
+| Hit testing | ✅[^input] | 按绘制顺序逆向选择；2D transform、圆角和祖先 overflow clip |
+| `pointer-events: auto / none` | ✅[^input] | 继承，后代可显式 auto 恢复命中；不影响捕获／冒泡路径 |
+| Web 鼠标／触摸 Pointer Events / pointer capture | ✅[^input] | CueDocument 接入；click、边界事件、捕获与取消清理 |
+| Native / pen input backend | ❌ | 尚未验证／实现 |
+| Vue 原生事件与修饰符 | ✅[^input] | stop / prevent / self / once / capture / passive；非法组合和未支持事件编译报错 |
 | Wheel / scrolling | ❌ | 尚未实现 |
 | Focus navigation | ❌ | 尚未实现 |
 | Keyboard / IME | ❌ | 尚未实现 |
@@ -256,6 +259,7 @@
 | Decoration playground 可视化验收 | ✅[^decoration-gallery] | 独立页面组合验收 border、radius、outline、shadow、background、overflow、transform 与 `-cue-opacity` |
 | Position playground | ✅ | 独立页面验证 relative、absolute、四边偏移与定位祖先 |
 | Style API playground | ✅ | 独立页面验证类型化进度/颜色更新、优先级与清除覆盖 |
+| Input playground | ✅[^input] | 独立页面验收点击、hover、传播、捕获、穿透、旋转与裁剪；原生 Cocos UI 控制面 |
 | Game UI Showcase | ✅ | 独立 Cocos 项目，case registry + tabs；首个 `player-profile` case |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
@@ -265,6 +269,8 @@
 | Performance / bundle-size baseline | ❌ | 尚未建立可重复测量 |
 
 ## 已知 CSS 差异脚注
+
+[^input]: 当前面向 Cocos / Vortex 3.8 Web Preview；真实 Chromium 验证鼠标和触摸，未宣称完整 DOM／Pointer Events conformance。CueDocument 通过集中式 host backend 接入，原生 UI 优先于普通 Cue 命中，捕获的指针优先返回 Cue。只支持已列出的事件与修饰符；focus、键盘、IME、wheel、手势与 CSS pseudo-state selector 未实现。命中跟随当前 paint order，因此仍受现有 stacking-context 范围限制。坐标、尺寸 API、取消生命周期与内部引擎接口边界详见 [Input](input.md)。
 
 [^inline-style]: 静态 attribute 仅在编译期使用 Lightning CSS；inline normal 高于 stylesheet normal、低于 stylesheet important，inline important 高于 stylesheet important。支持范围同静态 stylesheet，没有 runtime CSS parser。
 

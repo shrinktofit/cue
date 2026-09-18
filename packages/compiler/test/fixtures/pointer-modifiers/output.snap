@@ -1,0 +1,25 @@
+/// pointer-modifiers.cue.js
+
+import component from "./pointer-modifiers.cue.script.js";
+import { render } from "./pointer-modifiers.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "pointer-modifiers.cue",
+  render,
+});
+
+/// pointer-modifiers.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// pointer-modifiers.cue.template.js
+
+import { withModifiers as _withModifiers, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", {
+    onClick: _cache[0] || (_cache[0] = _withModifiers((...args) => (_ctx.handle && _ctx.handle(...args)), ["stop","prevent","self"])),
+    onPointerdown: _cache[1] || (_cache[1] = _withModifiers((...args) => (_ctx.handle && _ctx.handle(...args)), ["self","prevent"]))
+  }, null, 32 /* NEED_HYDRATION */))
+}

@@ -1,0 +1,31 @@
+/// error 1
+
+Unsupported Cue native event "keydown". Supported events: pointerdown, pointermove, pointerup, pointercancel, pointerover, pointerout, pointerenter, pointerleave, gotpointercapture, lostpointercapture, click.
+
+/// error 2
+
+Unsupported Cue event modifier ".enter". Supported modifiers: stop, prevent, self, once, capture, passive.
+
+/// error 3
+
+Cue event modifiers .passive and .prevent cannot be combined.
+
+/// error 4
+
+Cue native event bindings require a static event name; dynamic v-on arguments and v-on objects are not supported.
+
+/// error 5
+
+Cue native event bindings require a static event name; dynamic v-on arguments and v-on objects are not supported.
+
+/// error 6
+
+Unsupported Cue native event "load". Supported events: pointerdown, pointermove, pointerup, pointercancel, pointerover, pointerout, pointerenter, pointerleave, gotpointercapture, lostpointercapture, click.
+
+/// error 7
+
+Unsupported Cue native event "change". Supported events: pointerdown, pointermove, pointerup, pointercancel, pointerover, pointerout, pointerenter, pointerleave, gotpointercapture, lostpointercapture, click.
+
+/// error 8
+
+Unsupported Cue event modifier ".enter". Supported modifiers: stop, prevent, self, once, capture, passive.

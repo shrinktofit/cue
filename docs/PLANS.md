@@ -42,6 +42,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 ### 2.2 当前未完成事项
 
+- 本轮 Pointer Events / 命中 / Vue 事件与 Input Gallery 的具体边界见 [`input.md`](input.md)；后续仍需 Native、focus / keyboard / IME、wheel / scrolling 和长期交互回归 Gate，完成项待用户确认后移除。
 - `.cue` 仍通过 CLI 预编译，尚未接入 OMS source compiler、依赖图、source map 与 HMR。
 - language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
 - Box/Flex 只覆盖无 intrinsic measurement 的 box-level 子集；尚无几何断言矩阵、完整文本/inline 语义和 Grid。

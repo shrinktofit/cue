@@ -99,12 +99,12 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const templateAst = descriptor.template?.ast
     ? structuredClone(descriptor.template.ast)
     : undefined;
-  const inlineStyleErrors: CompileCueError[] = [];
+  const templatePropertyErrors: CompileCueError[] = [];
   if (templateAst) {
-    compileTemplateInlineStyles(templateAst, options, inlineStyleErrors);
+    compileTemplateProperties(templateAst, options, templatePropertyErrors);
   }
-  if (inlineStyleErrors.length > 0) {
-    return { ok: false, errors: inlineStyleErrors };
+  if (templatePropertyErrors.length > 0) {
+    return { ok: false, errors: templatePropertyErrors };
   }
   const compiledStyle = compileCueStyle(
     descriptor.styles.map((style) => style.content),
@@ -247,7 +247,14 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   };
 }
 
-function compileTemplateInlineStyles(
+const supportedNativeEvents = new Set([
+  'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+  'pointerover', 'pointerout', 'pointerenter', 'pointerleave',
+  'gotpointercapture', 'lostpointercapture', 'click',
+]);
+const supportedEventModifiers = new Set(['stop', 'prevent', 'self', 'once', 'capture', 'passive']);
+
+function compileTemplateProperties(
   node: RootNode | ElementNode,
   options: CompileCueOptions,
   errors: CompileCueError[],
@@ -255,6 +262,32 @@ function compileTemplateInlineStyles(
   if (node.type === NodeTypes.ELEMENT) {
     for (let index = 0; index < node.props.length; ++index) {
       const property = node.props[index]!;
+      if (property.type === NodeTypes.DIRECTIVE && property.name === 'on') {
+        if (node.tagType === ElementTypes.ELEMENT) {
+          if (property.arg?.type !== NodeTypes.SIMPLE_EXPRESSION || !property.arg.isStatic) {
+            errors.push(Object.assign(new SyntaxError(
+              'Cue native event bindings require a static event name; dynamic v-on arguments and v-on objects are not supported.',
+            ), { loc: property.loc }));
+          } else if (!supportedNativeEvents.has(property.arg.content)) {
+            errors.push(Object.assign(new SyntaxError(
+              `Unsupported Cue native event "${property.arg.content}". Supported events: ${[...supportedNativeEvents].join(', ')}.`,
+            ), { loc: property.loc }));
+          }
+        }
+        for (const modifier of property.modifiers) {
+          if (!supportedEventModifiers.has(modifier.content)) {
+            errors.push(Object.assign(new SyntaxError(
+              `Unsupported Cue event modifier ".${modifier.content}". Supported modifiers: stop, prevent, self, once, capture, passive.`,
+            ), { loc: modifier.loc }));
+          }
+        }
+        if (property.modifiers.some((modifier) => modifier.content === 'passive')
+          && property.modifiers.some((modifier) => modifier.content === 'prevent')) {
+          errors.push(Object.assign(new SyntaxError(
+            'Cue event modifiers .passive and .prevent cannot be combined.',
+          ), { loc: property.loc }));
+        }
+      }
       const name = property.type === NodeTypes.ATTRIBUTE
         ? property.name
         : property.name === 'bind'
@@ -307,7 +340,7 @@ function compileTemplateInlineStyles(
   }
   for (const child of node.children) {
     if (child.type === NodeTypes.ELEMENT) {
-      compileTemplateInlineStyles(child, options, errors);
+      compileTemplateProperties(child, options, errors);
     }
   }
 }

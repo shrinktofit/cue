@@ -14,6 +14,10 @@ export { DivElement } from './element/div-element.js';
 export { globalElementRegistry } from './element/global-element-registry.js';
 export { Text } from './element/text.js';
 export { createCueRenderer } from './vue/create-cue-renderer.js';
+export { CueEvent, type CueEventInit } from './input/cue-event.js';
+export { CuePointerEvent, type CuePointerEventInit, type CuePointerType } from './input/cue-pointer-event.js';
+export type { CueEventMap, CueEventListener, CueEventListenerOptions, CueAddEventListenerOptions } from './input/event-listeners.js';
+export { withModifiers } from './vue/with-modifiers.js';
 
 export { type CueStyle } from './style/cue-style.js';
 export { Length, LengthUnit } from './style/length.js';
@@ -33,6 +37,7 @@ export {
   CueMaxDimensionKeyword,
   CueOverflow,
   CuePosition,
+  CuePointerEvents,
   CueTextAlign,
   CueWhiteSpace,
   type CueColor,

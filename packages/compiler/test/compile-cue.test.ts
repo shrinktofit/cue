@@ -159,6 +159,26 @@ describe('compileCue', () => {
     );
   });
 
+  it('locates unsupported event diagnostics at the original handler', () => {
+    /// @case
+    /// A native element declares a keyboard event outside the pointer input slice.
+    /// @expect
+    /// Compilation rejects the event and points to the original event binding.
+    const result = compileCue('<template>\n  <div @keydown="handle" />\n</template>', {
+      filename: '/project/ui/card.cue',
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.errors[0]).toMatchObject({
+      loc: {
+        source: '@keydown="handle"',
+        start: { column: 8, line: 2 },
+      },
+    });
+  });
+
   it.each([
     ['outline-offset: 0;', true],
     ['-cue-opacity: 0.5;', true],

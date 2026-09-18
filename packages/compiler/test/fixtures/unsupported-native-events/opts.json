@@ -1,0 +1,5 @@
+{
+  "customElements": ["custom-control"],
+  "expectedOk": false,
+  "filename": "/fixtures/unsupported-native-events.cue"
+}

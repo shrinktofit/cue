@@ -10,6 +10,7 @@ import {
   CueJustifyContent,
   CueMaxDimensionKeyword,
   CueOverflow,
+  CuePointerEvents,
   CuePosition,
   CueTextAlign,
   type CueColor,
@@ -39,12 +40,13 @@ import initializeTaffy, {
   type Size,
   type StylePropertyValues,
 } from 'taffy-layout/wasm';
-import { CueElement } from '../element/cue-element.js';
+import { CueElement, setCueElementClientSize } from '../element/cue-element.js';
 import {
   CueImageElement,
   getCueImageSource,
 } from '../element/cue-image-element.js';
 import { Text } from '../element/text.js';
+import type { CueHitRegion, CueHitShape } from '../input/cue-hit-region.js';
 import {
   computeCueElementStyle,
   type ComputedCueElementStyle,
@@ -148,6 +150,7 @@ export interface CuePaintTextLine {
 
 export interface CuePaintList {
   commands: CuePaintCommand[];
+  hitRegions: CueHitRegion[];
 }
 
 export enum CuePaintCommandKind {
@@ -462,7 +465,14 @@ export function createCuePaintList(
 
     const paintList: CuePaintList = {
       commands: [],
+      hitRegions: [],
     };
+    const rootLayout = tree.getLayout(rootNode);
+    try {
+      setCueElementClientSize(root, rootLayout.width, rootLayout.height);
+    } finally {
+      rootLayout.free();
+    }
     appendPaintCommands(
       tree,
       paintOrderedChildren(children, false),
@@ -472,6 +482,7 @@ export function createCuePaintList(
       0,
       1,
       paintList,
+      [],
     );
     return paintList;
   } finally {
@@ -910,12 +921,10 @@ function appendPaintCommands(
   clipDepth: number,
   parentOpacity: number,
   paintList: CuePaintList,
+  hitClips: readonly CueHitShape[],
 ): void {
   for (const record of records) {
     const opacity = parentOpacity * record.style.cueOpacity;
-    if (opacity === 0) {
-      continue;
-    }
     const layout = tree.getLayout(record.node);
     let x: number;
     let y: number;
@@ -931,6 +940,11 @@ function appendPaintCommands(
       y = record.position.y;
       width = size.width;
       height = size.height;
+      setCueElementClientSize(
+        record.element,
+        Math.max(0, width - layout.borderLeft - layout.borderRight),
+        Math.max(0, height - layout.borderTop - layout.borderBottom),
+      );
       contentX = x + layout.borderLeft + layout.paddingLeft;
       contentY = y + layout.borderTop + layout.paddingTop;
       contentWidth = Math.max(
@@ -981,6 +995,62 @@ function appendPaintCommands(
       cornerRadii(record.style.borderBottomRightRadius, width, height),
       cornerRadii(record.style.borderBottomLeftRadius, width, height),
     ] as const;
+    paintList.hitRegions.push({
+      element: record.element,
+      enabled: record.style.pointerEvents === CuePointerEvents.auto,
+      clips: hitClips,
+      borderLeft: borderWidths[3],
+      borderTop: borderWidths[0],
+      transform,
+      radii,
+      width,
+      height,
+      x,
+      y,
+    });
+    const clipsContents = record.style.overflowX !== CueOverflow.visible
+      && record.style.overflowY !== CueOverflow.visible;
+    const contentClipDepth = clipsContents ? clipDepth + 1 : clipDepth;
+    let clipRect: CuePaintRect | undefined;
+    if (clipsContents && width > 0 && height > 0) {
+      clipRect = {
+        borderColors: [transparentColor, transparentColor, transparentColor, transparentColor],
+        borderWidths: [0, 0, 0, 0],
+        clipDepth,
+        color: opaqueWhite,
+        height: Math.max(0, height - borderWidths[0] - borderWidths[2]),
+        opacity: 1,
+        radii: [
+          insetRadius(radii[0], borderWidths[3], borderWidths[0]),
+          insetRadius(radii[1], borderWidths[1], borderWidths[0]),
+          insetRadius(radii[2], borderWidths[1], borderWidths[2]),
+          insetRadius(radii[3], borderWidths[3], borderWidths[2]),
+        ],
+        transform,
+        width: Math.max(0, width - borderWidths[1] - borderWidths[3]),
+        x: x + borderWidths[3],
+        y: -y - borderWidths[0],
+      };
+    }
+    // Hit regions use top-down layout coordinates; paint commands use Y-up coordinates.
+    const contentHitClips = clipRect
+      ? [...hitClips, { ...clipRect, y: -clipRect.y }]
+      : hitClips;
+    if (opacity === 0) {
+      // Opacity affects painting, not the CSS pointer target or its descendants.
+      appendPaintCommands(
+        tree,
+        paintOrderedChildren(record.children, record.style.display === CueDisplay.flex),
+        textMeasurer,
+        backgroundSourceLookup,
+        transform,
+        contentClipDepth,
+        opacity,
+        paintList,
+        contentHitClips,
+      );
+      continue;
+    }
     const source = record.style.backgroundImage;
     const backgroundGradient = typeof source === 'object' ? source : undefined;
     const backgroundTexture = typeof source === 'string' && source !== 'none'
@@ -1172,31 +1242,7 @@ function appendPaintCommands(
         },
       });
     }
-    const clipsContents = record.style.overflowX !== CueOverflow.visible
-      && record.style.overflowY !== CueOverflow.visible;
-    const contentClipDepth = clipsContents ? clipDepth + 1 : clipDepth;
-    let clipRect: CuePaintRect | undefined;
-    if (clipsContents && width > 0 && height > 0) {
-      const clipWidth = Math.max(0, width - borderWidths[1] - borderWidths[3]);
-      const clipHeight = Math.max(0, height - borderWidths[0] - borderWidths[2]);
-      clipRect = {
-        borderColors: [transparentColor, transparentColor, transparentColor, transparentColor],
-        borderWidths: [0, 0, 0, 0],
-        clipDepth,
-        color: opaqueWhite,
-        height: clipHeight,
-        opacity: 1,
-        radii: [
-          insetRadius(radii[0], borderWidths[3], borderWidths[0]),
-          insetRadius(radii[1], borderWidths[1], borderWidths[0]),
-          insetRadius(radii[2], borderWidths[1], borderWidths[2]),
-          insetRadius(radii[3], borderWidths[3], borderWidths[2]),
-        ],
-        transform,
-        width: clipWidth,
-        x: x + borderWidths[3],
-        y: -y - borderWidths[0],
-      };
+    if (clipRect) {
       paintList.commands.push({
         kind: CuePaintCommandKind.clipEnter,
         paint: clipRect,
@@ -1260,6 +1306,7 @@ function appendPaintCommands(
       contentClipDepth,
       opacity,
       paintList,
+      contentHitClips,
     );
     if (clipRect) {
       paintList.commands.push({

@@ -14,7 +14,9 @@ import {
   EffectAsset,
   error,
   gfx,
+  geometry,
   Material,
+  Mat4,
   renderer,
   RenderingSubMesh,
   SpriteFrame,
@@ -59,6 +61,8 @@ import { computeCueElementStyle } from '../style/compute-cue-element-style.js';
 import { createCueRenderer } from '../vue/create-cue-renderer.js';
 import { CanvasTextRasterizer, type RasterizedCueText } from './canvas-text-rasterizer.js';
 import { transformCuePaintPoint } from '../render/cue-affine-transform.js';
+import { CuePointerController, type CuePointerSample } from '../input/cue-pointer-controller.js';
+import { registerCueInputSource } from './cue-input-source.js';
 
 const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
 const cueTextureEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
@@ -155,10 +159,12 @@ export class CueDocument extends CycloComponent {
   }
 
   unmount(): void {
+    this.#pointerController.cancel();
     this.#unmount?.();
     this.#unmount = undefined;
     this.#styleSheetCollection?.clear();
     this.#styleSheetCollection = undefined;
+    this.#pointerController.setRegions([]);
   }
 
   protected override onAwake(): void {
@@ -167,10 +173,18 @@ export class CueDocument extends CycloComponent {
 
   protected override onEnabled(): void {
     this.#syncRenderRecordEnabled();
+    this.#removeInputSource = registerCueInputSource({
+      priority: () => this.#inputCamera()?.priority ?? 0,
+      handle: (sample, capturedOnly) => this.#handlePointer(sample, capturedOnly),
+      cancel: () => this.#pointerController.cancel(),
+      cancelPointer: (pointerId) => this.#pointerController.cancelPointer(pointerId),
+    });
   }
 
   protected override onDisabled(): void {
     this.#syncRenderRecordEnabled();
+    this.#removeInputSource?.();
+    this.#removeInputSource = undefined;
   }
 
   protected override onUpdate(): void {
@@ -194,11 +208,14 @@ export class CueDocument extends CycloComponent {
       this.getComponent(UITransform)?.contentSize,
     );
     this.#syncRenderRecords(paintList);
+    this.#pointerController.setRegions(paintList.hitRegions);
   }
 
   protected override onDestroy(): void {
     super.onDestroy();
     this.unmount();
+    this.#removeInputSource?.();
+    this.#removeInputSource = undefined;
     this.#destroyRectRenderRecords();
     this.#destroyClipRenderRecords();
     this.#destroyBackgroundRenderRecords();
@@ -225,6 +242,8 @@ export class CueDocument extends CycloComponent {
   }
 
   readonly #rootElement = new CueRootElement();
+  readonly #pointerController = new CuePointerController(this.#rootElement);
+  #removeInputSource: (() => void) | undefined;
   readonly #backgroundAssets = new Map<string, Texture2D>();
   #backgroundEffect: EffectAsset | undefined;
   readonly #backgroundLoads = new Map<string, Promise<void>>();
@@ -247,6 +266,38 @@ export class CueDocument extends CycloComponent {
   #textRasterizer: CanvasTextRasterizer | undefined;
   readonly #textRenderRecords = new Map<CuePaintText['element'], CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
+
+  #inputCamera(): renderer.scene.Camera | undefined {
+    return this.node.scene?.renderScene?.cameras
+      .filter((camera) => camera.enabled && (camera.visibility & this.node.layer) !== 0)
+      .sort((left, right) => right.priority - left.priority)[0];
+  }
+
+  #handlePointer(sample: CuePointerSample, capturedOnly: boolean): boolean {
+    const captured = this.#pointerController.hasCapturedPointer(sample.pointerId);
+    if (capturedOnly && !captured) {
+      return false;
+    }
+    const camera = this.#inputCamera();
+    if (!camera) {
+      return false;
+    }
+    // Use the same camera and node world transform as the submitted geometry.
+    const ray = camera.screenPointToRay(new geometry.Ray(), sample.screenX, sample.screenY);
+    const worldToLocal = Mat4.invert(new Mat4(), this.node.worldMatrix);
+    const origin = Vec3.transformMat4(new Vec3(), ray.o, worldToLocal);
+    const endpoint = Vec3.transformMat4(new Vec3(), Vec3.add(new Vec3(), ray.o, ray.d), worldToLocal);
+    const direction = Vec3.subtract(new Vec3(), endpoint, origin);
+    if (direction.z === 0) {
+      return false;
+    }
+    const distance = -origin.z / direction.z;
+    return this.#pointerController.handle({
+      ...sample,
+      x: origin.x + direction.x * distance,
+      y: -(origin.y + direction.y * distance),
+    });
+  }
 
   async #prepareRenderResources(): Promise<void> {
     try {

@@ -117,7 +117,13 @@ export enum CuePosition {
   absolute = 'absolute',
 }
 
+export enum CuePointerEvents {
+  auto = 'auto',
+  none = 'none',
+}
+
 export enum CueStyleProperty {
+  pointerEvents = 'pointerEvents',
   position = 'position',
   top = 'top',
   right = 'right',
@@ -249,6 +255,7 @@ export type CueLineHeight = number | CueLineHeightKeyword;
 export type CueCornerRadius = readonly [CueLengthPercentage, CueLengthPercentage];
 
 export interface CueStyleDeclarations {
+  [CueStyleProperty.pointerEvents]?: CuePointerEvents;
   [CueStyleProperty.position]?: CuePosition;
   [CueStyleProperty.top]?: CueDimension;
   [CueStyleProperty.right]?: CueDimension;

@@ -1,0 +1,54 @@
+/// component-custom-events.cue.js
+
+import component from "./component-custom-events.cue.script.js";
+import { render } from "./component-custom-events.cue.template.js";
+
+export default Object.assign(component, {
+  __file: "component-custom-events.cue",
+  render,
+});
+
+/// component-custom-events.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+import { defineComponent, h, onMounted } from '@bsgames/cue';
+const eventName = 'dynamic';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'component-custom-events',
+    setup(__props, { expose: __expose }) {
+        const calls = [];
+        function handle(value) { calls.push(value); }
+        const listeners = { mapped: handle };
+        const CustomPanel = defineComponent({
+            emits: ['value-changed', 'keydown', 'ready', 'dynamic', 'mapped'],
+            setup(_props, { emit }) {
+                onMounted(() => {
+                    emit('value-changed', 'changed');
+                    emit('keydown', 'custom-keydown');
+                    emit('ready', 'first-ready');
+                    emit('ready', 'second-ready');
+                    emit('dynamic', 'dynamic');
+                    emit('mapped', 'mapped');
+                });
+                return () => h('div');
+            },
+        });
+        __expose({ calls });
+        const __returned__ = { calls, eventName, handle, listeners, CustomPanel };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// component-custom-events.cue.template.js
+
+import { toHandlerKey as _toHandlerKey, toHandlers as _toHandlers, mergeProps as _mergeProps, openBlock as _openBlock, createBlock as _createBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createBlock($setup["CustomPanel"], _mergeProps({
+    onValueChanged: $setup.handle,
+    onKeydown: $setup.handle,
+    onReadyOnce: $setup.handle
+  }, { [_toHandlerKey($setup.eventName)]: $setup.handle }, _toHandlers($setup.listeners)), null, 16 /* FULL_PROPS */))
+}

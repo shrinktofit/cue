@@ -14,6 +14,7 @@ import {
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
   CueOverflow,
+  CuePointerEvents,
   CuePosition,
   CueStyleProperty,
   CueTextAlign,
@@ -573,6 +574,20 @@ export function compileCueStyleDeclarations(
       break;
     }
     case 'custom': {
+      if (declaration.value.name.toLowerCase() === 'pointer-events') {
+        const tokens = declaration.value.value.filter((token) => !(
+          token.type === 'token' && token.value.type === 'white-space'
+        ));
+        const token = tokens[0];
+        const value = tokens.length === 1 && token?.type === 'token' && token.value.type === 'ident'
+          ? token.value.value.toLowerCase()
+          : undefined;
+        if (value === 'auto' || value === 'none') {
+          compiledDeclarations[CueStyleProperty.pointerEvents] = CuePointerEvents[value];
+        } else {
+          errors.push(new SyntaxError('Cue supports pointer-events: auto or none.'));
+        }
+      }
       if (declaration.value.name.startsWith('-cue-text-stroke')) {
         writeTextStroke(compiledDeclarations, declaration.value.name, declaration.value.value, errors);
       }
