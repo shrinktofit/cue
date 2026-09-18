@@ -750,11 +750,13 @@ function createMeasureFunction(
     const textLayout = textMeasurer.layout(
       intrinsicContext.text,
       intrinsicContext.style,
-      knownDimensions.width ?? textAvailableWidth(availableSpace.width),
+      // Taffy passes border-box known dimensions but content-box available space.
+      // It applies known dimensions itself after measuring the intrinsic content.
+      textAvailableWidth(availableSpace.width),
     );
     return {
-      height: knownDimensions.height ?? textLayout.height,
-      width: knownDimensions.width ?? textLayout.width,
+      height: textLayout.height,
+      width: textLayout.width,
     };
   };
 }
