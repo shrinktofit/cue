@@ -1,13 +1,13 @@
 # Cue Implementation Status
 
-更新日期：2026-09-16
+更新日期：2026-09-17
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
 - `✅`：当前链路已经实现；若与标准 Web CSS 仍有差异，状态后附脚注。
 - `❌`：尚未实现，或底层依赖虽具备能力但 Cue 尚未接通。
 - 部分实现的能力应拆成可独立验收的行，不使用含糊的“部分支持”状态。
-- 对用户公开的样式语法和语义必须是 Web CSS 的严格子集；新增差异必须先提出，再在这里明确记录。
+- 对用户公开的标准样式语法和语义必须是 Web CSS 的严格子集；Cue 自有扩展须使用 `-cue-` 前缀，并在这里明确记录。
 
 ## SFC 与 Compiler
 
@@ -94,17 +94,20 @@
 | `margin` shorthand 与四个 physical longhand | ✅[^lengths] | `px`、`%`、`auto` |
 | `padding` shorthand 与四个 physical longhand | ✅[^lengths] | `px`、`%` |
 | `background-color` | ✅[^colors] | 编译为单个 RGBA 实色并由 GPU 绘制 |
-| `border` shorthand | ✅[^border] | 仅四边一致的 color / style / width |
-| `border-color` | ✅[^border] | 仅四边同色 |
-| `border-style` | ✅[^border] | `none`、`solid`；当前还把 `hidden` 归一化为 `none` |
-| `border-width` | ✅[^border] | 仅四边同宽；支持 `thin` / `medium` / `thick` / `px` |
-| `border-radius` | ✅[^radius] | 四角可不同，但每角仅支持水平与垂直半径相同的 `px` 圆角 |
+| `border` shorthand 与四边 shorthand | ✅[^border] | 四边可分别设置 color / style / width |
+| `border-color` 与四边 color longhand | ✅[^border] | 各边独立颜色；支持 `currentColor` |
+| `border-style` 与四边 style longhand | ✅[^border] | 各边独立的 `none`、`solid` |
+| `border-width` 与四边 width longhand | ✅[^border] | 各边独立；支持 `thin` / `medium` / `thick` / `px` |
+| `border-radius` 与四角 radius longhand | ✅[^radius] | 各角水平/垂直半径独立，支持 `px`、`%` |
+| `outline` / `outline-color` / `outline-style` / `outline-width` | ✅[^outline] | `solid`、`none`，不参与布局 |
+| `outline-offset` | ✅[^outline] | `px` 与无单位 `0`；可为负数 |
 | Logical size / margin / padding / border properties | ❌ | 尚未实现 |
 | `em` / `rem` / viewport 等长度单位 | ❌ | 尚未实现 |
 | `calc()` / `min()` / `max()` / `clamp()` | ❌ | 尚未实现 |
 | Intrinsic size keywords | ❌ | `min-content`、`max-content`、`fit-content` 尚未实现为用户样式 |
 | `position` / inset | ❌ | 尚未实现 |
-| `overflow` / scrolling | ❌ | 尚未实现 |
+| `overflow` | ✅[^clip] | 等轴 `visible`、`hidden`、`clip` |
+| Scrolling | ❌ | `overflow: hidden` 尚不提供程序化滚动，`auto` / `scroll` 尚未实现 |
 | `aspect-ratio` | ❌ | 尚未实现 |
 
 ## Typography
@@ -186,24 +189,28 @@
 | 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
 | Taffy WASM 初始化与布局计算 | ✅ | WASM binary 随 runtime library 构建并由 consumer 加载 |
-| Layout box 转换为 paint rect | ✅ | 当前只为可见背景或边框生成 rect |
-| Cocos `gfx` vertex / index buffer | ✅ | `CueDocument` 动态上传 quad 数据 |
-| Cocos material / effect | ✅ | 自定义 effect 绘制背景、边框与圆角 |
-| 单 `CueDocument` rectangle batch | ✅ | 当前使用一个 model / submesh，单批最多 16,384 个矩形 |
+| Layout box 转换为有序 paint command | ✅ | background、border、shadow、outline、image、text、clip 按绘制顺序输出 |
+| Cocos `gfx` vertex / index buffer | ✅ | `CueDocument` 动态上传圆角细分 geometry 与 texture quad |
+| Cocos material / effect | ✅ | 独立 effect 绘制彩色 geometry、背景纹理、图片/文字与阴影 |
+| 连续 box 命令的几何批处理 | ✅ | 按绘制顺序拆成连续批次，box、图片、文字不再强制分层 |
 | `CueDocument` Cocos 生命周期接入 | ✅ | 使用 Cyclonium class / lifecycle decorators |
-| Individual border sides | ❌ | paint record 只有统一 border width / color |
-| Background image | ❌ | 尚未实现 |
-| Gradient | ❌ | 尚未实现 |
-| Outline | ❌ | 尚未实现 |
-| Box shadow | ❌ | 尚未实现 |
-| Clip / mask | ❌ | 尚未实现 |
-| CSS transform / opacity | ❌ | 尚未实现 |
-| Stacking context / `z-index` | ❌ | 尚未实现 |
+| Individual border sides | ✅[^border] | Taffy 使用四边独立宽度；GPU 绘制细分几何 |
+| Background image | ✅[^background-image] | 单层相对或 `uuid:` `url()`；复用 Cocos 纹理资源加载链路 |
+| Gradient | ✅[^gradient] | 两个不透明 RGB color stop 的横向/纵向 `linear-gradient()` |
+| Outline | ✅[^outline] | 在 border box 外绘制实线轮廓，不影响布局 |
+| Box shadow | ✅[^box-shadow] | 多层 outer / inset shadow；使用独立 geometry batch |
+| Overflow clip | ✅[^clip] | rounded padding box stencil；支持嵌套 clip depth |
+| External mask / clip-path | ❌ | 尚未实现 |
+| CSS 2D transform | ✅[^transform] | 作用于元素及其后代，不改变 layout |
+| `-cue-opacity` | ✅[^cue-opacity] | 0～1，祖先与子元素的值累乘后分别作用于绘制图元 |
+| Web CSS `opacity` / group compositing | ❌ | 标准属性会报错；尚无离屏子树合成 |
+| Flex item `z-index` paint order | ✅[^z-index] | 直接 flex item 按整数层级稳定排序 |
+| 完整 CSS stacking context | ❌ | 尚未实现 auto ancestor 穿透、positioned elements 等完整规则 |
 | 整文本块 texture paint | ✅[^text-raster] | 每个纯文本元素一张纹理和一个 quad |
 | Glyph atlas / SDF text | ❌ | 当前阶段明确不引入 |
 | SpriteFrame image paint | ✅[^cue-image] | 每个 `cue-image` 使用 SpriteFrame texture / UV 绘制一个 quad |
 | Nine-slice image paint | ❌ | 尚未实现 |
-| Material / texture / clip batch splitting | ❌ | 当前只有单一 rectangle material |
+| Material / texture / clip batch splitting | ✅ | 按有序 paint command 连续拆分 box、shadow、background texture、image、text 与 stencil clip |
 | Partial paint rebuild / dirty propagation | ❌ | 当前每帧重新计算 layout 与上传 vertex buffer |
 
 ## Input、Animation 与 Accessibility
@@ -238,6 +245,7 @@
 | Flex playground 可视化验收 | ✅ | 独立 examples 仓库以 Cocos UI 控件组合控制一个 live flex layout |
 | Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
 | Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸与显式拉伸 |
+| Decoration playground 可视化验收 | ✅[^decoration-gallery] | 独立页面组合验收 border、radius、outline、shadow、background、overflow、transform 与 `-cue-opacity` |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
 | Production Web smoke | ❌ | 尚未形成发布 Gate |
@@ -253,11 +261,13 @@
 
 [^lengths]: 对外仍使用标准 CSS 属性和值写法，但当前 Style IR 只保留 `px`、`%` 以及该属性合法的 `auto` / `none`。其他合法 Web CSS 单位、数学函数与 intrinsic keywords 会被忽略，且尚无 diagnostic。
 
-[^colors]: Lightning CSS 可以解析更广的 Web CSS color 语法，但 Cue 当前只保留它输出为 RGB 的颜色；`currentColor`、system color、wide-gamut color 等语义尚未实现。
+[^colors]: Lightning CSS 可以解析更广的 Web CSS color 语法，但 Cue 当前只保留它输出为 RGB 的颜色；border、outline 与 shadow 支持 `currentColor`，system color、wide-gamut color 等语义尚未实现。
 
-[^border]: Cue 当前只绘制四边一致的单一边框。`dotted`、`dashed`、`double` 等标准样式以及各边独立值会被忽略。`hidden` 当前被当作 `none`，在未来引入 table border conflict resolution 前不是完整的标准语义。
+[^border]: Cue 当前按四边独立宽度、颜色与 `none` / `solid` 样式生成几何；`dotted`、`dashed`、`double`、`hidden` 等其他合法 Web CSS 边框样式尚未接入，会被忽略。
 
-[^radius]: Web CSS 支持百分比和椭圆圆角；Cue 当前只接受 `px`，并要求每个角的水平半径等于垂直半径。超出 box 的半径会在绘制前按 CSS 的比例缩小原则归一化。
+[^radius]: Cue 支持 `px` 和相对 border box 宽高的百分比椭圆圆角，超出 box 的半径按 CSS 比例缩小原则归一化；其他 Web CSS 长度单位与数学函数尚未实现。当前圆弧使用有限细分几何，抗锯齿质量仍待视觉验收。
+
+[^outline]: Cue 以独立 geometry 在 border box 外绘制 `solid` outline，支持 px 宽度及 px `outline-offset`；outline 不参与布局。`auto`、`dashed`、`dotted` 等其他合法值尚未接入。
 
 [^flex-engine]: Cue 把当前 Style IR 映射到 Taffy 2.0.3，而不是浏览器 layout engine。没有 intrinsic measurement、inline/text layout、writing mode 和 Web Platform conformance 结果，因此只声明表中列出的 box-level 子集。
 
@@ -276,3 +286,19 @@
 [^text-wrap]: Cue 先按 `white-space` 处理 segment break、可折叠空白和 tab，再用 `css-line-break` 的 CSS Text Level 3 tailoring / Unicode UAX #14 换行机会配合 Canvas 实测宽度选择 soft wrap。当前只覆盖纯文本 Element；尚无 `lang` / `line-break` tailoring。保留模式下的 tab 使用 CSS 初始 `tab-size: 8` 的像素停靠近似，`pre-wrap` 的行尾 hanging-space 几何也尚未单独建模，因此这两项不能视为完整浏览器一致性。
 
 [^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时拉伸到 content box。尚无 URL、data URL、`object-fit`、裁剪或 nine-slice 语义。
+
+[^background-image]: 对外语法仍是 Web CSS `background-image: url(...)`。当前只接受一层相对路径或 `uuid:` URL；相对路径由 compiler host 规范化为 Cocos `Texture2D` UUID。绘制使用 Web CSS 初始的 `background-repeat: repeat`、`background-position: 0% 0%`、`background-origin: padding-box`、`background-clip: border-box` 和 auto 固有尺寸。显式 repeat / position / size / origin / clip、多层图片、远程 URL 与 nine-slice 尚未实现。
+
+[^gradient]: 当前 gradient 子集为两个无显式位置、不透明 RGB color stop，以及 `to top` / `right` / `bottom` / `left` 四种方向。斜向、角度、透明 stop、多 stop、显式 stop position、repeating 与 radial / conic gradient 会被拒绝，不会被重解释。
+
+[^box-shadow]: Cue 保留标准 `box-shadow` 名称、层叠顺序、offset、blur、spread、color 与 `inset` 含义；当前长度只接收 px。渲染器使用与元素圆角一致的细分 geometry 和 shader feather 近似浏览器 blur 核，因此边缘采样不会逐像素等同于某一浏览器实现。
+
+[^clip]: `overflow: hidden` 与 `overflow: clip` 当前都裁剪到 rounded padding box；内容及后代通过嵌套 stencil depth 裁剪，元素自身 background、border、outline 与 outer shadow 不受该内容 clip 影响。Cue 尚无 scroll offset / scroll container API，因此不把 `hidden` 声明为完整滚动语义。
+
+[^transform]: 当前接受 `translate*`、`rotate` / `rotateZ`、`scale*`、`skew*` 与 2D `matrix()`，translation 和 `transform-origin` 只接受 px / percentage。3D transform、perspective、`transform-box` 和独立 transform properties 尚未实现。
+
+[^cue-opacity]: 这是经明确选择的 Cue 专有属性，不是 Web CSS `opacity` 的别名。它不继承，但渲染时将祖先与当前元素的 `-cue-opacity` 数值累乘，并分别调整背景、边框、outline、阴影、图片与文字图元的 alpha；子元素重叠处会透出下层，行为接近 Unity UI Toolkit USS opacity。标准 CSS `opacity` 对子树整体合成，Cue 尚未实现，所有值都会产生 compiler error。
+
+[^z-index]: 当前只实现 `display: flex` 容器的直接 item 排序，`auto` 按标准当前层级处理，整数值稳定排序。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
+
+[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，以 Cocos UI 作为控制面，编译产物写入 ignored 目录；它用于人工视觉验收，不等同于像素级 conformance suite。

@@ -1,4 +1,6 @@
 import {
+  CueBorderStyle,
+  CueColorKeyword,
   CueLineHeightKeyword,
   CueTextAlign,
   CueWhiteSpace,
@@ -103,6 +105,38 @@ describe('computeCueElementStyle', () => {
       textAlign: CueTextAlign.center,
       whiteSpace: CueWhiteSpace.preWrap,
     });
+  });
+
+  test('computes currentColor for each border side after color cascade', () => {
+    /// @case
+    /// A rule changes color and uses the CSS initial currentColor border color with one visible side.
+    /// @expect
+    /// The computed border color follows the element's computed color.
+    const element = new DivElement();
+    patchCueElementProperty(element, 'class', undefined, 'bordered');
+    const color = {
+      alpha: 0.8,
+      blue: 90,
+      green: 60,
+      red: 30,
+    };
+
+    const style = computeCueElementStyle(element, [{
+      rules: [{
+        declarations: {
+          borderTopColor: CueColorKeyword.currentColor,
+          borderTopStyle: CueBorderStyle.solid,
+          borderTopWidth: 4,
+          color,
+        },
+        selectors: [['bordered']],
+      }],
+      version: cueStyleSchemaVersion,
+    }]);
+
+    expect(style.borderTopColor).toEqual(color);
+    expect(style.borderTopStyle).toBe(CueBorderStyle.solid);
+    expect(style.borderTopWidth).toBe(4);
   });
 });
 

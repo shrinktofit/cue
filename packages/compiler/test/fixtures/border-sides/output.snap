@@ -1,0 +1,130 @@
+/// border-sides.cue.js
+
+import component from "./border-sides.cue.script.js";
+import { render } from "./border-sides.cue.template.js";
+import styleSheet from "./border-sides.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/border-sides.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// border-sides.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// border-sides.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "frame" }))
+}
+
+/// border-sides.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "width": 200,
+        "height": 120,
+        "borderTopColor": {
+          "alpha": 1,
+          "blue": 0,
+          "green": 0,
+          "red": 255
+        },
+        "borderTopStyle": "solid",
+        "borderTopWidth": 2,
+        "borderRightColor": {
+          "alpha": 1,
+          "blue": 0,
+          "green": 128,
+          "red": 0
+        },
+        "borderRightStyle": "solid",
+        "borderRightWidth": 4,
+        "borderBottomColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 0,
+          "red": 0
+        },
+        "borderBottomStyle": "solid",
+        "borderBottomWidth": 6,
+        "borderLeftColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "borderLeftStyle": "solid",
+        "borderLeftWidth": 8,
+        "borderBottomLeftRadius": [
+          "40.000001%",
+          "25%"
+        ],
+        "borderBottomRightRadius": [
+          20,
+          10
+        ],
+        "borderTopLeftRadius": [
+          20,
+          10
+        ],
+        "borderTopRightRadius": [
+          "40.000001%",
+          "25%"
+        ],
+        "outlineColor": {
+          "alpha": 1,
+          "blue": 186,
+          "green": 220,
+          "red": 254
+        },
+        "outlineStyle": "solid",
+        "outlineWidth": 3,
+        "outlineOffset": -2,
+        "boxShadow": [
+          {
+            "blur": 12,
+            "color": {
+              "alpha": 0.4000000059604645,
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            "inset": false,
+            "spread": 2,
+            "xOffset": 6,
+            "yOffset": 8
+          },
+          {
+            "blur": 6,
+            "color": {
+              "alpha": 0.3019607961177826,
+              "blue": 255,
+              "green": 255,
+              "red": 255
+            },
+            "inset": true,
+            "spread": 1,
+            "xOffset": 2,
+            "yOffset": 3
+          }
+        ]
+      },
+      "selectors": [
+        [
+          "frame"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

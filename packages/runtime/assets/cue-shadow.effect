@@ -1,0 +1,114 @@
+CCEffect %{
+  techniques:
+  - name: default
+    passes:
+    - vert: cue-shadow-vs:vert
+      frag: cue-shadow-fs:frag
+      rasterizerState:
+        cullMode: none
+      depthStencilState:
+        depthTest: true
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendSrcAlpha: src_alpha
+          blendDstAlpha: one_minus_src_alpha
+}%
+
+CCProgram cue-shadow-vs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-local>
+  #include <builtin/uniforms/cc-global>
+
+  in vec2 a_position;
+  in vec2 a_texCoord;
+  in vec2 a_texCoord1;
+  in vec4 a_texCoord2;
+  in vec4 a_texCoord3;
+  in vec4 a_color;
+  in vec4 a_texCoord4;
+  in vec3 a_texCoord5;
+
+  out vec2 v_local;
+  out vec2 v_size;
+  out vec4 v_radiusX;
+  out vec4 v_radiusY;
+  out vec4 v_color;
+  out vec4 v_options;
+  out vec3 v_box;
+
+  vec4 vert() {
+    v_local = a_texCoord;
+    v_size = a_texCoord1;
+    v_radiusX = a_texCoord2;
+    v_radiusY = a_texCoord3;
+    v_color = a_color;
+    v_options = a_texCoord4;
+    v_box = a_texCoord5;
+    return cc_matProj * (cc_matView * cc_matWorld) * vec4(a_position, 0.0, 1.0);
+  }
+}%
+
+CCProgram cue-shadow-fs %{
+  precision highp float;
+  #include <legacy/output>
+
+  in vec2 v_local;
+  in vec2 v_size;
+  in vec4 v_radiusX;
+  in vec4 v_radiusY;
+  in vec4 v_color;
+  in vec4 v_options;
+  in vec3 v_box;
+
+  float ellipseDistance(vec2 point, vec2 radii) {
+    vec2 safeRadii = max(radii, vec2(0.001));
+    vec2 normalized = point / safeRadii;
+    return (length(normalized) - 1.0) * min(safeRadii.x, safeRadii.y);
+  }
+
+  float roundedDistance(vec2 point, vec2 size, vec4 radiusX, vec4 radiusY) {
+    vec2 halfSize = size * 0.5;
+    if (point.x < -halfSize.x + radiusX.x && point.y < -halfSize.y + radiusY.x) {
+      return ellipseDistance(point - vec2(-halfSize.x + radiusX.x, -halfSize.y + radiusY.x), vec2(radiusX.x, radiusY.x));
+    }
+    if (point.x > halfSize.x - radiusX.y && point.y < -halfSize.y + radiusY.y) {
+      return ellipseDistance(point - vec2(halfSize.x - radiusX.y, -halfSize.y + radiusY.y), vec2(radiusX.y, radiusY.y));
+    }
+    if (point.x > halfSize.x - radiusX.z && point.y > halfSize.y - radiusY.z) {
+      return ellipseDistance(point - vec2(halfSize.x - radiusX.z, halfSize.y - radiusY.z), vec2(radiusX.z, radiusY.z));
+    }
+    if (point.x < -halfSize.x + radiusX.w && point.y > halfSize.y - radiusY.w) {
+      return ellipseDistance(point - vec2(-halfSize.x + radiusX.w, halfSize.y - radiusY.w), vec2(radiusX.w, radiusY.w));
+    }
+    vec2 delta = abs(point) - halfSize;
+    return length(max(delta, 0.0)) + min(max(delta.x, delta.y), 0.0);
+  }
+
+  vec4 frag() {
+    float distance = roundedDistance(v_local, v_size, v_radiusX, v_radiusY);
+    float blur = max(v_options.x, 0.0);
+    float sigma = max(blur * 0.5, 0.35);
+    float coverage = blur <= 0.0
+      ? 1.0 - smoothstep(-0.75, 0.75, distance)
+      : 1.0 - smoothstep(-sigma * 1.5, sigma * 1.5, distance);
+    vec2 boxPoint = v_local + v_options.zw;
+    float originalRadiusDelta = v_box.x > 0.5
+      ? v_options.y
+      : -v_options.y;
+    float boxDistance = roundedDistance(
+      boxPoint,
+      v_box.yz,
+      max(v_radiusX + vec4(originalRadiusDelta), vec4(0.0)),
+      max(v_radiusY + vec4(originalRadiusDelta), vec4(0.0))
+    );
+    float boxCoverage = 1.0 - smoothstep(-0.75, 0.75, boxDistance);
+    coverage = v_box.x > 0.5
+      ? boxCoverage * (1.0 - coverage)
+      : coverage * (1.0 - boxCoverage);
+    return vec4(v_color.rgb, v_color.a * coverage);
+  }
+}%

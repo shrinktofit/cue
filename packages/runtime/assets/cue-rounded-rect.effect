@@ -2,8 +2,8 @@ CCEffect %{
   techniques:
   - name: default
     passes:
-    - vert: cue-rounded-rect-vs:vert
-      frag: cue-rounded-rect-fs:frag
+    - vert: cue-box-vs:vert
+      frag: cue-box-fs:frag
       rasterizerState:
         cullMode: none
       depthStencilState:
@@ -18,114 +18,30 @@ CCEffect %{
           blendDstAlpha: one_minus_src_alpha
 }%
 
-CCProgram cue-rounded-rect-vs %{
+CCProgram cue-box-vs %{
   precision highp float;
 
   #include <builtin/uniforms/cc-local>
   #include <builtin/uniforms/cc-global>
 
   in vec2 a_position;
-  in vec2 a_texCoord;
   in vec4 a_color;
-  in vec2 a_texCoord1;
-  in vec4 a_texCoord2;
-  in vec4 a_texCoord3;
-  in float a_texCoord4;
 
-  out vec2 v_texCoord;
   out vec4 v_color;
-  out vec2 v_size;
-  out vec4 v_radii;
-  out vec4 v_borderColor;
-  out float v_borderWidth;
 
   vec4 vert() {
-    v_texCoord = a_texCoord;
     v_color = a_color;
-    v_size = a_texCoord1;
-    v_radii = a_texCoord2;
-    v_borderColor = a_texCoord3;
-    v_borderWidth = a_texCoord4;
     return cc_matProj * (cc_matView * cc_matWorld) * vec4(a_position, 0.0, 1.0);
   }
 }%
 
-CCProgram cue-rounded-rect-fs %{
+CCProgram cue-box-fs %{
   precision highp float;
   #include <legacy/output>
 
-  in vec2 v_texCoord;
   in vec4 v_color;
-  in vec2 v_size;
-  in vec4 v_radii;
-  in vec4 v_borderColor;
-  in float v_borderWidth;
-
-  float roundedRectDistance(vec2 position, vec2 size, vec4 radii) {
-    vec2 halfSize = size * 0.5;
-    if (
-      position.x < -halfSize.x + radii.x
-      && position.y > halfSize.y - radii.x
-    ) {
-      vec2 center = vec2(-halfSize.x + radii.x, halfSize.y - radii.x);
-      return length(position - center) - radii.x;
-    }
-    if (
-      position.x > halfSize.x - radii.y
-      && position.y > halfSize.y - radii.y
-    ) {
-      vec2 center = vec2(halfSize.x - radii.y, halfSize.y - radii.y);
-      return length(position - center) - radii.y;
-    }
-    if (
-      position.x > halfSize.x - radii.z
-      && position.y < -halfSize.y + radii.z
-    ) {
-      vec2 center = vec2(halfSize.x - radii.z, -halfSize.y + radii.z);
-      return length(position - center) - radii.z;
-    }
-    if (
-      position.x < -halfSize.x + radii.w
-      && position.y < -halfSize.y + radii.w
-    ) {
-      vec2 center = vec2(-halfSize.x + radii.w, -halfSize.y + radii.w);
-      return length(position - center) - radii.w;
-    }
-    vec2 distanceVector = abs(position) - halfSize;
-    return max(distanceVector.x, distanceVector.y);
-  }
 
   vec4 frag() {
-    vec2 position = (v_texCoord - vec2(0.5)) * v_size;
-    float antialiasWidth = 0.75;
-    float outerCoverage = 1.0 - smoothstep(
-      -antialiasWidth,
-      antialiasWidth,
-      roundedRectDistance(position, v_size, v_radii)
-    );
-    vec2 innerSize = v_size - vec2(v_borderWidth * 2.0);
-    float innerCoverage = 0.0;
-    if (innerSize.x > 0.0 && innerSize.y > 0.0) {
-      innerCoverage = 1.0 - smoothstep(
-        -antialiasWidth,
-        antialiasWidth,
-        roundedRectDistance(
-          position,
-          innerSize,
-          max(v_radii - vec4(v_borderWidth), vec4(0.0))
-        )
-      );
-    }
-    float borderCoverage = max(outerCoverage - innerCoverage, 0.0);
-    float backgroundAlpha = v_color.a * outerCoverage;
-    float borderAlpha = v_borderColor.a * borderCoverage;
-    float alpha = borderAlpha + backgroundAlpha * (1.0 - borderAlpha);
-    vec3 color = alpha > 0.0
-      ? (
-        v_borderColor.rgb * borderAlpha
-        + v_color.rgb * backgroundAlpha * (1.0 - borderAlpha)
-      ) / alpha
-      : vec3(0.0);
-    return vec4(color, alpha);
+    return v_color;
   }
 }%

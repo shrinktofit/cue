@@ -1,0 +1,100 @@
+/// background-image.cue.js
+
+import component from "./background-image.cue.script.js";
+import { render } from "./background-image.cue.template.js";
+import styleSheet from "./background-image.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/background-image.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// background-image.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// background-image.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "paper" }))
+}
+
+/// background-image.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "width": 240,
+        "height": 160,
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 51,
+          "green": 34,
+          "red": 17
+        },
+        "backgroundImage": "uuid:81de8e76-44f9-4d8b-aa6f-8b13a70673a5@6c48a",
+        "borderTopColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "borderTopStyle": "solid",
+        "borderTopWidth": 4,
+        "borderRightColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "borderRightStyle": "solid",
+        "borderRightWidth": 4,
+        "borderBottomColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "borderBottomStyle": "solid",
+        "borderBottomWidth": 4,
+        "borderLeftColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "borderLeftStyle": "solid",
+        "borderLeftWidth": 4,
+        "borderBottomLeftRadius": [
+          36,
+          24
+        ],
+        "borderBottomRightRadius": [
+          18,
+          12
+        ],
+        "borderTopLeftRadius": [
+          18,
+          12
+        ],
+        "borderTopRightRadius": [
+          36,
+          24
+        ]
+      },
+      "selectors": [
+        [
+          "paper"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

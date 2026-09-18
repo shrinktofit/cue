@@ -56,17 +56,51 @@ const styleSheet = {
         "paddingLeft": "5%",
         "paddingRight": "5%",
         "paddingTop": 12,
-        "borderColor": {
+        "borderTopColor": {
           "alpha": 1,
           "blue": 119,
           "green": 85,
           "red": 51
         },
-        "borderStyle": "solid",
-        "borderWidth": 4,
-        "borderRadius": [
+        "borderTopStyle": "solid",
+        "borderTopWidth": 4,
+        "borderRightColor": {
+          "alpha": 1,
+          "blue": 119,
+          "green": 85,
+          "red": 51
+        },
+        "borderRightStyle": "solid",
+        "borderRightWidth": 4,
+        "borderBottomColor": {
+          "alpha": 1,
+          "blue": 119,
+          "green": 85,
+          "red": 51
+        },
+        "borderBottomStyle": "solid",
+        "borderBottomWidth": 4,
+        "borderLeftColor": {
+          "alpha": 1,
+          "blue": 119,
+          "green": 85,
+          "red": 51
+        },
+        "borderLeftStyle": "solid",
+        "borderLeftWidth": 4,
+        "borderBottomLeftRadius": [
           30,
+          30
+        ],
+        "borderBottomRightRadius": [
           30,
+          30
+        ],
+        "borderTopLeftRadius": [
+          30,
+          30
+        ],
+        "borderTopRightRadius": [
           30,
           30
         ]

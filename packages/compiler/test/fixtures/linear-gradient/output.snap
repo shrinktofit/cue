@@ -1,0 +1,83 @@
+/// linear-gradient.cue.js
+
+import component from "./linear-gradient.cue.script.js";
+import { render } from "./linear-gradient.cue.template.js";
+import styleSheet from "./linear-gradient.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/linear-gradient.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// linear-gradient.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// linear-gradient.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "gradient" }))
+}
+
+/// linear-gradient.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "width": 240,
+        "height": 120,
+        "borderBottomLeftRadius": [
+          24,
+          24
+        ],
+        "borderBottomRightRadius": [
+          24,
+          24
+        ],
+        "borderTopLeftRadius": [
+          24,
+          24
+        ],
+        "borderTopRightRadius": [
+          24,
+          24
+        ],
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 51,
+          "green": 34,
+          "red": 17
+        },
+        "backgroundImage": {
+          "direction": "right",
+          "endColor": {
+            "alpha": 1,
+            "blue": 250,
+            "green": 139,
+            "red": 167
+          },
+          "startColor": {
+            "alpha": 1,
+            "blue": 248,
+            "green": 189,
+            "red": 56
+          },
+          "type": "linear-gradient"
+        }
+      },
+      "selectors": [
+        [
+          "gradient"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

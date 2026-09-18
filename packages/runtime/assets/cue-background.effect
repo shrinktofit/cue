@@ -2,8 +2,8 @@ CCEffect %{
   techniques:
   - name: default
     passes:
-    - vert: cue-text-vs:vert
-      frag: cue-text-fs:frag
+    - vert: cue-background-vs:vert
+      frag: cue-background-fs:frag
       properties:
         mainTexture: { value: white }
       rasterizerState:
@@ -20,7 +20,7 @@ CCEffect %{
           blendDstAlpha: one_minus_src_alpha
 }%
 
-CCProgram cue-text-vs %{
+CCProgram cue-background-vs %{
   precision highp float;
 
   #include <builtin/uniforms/cc-local>
@@ -40,16 +40,15 @@ CCProgram cue-text-vs %{
   }
 }%
 
-CCProgram cue-text-fs %{
+CCProgram cue-background-fs %{
   precision highp float;
   #include <legacy/output>
 
   in vec2 v_texCoord;
   in vec4 v_color;
-
   uniform sampler2D mainTexture;
 
   vec4 frag() {
-    return texture(mainTexture, v_texCoord) * v_color;
+    return texture(mainTexture, fract(v_texCoord)) * v_color;
   }
 }%

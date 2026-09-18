@@ -122,4 +122,51 @@ describe('cue compile', () => {
     expect(template).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
     expect(template).not.toContain('./icon.png');
   });
+
+  it('compiles a relative CSS background image to its Texture2D UUID', async () => {
+    /// @case
+    /// A Cue stylesheet references a PNG beside the component and its Cocos metadata has a texture subasset.
+    /// @expect
+    /// Generated style JavaScript contains the texture UUID and not the source path or SpriteFrame UUID.
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-background-'));
+    temporaryDirectories.push(workingDirectory);
+    await Promise.all([
+      writeFile(
+        join(workingDirectory, 'card.cue'),
+        '<template><div class="card" /></template><style>.card { background-image: url("./paper.png"); }</style>',
+        'utf8',
+      ),
+      writeFile(
+        join(workingDirectory, 'paper.png.meta'),
+        JSON.stringify({
+          subMetas: {
+            texture: {
+              importer: 'texture',
+              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a',
+            },
+            spriteFrame: {
+              importer: 'sprite-frame',
+              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
+            },
+          },
+        }),
+        'utf8',
+      ),
+    ]);
+
+    await executeFile(
+      process.execPath,
+      [cliEntry, 'compile', 'card.cue'],
+      {
+        cwd: workingDirectory,
+      },
+    );
+    const style = await readFile(
+      join(workingDirectory, 'card.cue.style.js'),
+      'utf8',
+    );
+    expect(style).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a');
+    expect(style).not.toContain('./paper.png');
+    expect(style).not.toContain('@f9941');
+  });
 });

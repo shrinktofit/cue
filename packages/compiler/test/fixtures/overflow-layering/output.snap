@@ -1,0 +1,103 @@
+/// overflow-layering.cue.js
+
+import component from "./overflow-layering.cue.script.js";
+import { render } from "./overflow-layering.cue.template.js";
+import styleSheet from "./overflow-layering.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/overflow-layering.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// overflow-layering.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// overflow-layering.cue.template.js
+
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "frame" }, [
+    _createElementVNode("div", { class: "back" }),
+    _createTextVNode(),
+    _createElementVNode("div", { class: "front" })
+  ]))
+}
+
+/// overflow-layering.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "flex",
+        "width": 180,
+        "height": 100,
+        "overflowX": "hidden",
+        "overflowY": "hidden",
+        "borderBottomLeftRadius": [
+          20,
+          20
+        ],
+        "borderBottomRightRadius": [
+          20,
+          20
+        ],
+        "borderTopLeftRadius": [
+          20,
+          20
+        ],
+        "borderTopRightRadius": [
+          20,
+          20
+        ],
+        "outlineColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 255,
+          "red": 255
+        },
+        "outlineStyle": "solid",
+        "outlineWidth": 3,
+        "outlineOffset": 4
+      },
+      "selectors": [
+        [
+          "frame"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 120,
+        "height": 80,
+        "cueOpacity": 0,
+        "zIndex": -1
+      },
+      "selectors": [
+        [
+          "back"
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 120,
+        "height": 80,
+        "cueOpacity": 0.5,
+        "zIndex": 2
+      },
+      "selectors": [
+        [
+          "front"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

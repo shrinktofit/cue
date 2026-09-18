@@ -1,23 +1,29 @@
 import {
   CueBorderStyle,
   CueBoxSizing,
+  CueColorKeyword,
   CueDimensionKeyword,
   CueDisplay,
   CueFlexDirection,
   CueFlexWrap,
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
+  CueOverflow,
   CueStyleProperty,
   CueTextAlign,
   CueWhiteSpace,
   type CueAlignContent,
   type CueAlignItems,
   type CueAlignSelf,
+  type CueBoxShadow,
   type CueColor,
+  type CueCornerRadius,
   type CueDimension,
   type CueJustifyContent,
   type CueLengthPercentage,
+  type CueLinearGradient,
   type CueLineHeight,
+  type CueTransformFunction,
   type CueMargin,
   type CueMaxDimension,
   type CueStyleDeclarations,
@@ -38,17 +44,36 @@ export interface ComputedCueTextStyle {
   whiteSpace: CueWhiteSpace;
 }
 
+export interface ComputedCueBoxShadow extends Omit<CueBoxShadow, 'color'> {
+  color: CueColor;
+}
+
 export interface ComputedCueElementStyle extends ComputedCueTextStyle {
   alignContent?: CueAlignContent;
   alignItems?: CueAlignItems;
   alignSelf?: CueAlignSelf;
   backgroundColor: CueColor;
-  borderColor: CueColor;
-  borderRadius: readonly [number, number, number, number];
-  borderStyle: CueBorderStyle;
-  borderWidth: number;
+  backgroundImage?: string | CueLinearGradient;
+  borderBottomColor: CueColor;
+  borderBottomLeftRadius: CueCornerRadius;
+  borderBottomRightRadius: CueCornerRadius;
+  borderBottomStyle: CueBorderStyle;
+  borderBottomWidth: number;
+  borderLeftColor: CueColor;
+  borderLeftStyle: CueBorderStyle;
+  borderLeftWidth: number;
+  borderRightColor: CueColor;
+  borderRightStyle: CueBorderStyle;
+  borderRightWidth: number;
+  borderTopColor: CueColor;
+  borderTopLeftRadius: CueCornerRadius;
+  borderTopRightRadius: CueCornerRadius;
+  borderTopStyle: CueBorderStyle;
+  borderTopWidth: number;
   boxSizing: CueBoxSizing;
+  boxShadow: readonly ComputedCueBoxShadow[];
   columnGap: CueLengthPercentage;
+  cueOpacity: number;
   display?: CueDisplay;
   flexBasis: CueDimension;
   flexDirection: CueFlexDirection;
@@ -66,12 +91,21 @@ export interface ComputedCueElementStyle extends ComputedCueTextStyle {
   minHeight: CueDimension;
   minWidth: CueDimension;
   order: number;
+  outlineColor: CueColor;
+  outlineOffset: number;
+  outlineStyle: CueBorderStyle;
+  outlineWidth: number;
+  overflowX: CueOverflow;
+  overflowY: CueOverflow;
   paddingBottom: CueLengthPercentage;
   paddingLeft: CueLengthPercentage;
   paddingRight: CueLengthPercentage;
   paddingTop: CueLengthPercentage;
   rowGap: CueLengthPercentage;
+  transform: readonly CueTransformFunction[];
+  transformOrigin: readonly [CueLengthPercentage, CueLengthPercentage];
   width: CueDimension;
+  zIndex: number | 'auto';
 }
 
 interface DeclarationCandidate {
@@ -149,22 +183,26 @@ export function computeCueElementStyle(
       green: 0,
       red: 0,
     },
-    borderColor: {
-      alpha: 1,
-      blue: 0,
-      green: 0,
-      red: 0,
-    },
-    borderRadius: [
-      0,
-      0,
-      0,
-      0,
-    ],
-    borderStyle: CueBorderStyle.none,
-    borderWidth: 3,
+    borderBottomColor: inheritedTextStyle.color,
+    borderBottomLeftRadius: [0, 0],
+    borderBottomRightRadius: [0, 0],
+    borderBottomStyle: CueBorderStyle.none,
+    borderBottomWidth: 3,
+    borderLeftColor: inheritedTextStyle.color,
+    borderLeftStyle: CueBorderStyle.none,
+    borderLeftWidth: 3,
+    borderRightColor: inheritedTextStyle.color,
+    borderRightStyle: CueBorderStyle.none,
+    borderRightWidth: 3,
+    borderTopColor: inheritedTextStyle.color,
+    borderTopLeftRadius: [0, 0],
+    borderTopRightRadius: [0, 0],
+    borderTopStyle: CueBorderStyle.none,
+    borderTopWidth: 3,
     boxSizing: CueBoxSizing.contentBox,
+    boxShadow: [],
     columnGap: 0,
+    cueOpacity: 1,
     color: inheritedTextStyle.color,
     ...(element instanceof DivElement
       ? {
@@ -189,17 +227,59 @@ export function computeCueElementStyle(
     minWidth: CueDimensionKeyword.auto,
     lineHeight: inheritedTextStyle.lineHeight,
     order: 0,
+    outlineColor: inheritedTextStyle.color,
+    outlineOffset: 0,
+    outlineStyle: CueBorderStyle.none,
+    outlineWidth: 3,
+    overflowX: CueOverflow.visible,
+    overflowY: CueOverflow.visible,
     paddingBottom: 0,
     paddingLeft: 0,
     paddingRight: 0,
     paddingTop: 0,
     rowGap: 0,
     textAlign: inheritedTextStyle.textAlign,
+    transform: [],
+    transformOrigin: ['50%', '50%'],
     whiteSpace: inheritedTextStyle.whiteSpace,
     width: CueDimensionKeyword.auto,
+    zIndex: 'auto',
   };
   Object.assign(computedStyle, declarations);
+  computedStyle.borderBottomColor = computedBorderColor(
+    declarations.borderBottomColor,
+    computedStyle.color,
+  );
+  computedStyle.borderLeftColor = computedBorderColor(
+    declarations.borderLeftColor,
+    computedStyle.color,
+  );
+  computedStyle.borderRightColor = computedBorderColor(
+    declarations.borderRightColor,
+    computedStyle.color,
+  );
+  computedStyle.borderTopColor = computedBorderColor(
+    declarations.borderTopColor,
+    computedStyle.color,
+  );
+  computedStyle.outlineColor = computedBorderColor(
+    declarations.outlineColor,
+    computedStyle.color,
+  );
+  computedStyle.boxShadow = computedStyle.boxShadow.map((shadow) => ({
+    ...shadow,
+    color: computedBorderColor(shadow.color, computedStyle.color),
+  }));
   return computedStyle;
+}
+
+function computedBorderColor(
+  value: CueColor | CueColorKeyword | undefined,
+  currentColor: CueColor,
+): CueColor {
+  return value === undefined || value === CueColorKeyword.currentColor
+    ? currentColor
+    : value;
 }
 
 function applyDeclarations(

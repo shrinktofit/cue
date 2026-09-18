@@ -38,6 +38,10 @@ export enum CueBorderStyle {
   solid = 'solid',
 }
 
+export enum CueColorKeyword {
+  currentColor = 'currentColor',
+}
+
 export enum CueBoxSizing {
   borderBox = 'border-box',
   contentBox = 'content-box',
@@ -101,17 +105,38 @@ export enum CueMaxDimensionKeyword {
   none = 'none',
 }
 
+export enum CueOverflow {
+  clip = 'clip',
+  hidden = 'hidden',
+  visible = 'visible',
+}
+
 export enum CueStyleProperty {
   alignContent = 'alignContent',
   alignItems = 'alignItems',
   alignSelf = 'alignSelf',
   backgroundColor = 'backgroundColor',
-  borderColor = 'borderColor',
-  borderRadius = 'borderRadius',
-  borderStyle = 'borderStyle',
-  borderWidth = 'borderWidth',
+  backgroundImage = 'backgroundImage',
+  borderBottomColor = 'borderBottomColor',
+  borderBottomLeftRadius = 'borderBottomLeftRadius',
+  borderBottomRightRadius = 'borderBottomRightRadius',
+  borderBottomStyle = 'borderBottomStyle',
+  borderBottomWidth = 'borderBottomWidth',
+  borderLeftColor = 'borderLeftColor',
+  borderLeftStyle = 'borderLeftStyle',
+  borderLeftWidth = 'borderLeftWidth',
+  borderRightColor = 'borderRightColor',
+  borderRightStyle = 'borderRightStyle',
+  borderRightWidth = 'borderRightWidth',
+  borderTopColor = 'borderTopColor',
+  borderTopLeftRadius = 'borderTopLeftRadius',
+  borderTopRightRadius = 'borderTopRightRadius',
+  borderTopStyle = 'borderTopStyle',
+  borderTopWidth = 'borderTopWidth',
   boxSizing = 'boxSizing',
+  boxShadow = 'boxShadow',
   columnGap = 'columnGap',
+  cueOpacity = 'cueOpacity',
   color = 'color',
   display = 'display',
   flexBasis = 'flexBasis',
@@ -133,14 +158,23 @@ export enum CueStyleProperty {
   minHeight = 'minHeight',
   minWidth = 'minWidth',
   order = 'order',
+  outlineColor = 'outlineColor',
+  outlineOffset = 'outlineOffset',
+  outlineStyle = 'outlineStyle',
+  outlineWidth = 'outlineWidth',
+  overflowX = 'overflowX',
+  overflowY = 'overflowY',
   paddingBottom = 'paddingBottom',
   paddingLeft = 'paddingLeft',
   paddingRight = 'paddingRight',
   paddingTop = 'paddingTop',
   rowGap = 'rowGap',
   textAlign = 'textAlign',
+  transform = 'transform',
+  transformOrigin = 'transformOrigin',
   whiteSpace = 'whiteSpace',
   width = 'width',
+  zIndex = 'zIndex',
 }
 
 export interface CueColor {
@@ -150,24 +184,82 @@ export interface CueColor {
   red: number;
 }
 
+export type CueColorValue = CueColor | CueColorKeyword;
+export interface CueBoxShadow {
+  blur: number;
+  color: CueColorValue;
+  inset: boolean;
+  spread: number;
+  xOffset: number;
+  yOffset: number;
+}
+
+export interface CueLinearGradient {
+  direction: 'top' | 'right' | 'bottom' | 'left';
+  endColor: CueColor;
+  startColor: CueColor;
+  type: 'linear-gradient';
+}
+
+export type CueTransformFunction = {
+  angle: number;
+  type: 'rotate';
+} | {
+  x: CueLengthPercentage;
+  y: CueLengthPercentage;
+  type: 'translate';
+} | {
+  x: number;
+  y: number;
+  type: 'scale';
+} | {
+  xAngle: number;
+  yAngle: number;
+  type: 'skew';
+} | {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+  type: 'matrix';
+};
+
 export type CueClassSelector = readonly string[];
 export type CueLengthPercentage = number | `${number}%`;
 export type CueDimension = CueLengthPercentage | CueDimensionKeyword;
 export type CueMargin = CueLengthPercentage | CueDimensionKeyword;
 export type CueMaxDimension = CueLengthPercentage | CueMaxDimensionKeyword;
 export type CueLineHeight = number | CueLineHeightKeyword;
+export type CueCornerRadius = readonly [CueLengthPercentage, CueLengthPercentage];
 
 export interface CueStyleDeclarations {
   [CueStyleProperty.alignContent]?: CueAlignContent;
   [CueStyleProperty.alignItems]?: CueAlignItems;
   [CueStyleProperty.alignSelf]?: CueAlignSelf;
   [CueStyleProperty.backgroundColor]?: CueColor;
-  [CueStyleProperty.borderColor]?: CueColor;
-  [CueStyleProperty.borderRadius]?: readonly [number, number, number, number];
-  [CueStyleProperty.borderStyle]?: CueBorderStyle;
-  [CueStyleProperty.borderWidth]?: number;
+  [CueStyleProperty.backgroundImage]?: string | CueLinearGradient;
+  [CueStyleProperty.borderBottomColor]?: CueColorValue;
+  [CueStyleProperty.borderBottomLeftRadius]?: CueCornerRadius;
+  [CueStyleProperty.borderBottomRightRadius]?: CueCornerRadius;
+  [CueStyleProperty.borderBottomStyle]?: CueBorderStyle;
+  [CueStyleProperty.borderBottomWidth]?: number;
+  [CueStyleProperty.borderLeftColor]?: CueColorValue;
+  [CueStyleProperty.borderLeftStyle]?: CueBorderStyle;
+  [CueStyleProperty.borderLeftWidth]?: number;
+  [CueStyleProperty.borderRightColor]?: CueColorValue;
+  [CueStyleProperty.borderRightStyle]?: CueBorderStyle;
+  [CueStyleProperty.borderRightWidth]?: number;
+  [CueStyleProperty.borderTopColor]?: CueColorValue;
+  [CueStyleProperty.borderTopLeftRadius]?: CueCornerRadius;
+  [CueStyleProperty.borderTopRightRadius]?: CueCornerRadius;
+  [CueStyleProperty.borderTopStyle]?: CueBorderStyle;
+  [CueStyleProperty.borderTopWidth]?: number;
   [CueStyleProperty.boxSizing]?: CueBoxSizing;
+  [CueStyleProperty.boxShadow]?: readonly CueBoxShadow[];
   [CueStyleProperty.columnGap]?: CueLengthPercentage;
+  [CueStyleProperty.cueOpacity]?: number;
   [CueStyleProperty.color]?: CueColor;
   [CueStyleProperty.display]?: CueDisplay;
   [CueStyleProperty.flexBasis]?: CueDimension;
@@ -189,14 +281,23 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.minHeight]?: CueDimension;
   [CueStyleProperty.minWidth]?: CueDimension;
   [CueStyleProperty.order]?: number;
+  [CueStyleProperty.outlineColor]?: CueColorValue;
+  [CueStyleProperty.outlineOffset]?: number;
+  [CueStyleProperty.outlineStyle]?: CueBorderStyle;
+  [CueStyleProperty.outlineWidth]?: number;
+  [CueStyleProperty.overflowX]?: CueOverflow;
+  [CueStyleProperty.overflowY]?: CueOverflow;
   [CueStyleProperty.paddingBottom]?: CueLengthPercentage;
   [CueStyleProperty.paddingLeft]?: CueLengthPercentage;
   [CueStyleProperty.paddingRight]?: CueLengthPercentage;
   [CueStyleProperty.paddingTop]?: CueLengthPercentage;
   [CueStyleProperty.rowGap]?: CueLengthPercentage;
   [CueStyleProperty.textAlign]?: CueTextAlign;
+  [CueStyleProperty.transform]?: readonly CueTransformFunction[];
+  [CueStyleProperty.transformOrigin]?: readonly [CueLengthPercentage, CueLengthPercentage];
   [CueStyleProperty.whiteSpace]?: CueWhiteSpace;
   [CueStyleProperty.width]?: CueDimension;
+  [CueStyleProperty.zIndex]?: number | 'auto';
 }
 
 export interface CueStyleRule {

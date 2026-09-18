@@ -40,6 +40,7 @@ export type CueImageSourceCanonicalizer = (
 ) => CanonicalizeCueImageSourceResult;
 
 export interface CompileCueOptions {
+  canonicalizeBackgroundImageSource?: CueImageSourceCanonicalizer;
   canonicalizeImageSource?: CueImageSourceCanonicalizer;
   customElements?: readonly string[];
   filename: string;
@@ -77,6 +78,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const compiledStyle = compileCueStyle(
     descriptor.styles.map((style) => style.content),
     options.filename,
+    options.canonicalizeBackgroundImageSource,
   );
   if (compiledStyle.errors.length > 0) {
     return {

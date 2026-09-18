@@ -9,14 +9,16 @@ import {
   CueFlexWrap,
   CueJustifyContent,
   CueMaxDimensionKeyword,
+  CueOverflow,
   CueTextAlign,
   type CueColor,
   type CueDimension,
   type CueLengthPercentage,
+  type CueLinearGradient,
   type CueMaxDimension,
   type CueStyleSheet,
 } from '@bsgames/cue-style-schema';
-import type { SpriteFrame } from 'cc';
+import type { SpriteFrame, Texture2D } from 'cc';
 import initializeTaffy, {
   AlignContent,
   AlignItems,
@@ -48,32 +50,90 @@ import {
   initialCueTextStyle,
 } from '../style/compute-cue-element-style.js';
 import type { CueTextLayout } from '../text/layout-cue-text.js';
+import {
+  createCueElementTransform,
+  identityCueAffineTransform,
+  type CueAffineTransform,
+} from './cue-affine-transform.js';
 
 export interface CuePaintRect {
-  borderColor: CueColor;
-  borderWidth: number;
+  borderColors: readonly [CueColor, CueColor, CueColor, CueColor];
+  borderWidths: readonly [number, number, number, number];
+  clipDepth: number;
   color: CueColor;
+  opacity: number;
+  gradient?: CueLinearGradient;
+  gradientArea?: {
+    height: number;
+    width: number;
+    x: number;
+    y: number;
+  };
+  transform: CueAffineTransform;
   height: number;
-  radii: readonly [number, number, number, number];
+  radii: readonly [
+    readonly [number, number],
+    readonly [number, number],
+    readonly [number, number],
+    readonly [number, number],
+  ];
   width: number;
   x: number;
   y: number;
 }
 
 export interface CuePaintImage {
+  clipDepth: number;
   element: CueImageElement;
   height: number;
+  opacity: number;
   spriteFrame: SpriteFrame;
+  transform: CueAffineTransform;
   width: number;
   x: number;
   y: number;
 }
 
-export interface CuePaintText {
+export interface CuePaintBackground {
+  clipDepth: number;
   element: CueElement;
   height: number;
+  opacity: number;
+  radii: CuePaintRect['radii'];
+  texture: Texture2D;
+  transform: CueAffineTransform;
+  width: number;
+  x: number;
+  y: number;
+  imageOffsetX: number;
+  imageOffsetY: number;
+}
+
+export interface CuePaintShadow {
+  blur: number;
+  clipDepth: number;
+  color: CueColor;
+  height: number;
+  opacity: number;
+  inset: boolean;
+  radii: CuePaintRect['radii'];
+  spread: number;
+  transform: CueAffineTransform;
+  width: number;
+  x: number;
+  xOffset: number;
+  y: number;
+  yOffset: number;
+}
+
+export interface CuePaintText {
+  clipDepth: number;
+  element: CueElement;
+  height: number;
+  opacity: number;
   lines: readonly CuePaintTextLine[];
   style: ComputedCueTextStyle;
+  transform: CueAffineTransform;
   width: number;
   x: number;
   y: number;
@@ -85,14 +145,49 @@ export interface CuePaintTextLine {
 }
 
 export interface CuePaintList {
-  images: CuePaintImage[];
-  rects: CuePaintRect[];
-  texts: CuePaintText[];
+  commands: CuePaintCommand[];
 }
+
+export enum CuePaintCommandKind {
+  background = 'background',
+  clipEnter = 'clip-enter',
+  clipExit = 'clip-exit',
+  image = 'image',
+  rect = 'rect',
+  shadow = 'shadow',
+  text = 'text',
+}
+
+export type CuePaintCommand = {
+  kind: CuePaintCommandKind.background;
+  paint: CuePaintBackground;
+} | {
+  kind: CuePaintCommandKind.clipEnter;
+  paint: CuePaintRect;
+} | {
+  kind: CuePaintCommandKind.clipExit;
+  paint: CuePaintRect;
+} | {
+  kind: CuePaintCommandKind.image;
+  paint: CuePaintImage;
+} | {
+  kind: CuePaintCommandKind.rect;
+  paint: CuePaintRect;
+} | {
+  kind: CuePaintCommandKind.shadow;
+  paint: CuePaintShadow;
+} | {
+  kind: CuePaintCommandKind.text;
+  paint: CuePaintText;
+};
 
 export type CueImageSourceLookup = (
   source: string,
 ) => SpriteFrame | undefined;
+
+export type CueBackgroundSourceLookup = (
+  source: string,
+) => Texture2D | undefined;
 
 export interface CueTextMeasurer {
   layout(
@@ -210,6 +305,7 @@ export function createCuePaintList(
   styleSheets: readonly CueStyleSheet[],
   textMeasurer: CueTextMeasurer,
   imageSourceLookup: CueImageSourceLookup,
+  backgroundSourceLookup: CueBackgroundSourceLookup,
 ): CuePaintList {
   if (!cueLayoutInitialized) {
     throw new Error('Cue layout must be initialized before computing a paint list.');
@@ -254,11 +350,20 @@ export function createCuePaintList(
     );
 
     const paintList: CuePaintList = {
-      images: [],
-      rects: [],
-      texts: [],
+      commands: [],
     };
-    appendPaintCommands(tree, children, 0, 0, textMeasurer, paintList);
+    appendPaintCommands(
+      tree,
+      children,
+      0,
+      0,
+      textMeasurer,
+      backgroundSourceLookup,
+      identityCueAffineTransform,
+      0,
+      1,
+      paintList,
+    );
     return paintList;
   } finally {
     tree.free();
@@ -443,15 +548,12 @@ function createTaffyStyle(
       `CSS initial value "display: inline" is not supported for <${element.tagName}> yet. Declare "display: block" or "display: flex".`,
     );
   }
-  const borderWidth = style.borderStyle === CueBorderStyle.solid
-    ? style.borderWidth
-    : 0;
   const properties: StylePropertyValues = {
     border: {
-      bottom: borderWidth,
-      left: borderWidth,
-      right: borderWidth,
-      top: borderWidth,
+      bottom: borderWidth(style.borderBottomStyle, style.borderBottomWidth),
+      left: borderWidth(style.borderLeftStyle, style.borderLeftWidth),
+      right: borderWidth(style.borderRightStyle, style.borderRightWidth),
+      top: borderWidth(style.borderTopStyle, style.borderTopWidth),
     },
     boxSizing: boxSizingByCueValue[style.boxSizing],
     display: displayByCueValue[style.display],
@@ -504,6 +606,10 @@ function createTaffyStyle(
   return new Style(properties);
 }
 
+function borderWidth(style: CueBorderStyle, width: number): number {
+  return style === CueBorderStyle.solid ? width : 0;
+}
+
 function toTaffyDimension(value: CueDimension): Dimension {
   return value;
 }
@@ -524,9 +630,17 @@ function appendPaintCommands(
   parentX: number,
   parentY: number,
   textMeasurer: CueTextMeasurer,
+  backgroundSourceLookup: CueBackgroundSourceLookup,
+  parentTransform: CueAffineTransform,
+  clipDepth: number,
+  parentOpacity: number,
   paintList: CuePaintList,
 ): void {
   for (const record of records) {
+    const opacity = parentOpacity * record.style.cueOpacity;
+    if (opacity === 0) {
+      continue;
+    }
     const layout = tree.getLayout(record.node);
     let x: number;
     let y: number;
@@ -565,39 +679,269 @@ function appendPaintCommands(
       layout.free();
     }
 
-    const borderWidth = record.style.borderStyle === CueBorderStyle.solid
-      ? record.style.borderWidth
-      : 0;
+    const transform = createCueElementTransform(
+      parentTransform,
+      record.style.transform,
+      record.style.transformOrigin,
+      x,
+      y,
+      width,
+      height,
+    );
+
+    const borderWidths = [
+      borderWidth(record.style.borderTopStyle, record.style.borderTopWidth),
+      borderWidth(record.style.borderRightStyle, record.style.borderRightWidth),
+      borderWidth(record.style.borderBottomStyle, record.style.borderBottomWidth),
+      borderWidth(record.style.borderLeftStyle, record.style.borderLeftWidth),
+    ] as const;
+    const borderColors = [
+      record.style.borderTopColor,
+      record.style.borderRightColor,
+      record.style.borderBottomColor,
+      record.style.borderLeftColor,
+    ] as const;
+    const radii = [
+      cornerRadii(record.style.borderTopLeftRadius, width, height),
+      cornerRadii(record.style.borderTopRightRadius, width, height),
+      cornerRadii(record.style.borderBottomRightRadius, width, height),
+      cornerRadii(record.style.borderBottomLeftRadius, width, height),
+    ] as const;
+    const source = record.style.backgroundImage;
+    const backgroundGradient = typeof source === 'object' ? source : undefined;
+    const backgroundTexture = typeof source === 'string' && source !== 'none'
+      ? backgroundSourceLookup(source)
+      : undefined;
+    const shadows = [...record.style.boxShadow].reverse();
+    const visibleBorder = borderWidths.some((value, index) => (
+      value > 0 && (borderColors[index]?.alpha ?? 0) > 0
+    ));
+    const insetShadow = shadows.some((shadow) => shadow.inset);
+    for (const shadow of shadows.filter((item) => !item.inset)) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.shadow,
+        paint: {
+          blur: shadow.blur,
+          clipDepth,
+          color: shadow.color,
+          height,
+          opacity,
+          inset: shadow.inset,
+          radii,
+          spread: shadow.spread,
+          transform,
+          width,
+          x,
+          xOffset: shadow.xOffset,
+          y: -y,
+          yOffset: shadow.yOffset,
+        },
+      });
+    }
     if (
       width > 0
       && height > 0
       && (
         record.style.backgroundColor.alpha > 0
-        || (
-          borderWidth > 0
-          && record.style.borderColor.alpha > 0
-        )
+        || (!backgroundTexture && !backgroundGradient && !insetShadow && visibleBorder)
       )
     ) {
-      paintList.rects.push({
-        borderColor: record.style.borderColor,
-        borderWidth,
-        color: record.style.backgroundColor,
-        height,
-        radii: record.style.borderRadius,
-        width,
-        x,
-        y: -y,
+      paintList.commands.push({
+        kind: CuePaintCommandKind.rect,
+        paint: {
+          borderColors: backgroundTexture || backgroundGradient || insetShadow
+            ? [transparentColor, transparentColor, transparentColor, transparentColor]
+            : borderColors,
+          borderWidths: backgroundTexture || backgroundGradient || insetShadow
+            ? [0, 0, 0, 0]
+            : borderWidths,
+          color: record.style.backgroundColor,
+          clipDepth,
+          opacity,
+          transform,
+          height,
+          radii,
+          width,
+          x,
+          y: -y,
+        },
+      });
+    }
+    if (backgroundGradient && width > 0 && height > 0) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.rect,
+        paint: {
+          borderColors: [transparentColor, transparentColor, transparentColor, transparentColor],
+          borderWidths: [0, 0, 0, 0],
+          clipDepth,
+          color: transparentColor,
+          gradient: backgroundGradient,
+          opacity,
+          gradientArea: {
+            height: Math.max(0, height - borderWidths[0] - borderWidths[2]),
+            width: Math.max(0, width - borderWidths[1] - borderWidths[3]),
+            x: borderWidths[3],
+            y: borderWidths[0],
+          },
+          transform,
+          height,
+          radii,
+          width,
+          x,
+          y: -y,
+        },
+      });
+    }
+    if (backgroundTexture && width > 0 && height > 0) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.background,
+        paint: {
+          element: record.element,
+          clipDepth,
+          height,
+          opacity,
+          imageOffsetX: borderWidths[3],
+          imageOffsetY: borderWidths[0],
+          radii,
+          texture: backgroundTexture,
+          transform,
+          width,
+          x,
+          y: -y,
+        },
+      });
+    }
+    for (const shadow of shadows.filter((item) => item.inset)) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.shadow,
+        paint: {
+          blur: shadow.blur,
+          clipDepth,
+          color: shadow.color,
+          height,
+          opacity,
+          inset: shadow.inset,
+          radii,
+          spread: shadow.spread,
+          transform,
+          width,
+          x,
+          xOffset: shadow.xOffset,
+          y: -y,
+          yOffset: shadow.yOffset,
+        },
+      });
+    }
+    if ((backgroundTexture || backgroundGradient || insetShadow) && visibleBorder && width > 0 && height > 0) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.rect,
+        paint: {
+          borderColors,
+          borderWidths,
+          clipDepth,
+          color: transparentColor,
+          opacity,
+          transform,
+          height,
+          radii,
+          width,
+          x,
+          y: -y,
+        },
+      });
+    }
+    const outlineWidth = borderWidth(
+      record.style.outlineStyle,
+      record.style.outlineWidth,
+    );
+    const outlineOffset = record.style.outlineOffset;
+    if (
+      width > 0
+      && height > 0
+      && outlineWidth > 0
+      && record.style.outlineColor.alpha > 0
+    ) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.rect,
+        paint: {
+          borderColors: [
+            record.style.outlineColor,
+            record.style.outlineColor,
+            record.style.outlineColor,
+            record.style.outlineColor,
+          ],
+          borderWidths: [
+            outlineWidth,
+            outlineWidth,
+            outlineWidth,
+            outlineWidth,
+          ],
+          color: {
+            alpha: 0,
+            blue: 0,
+            green: 0,
+            red: 0,
+          },
+          clipDepth,
+          opacity,
+          transform,
+          height: height + (outlineWidth + outlineOffset) * 2,
+          radii: [
+            outlineRadius(record.style.borderTopLeftRadius, width, height, outlineWidth + outlineOffset),
+            outlineRadius(record.style.borderTopRightRadius, width, height, outlineWidth + outlineOffset),
+            outlineRadius(record.style.borderBottomRightRadius, width, height, outlineWidth + outlineOffset),
+            outlineRadius(record.style.borderBottomLeftRadius, width, height, outlineWidth + outlineOffset),
+          ],
+          width: width + (outlineWidth + outlineOffset) * 2,
+          x: x - outlineWidth - outlineOffset,
+          y: -y + outlineWidth + outlineOffset,
+        },
+      });
+    }
+    const clipsContents = record.style.overflowX !== CueOverflow.visible
+      && record.style.overflowY !== CueOverflow.visible;
+    const contentClipDepth = clipsContents ? clipDepth + 1 : clipDepth;
+    let clipRect: CuePaintRect | undefined;
+    if (clipsContents && width > 0 && height > 0) {
+      const clipWidth = Math.max(0, width - borderWidths[1] - borderWidths[3]);
+      const clipHeight = Math.max(0, height - borderWidths[0] - borderWidths[2]);
+      clipRect = {
+        borderColors: [transparentColor, transparentColor, transparentColor, transparentColor],
+        borderWidths: [0, 0, 0, 0],
+        clipDepth,
+        color: opaqueWhite,
+        height: clipHeight,
+        opacity: 1,
+        radii: [
+          insetRadius(radii[0], borderWidths[3], borderWidths[0]),
+          insetRadius(radii[1], borderWidths[1], borderWidths[0]),
+          insetRadius(radii[2], borderWidths[1], borderWidths[2]),
+          insetRadius(radii[3], borderWidths[3], borderWidths[2]),
+        ],
+        transform,
+        width: clipWidth,
+        x: x + borderWidths[3],
+        y: -y - borderWidths[0],
+      };
+      paintList.commands.push({
+        kind: CuePaintCommandKind.clipEnter,
+        paint: clipRect,
       });
     }
     if (record.image && contentWidth > 0 && contentHeight > 0) {
-      paintList.images.push({
-        element: record.element,
-        height: contentHeight,
-        spriteFrame: record.image,
-        width: contentWidth,
-        x: contentX,
-        y: -contentY,
+      paintList.commands.push({
+        kind: CuePaintCommandKind.image,
+        paint: {
+          element: record.element,
+          clipDepth: contentClipDepth,
+          height: contentHeight,
+          opacity,
+          spriteFrame: record.image,
+          transform,
+          width: contentWidth,
+          x: contentX,
+          y: -contentY,
+        },
       });
     }
     if (record.text !== undefined && record.style.color.alpha > 0) {
@@ -616,26 +960,108 @@ function appendPaintCommands(
         && textLayout.height > 0
         && paintGeometry.lines.some((line) => line.text.length > 0)
       ) {
-        paintList.texts.push({
-          element: record.element,
-          height: textLayout.height,
-          lines: paintGeometry.lines,
-          style: record.style,
-          width: paintGeometry.width,
-          x: contentX + paintGeometry.x,
-          y: -contentY,
+        paintList.commands.push({
+          kind: CuePaintCommandKind.text,
+          paint: {
+            element: record.element,
+            clipDepth: contentClipDepth,
+            height: textLayout.height,
+            opacity,
+            lines: paintGeometry.lines,
+            style: record.style,
+            transform,
+            width: paintGeometry.width,
+            x: contentX + paintGeometry.x,
+            y: -contentY,
+          },
         });
       }
     }
     appendPaintCommands(
       tree,
-      record.children,
+      record.style.display === CueDisplay.flex
+        ? paintOrderedChildren(record.children)
+        : record.children,
       x,
       y,
       textMeasurer,
+      backgroundSourceLookup,
+      transform,
+      contentClipDepth,
+      opacity,
       paintList,
     );
+    if (clipRect) {
+      paintList.commands.push({
+        kind: CuePaintCommandKind.clipExit,
+        paint: clipRect,
+      });
+    }
   }
+}
+
+function paintOrderedChildren(
+  children: readonly CueLayoutRecord[],
+): CueLayoutRecord[] {
+  return [...children].sort((left, right) => (
+    numericZIndex(left.style.zIndex) - numericZIndex(right.style.zIndex)
+  ));
+}
+
+function numericZIndex(value: number | 'auto'): number {
+  return value === 'auto' ? 0 : value;
+}
+
+const transparentColor: CueColor = {
+  alpha: 0,
+  blue: 0,
+  green: 0,
+  red: 0,
+};
+
+const opaqueWhite: CueColor = {
+  alpha: 1,
+  blue: 255,
+  green: 255,
+  red: 255,
+};
+
+function insetRadius(
+  radius: readonly [number, number],
+  horizontalInset: number,
+  verticalInset: number,
+): readonly [number, number] {
+  return [
+    Math.max(0, radius[0] - horizontalInset),
+    Math.max(0, radius[1] - verticalInset),
+  ];
+}
+
+function cornerRadii(
+  radius: readonly [CueLengthPercentage, CueLengthPercentage],
+  width: number,
+  height: number,
+): readonly [number, number] {
+  return [
+    Math.max(0, pixelLength(radius[0], width)),
+    Math.max(0, pixelLength(radius[1], height)),
+  ];
+}
+
+function outlineRadius(
+  radius: readonly [CueLengthPercentage, CueLengthPercentage],
+  width: number,
+  height: number,
+  outlineWidth: number,
+): readonly [number, number] {
+  const [horizontal, vertical] = cornerRadii(radius, width, height);
+  return [horizontal + outlineWidth, vertical + outlineWidth];
+}
+
+function pixelLength(value: CueLengthPercentage, basis: number): number {
+  return typeof value === 'number'
+    ? value
+    : Number.parseFloat(value) * basis / 100;
 }
 
 interface CueTextPaintGeometry {

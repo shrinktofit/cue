@@ -43,6 +43,7 @@ try {
 
         const source = await readFile(sourceFile, 'utf8');
         const result = compileCue(source, {
+          canonicalizeBackgroundImageSource,
           canonicalizeImageSource,
           filename: sourceFile,
         });
@@ -76,6 +77,18 @@ interface CocosAssetMeta {
   subMetas?: Record<string, CocosAssetSubMeta>;
 }
 
+function canonicalizeBackgroundImageSource(
+  source: string,
+  filename: string,
+): CanonicalizeCueImageSourceResult {
+  return canonicalizeCocosImageSource(
+    source,
+    filename,
+    'texture',
+    'background-image',
+  );
+}
+
 interface CocosAssetSubMeta {
   importer?: unknown;
   uuid?: unknown;
@@ -84,6 +97,20 @@ interface CocosAssetSubMeta {
 function canonicalizeImageSource(
   source: string,
   filename: string,
+): CanonicalizeCueImageSourceResult {
+  return canonicalizeCocosImageSource(
+    source,
+    filename,
+    'sprite-frame',
+    '<cue-image> src',
+  );
+}
+
+function canonicalizeCocosImageSource(
+  source: string,
+  filename: string,
+  importer: 'sprite-frame' | 'texture',
+  context: string,
 ): CanonicalizeCueImageSourceResult {
   const assetPath = resolve(dirname(filename), source);
   const metaPath = `${assetPath}.meta`;
@@ -94,30 +121,30 @@ function canonicalizeImageSource(
     return {
       ok: false,
       error: new SyntaxError(
-        `Cannot read Cocos asset metadata for <cue-image> src ${JSON.stringify(source)} at ${metaPath}.`,
+        `Cannot read Cocos asset metadata for ${context} ${JSON.stringify(source)} at ${metaPath}.`,
         {
           cause,
         },
       ),
     };
   }
-  const spriteFrames = meta.subMetas
+  const assets = meta.subMetas
     ? Object.values(meta.subMetas).filter((subMeta) => (
-      subMeta.importer === 'sprite-frame'
+      subMeta.importer === importer
       && typeof subMeta.uuid === 'string'
       && subMeta.uuid.length > 0
     ))
     : [];
-  if (spriteFrames.length !== 1) {
+  if (assets.length !== 1) {
     return {
       ok: false,
       error: new SyntaxError(
-        `Expected exactly one SpriteFrame subasset for <cue-image> src ${JSON.stringify(source)}, found ${spriteFrames.length}. Use an explicit "uuid:" source when the asset is ambiguous.`,
+        `Expected exactly one ${importer} subasset for ${context} ${JSON.stringify(source)}, found ${assets.length}.`,
       ),
     };
   }
   return {
     ok: true,
-    source: `uuid:${String(spriteFrames[0]?.uuid)}`,
+    source: `uuid:${String(assets[0]?.uuid)}`,
   };
 }

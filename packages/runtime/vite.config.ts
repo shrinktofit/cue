@@ -44,6 +44,24 @@ export default defineConfig({
   },
   plugins: [
     {
+      apply: 'serve',
+      load(id) {
+        if (id !== '\0cue:taffy-wasm-binary') {
+          return undefined;
+        }
+        return [
+          'import { readFileSync } from \'node:fs\';',
+          `export default readFileSync(${JSON.stringify(taffyWasmBinaryPath)});`,
+        ].join('\n');
+      },
+      name: 'cue:load-taffy-wasm-for-tests',
+      resolveId(id) {
+        return id.endsWith('taffy_wasm_bg.wasm?wasm-binary')
+          ? '\0cue:taffy-wasm-binary'
+          : undefined;
+      },
+    },
+    {
       apply: 'build',
       name: 'cue:emit-taffy-wasm',
       async buildStart() {

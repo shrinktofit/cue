@@ -12,6 +12,10 @@ const fixtureNames = (await readdir(fixturesDirectory, {
   .map((entry) => entry.name)
   .sort();
 
+interface CompileFixtureOptions extends CompileCueOptions {
+  backgroundImageSources?: Record<string, string>;
+}
+
 describe('compileCue', () => {
   for (const fixtureName of fixtureNames) {
     it(fixtureName, async () => {
@@ -24,8 +28,30 @@ describe('compileCue', () => {
         readFile(join(fixtureDirectory, 'code.vue'), 'utf8'),
         readFile(join(fixtureDirectory, 'opts.json'), 'utf8'),
       ]);
-      const options = JSON.parse(optionsSource) as CompileCueOptions;
-      const result = compileCue(source, options);
+      const fixtureOptions = JSON.parse(optionsSource) as CompileFixtureOptions;
+      const {
+        backgroundImageSources,
+        ...options
+      } = fixtureOptions;
+      const result = compileCue(source, {
+        ...options,
+        ...(backgroundImageSources
+          ? {
+            canonicalizeBackgroundImageSource(imageSource) {
+              const canonicalSource = backgroundImageSources[imageSource];
+              return canonicalSource
+                ? {
+                  ok: true as const,
+                  source: canonicalSource,
+                }
+                : {
+                  error: new Error(`Unknown fixture background image ${imageSource}.`),
+                  ok: false as const,
+                };
+            },
+          }
+          : {}),
+      });
 
       expect(result.ok).toBe(true);
       if (!result.ok) {
@@ -104,5 +130,50 @@ describe('compileCue', () => {
     ))).toContain(
       '<cue-image> src must be a relative path or use the "uuid:" scheme.',
     );
+  });
+
+  it.each([
+    ['outline-offset: 0;', true],
+    ['-cue-opacity: 0.5;', true],
+    ['-cue-opacity: 0;', true],
+    ['-cue-opacity: 1;', true],
+    ['-cue-opacity: 50%;', false],
+    ['-cue-opacity: 1.5;', false],
+    ['opacity: 0;', false],
+    ['opacity: 0.5;', false],
+    ['opacity: 1;', false],
+    ['overflow: scroll;', false],
+    ['background-image: linear-gradient(in srgb to right, red, blue);', false],
+    ['background-image: linear-gradient(to right, red, blue, green);', false],
+  ])('checks the CSS decoration subset for %s', (declaration, supported) => {
+    /// @case
+    /// A declaration uses either the implemented Web CSS subset or a known unsupported variant.
+    /// @expect
+    /// Standard unitless zero succeeds, while unsupported visuals fail visibly.
+    const result = compileCue(
+      `<template><div class="test" /></template><style>.test { ${declaration} }</style>`,
+      { filename: '/project/ui/card.cue' },
+    );
+
+    expect(result.ok).toBe(supported);
+  });
+
+  it('preserves an explicit Texture2D UUID in background-image', () => {
+    /// @case
+    /// A stylesheet references a Texture2D with the supported uuid: URL scheme.
+    /// @expect
+    /// Compilation succeeds without requiring a filesystem asset canonicalizer.
+    const source = 'uuid:a9f027e7-44da-44dc-9a20-99ed39c18322';
+    const result = compileCue(
+      `<template><div class="test" /></template><style>.test { background-image: url("${source}"); }</style>`,
+      { filename: '/project/ui/card.cue' },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.files.find(({ fileName }) => fileName.endsWith('.style.js'))?.code)
+      .toContain(source);
   });
 });

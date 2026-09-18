@@ -30,33 +30,57 @@ import {
 } from '../element/cue-image-element.js';
 import { CueRootElement } from '../element/cue-root-element.js';
 import {
+  createBackgroundGeometry,
+  createRectGeometry,
+  type CueRectGeometry,
+} from '../render/create-cue-box-geometry.js';
+import {
+  CuePaintCommandKind,
   createCuePaintList,
   initializeCueLayout,
   type CuePaintImage,
+  type CuePaintBackground,
   type CuePaintList,
   type CuePaintRect,
+  type CuePaintShadow,
   type CuePaintText,
 } from '../render/create-cue-paint-list.js';
+import {
+  createShadowGeometry,
+  cueShadowVertexStrideFloats,
+  type CueShadowGeometry,
+} from '../render/create-cue-shadow-geometry.js';
 import {
   trackCueStyleSheets,
   type CueStyleSheetCollection,
 } from '../style/cue-style-sheet-collection.js';
+import { computeCueElementStyle } from '../style/compute-cue-element-style.js';
 import { createCueRenderer } from '../vue/create-cue-renderer.js';
 import { CanvasTextRasterizer } from './canvas-text-rasterizer.js';
+import { transformCuePaintPoint } from '../render/cue-affine-transform.js';
 
 const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
 const cueTextureEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
+const cueBackgroundEffectUuid = '03694e23-1b5a-4ccd-bf09-94fc7ad3179b';
+const cueShadowEffectUuid = '9c30a019-03ef-4c31-afc9-e4638e951c29';
 
 interface CueRenderRecord {
+  readonly baseMaterial: Material;
+  readonly indexBuffer: gfx.Buffer;
+  readonly indexCount: number;
   readonly localVertexBuffer: Float32Array;
+  readonly material: Material;
   readonly model: renderer.scene.Model;
-  readonly quadCount: number;
   readonly renderScene: renderer.RenderScene;
   readonly renderingSubMesh: RenderingSubMesh;
   readonly vertexBuffer: gfx.Buffer;
+  readonly vertexFloatCount: number;
 }
 
+type CueShadowRenderRecord = CueRenderRecord;
+
 interface CueTextRenderRecord {
+  readonly baseMaterial: Material;
   readonly cacheKey: string;
   readonly localVertexBuffer: Float32Array;
   readonly material: Material;
@@ -68,6 +92,7 @@ interface CueTextRenderRecord {
 }
 
 interface CueImageRenderRecord {
+  readonly baseMaterial: Material;
   readonly localVertexBuffer: Float32Array;
   readonly material: Material;
   readonly model: renderer.scene.Model;
@@ -78,8 +103,15 @@ interface CueImageRenderRecord {
   readonly vertexBuffer: gfx.Buffer;
 }
 
+interface CueBackgroundRenderRecord extends CueRenderRecord {
+  readonly material: Material;
+  readonly texture: Texture2D;
+}
+
 let cueRoundedRectEffect: EffectAsset | Promise<EffectAsset> | undefined;
 let cueTextureEffect: EffectAsset | Promise<EffectAsset> | undefined;
+let cueBackgroundEffect: EffectAsset | Promise<EffectAsset> | undefined;
+let cueShadowEffect: EffectAsset | Promise<EffectAsset> | undefined;
 
 @cycloClass('cue.CueDocument')
 @executeInEditMode
@@ -87,6 +119,8 @@ export class CueDocument extends CycloComponent {
   static async prepare(): Promise<void> {
     await Promise.all([
       initializeCueLayout(),
+      loadCueBackgroundEffect(),
+      loadCueShadowEffect(),
       loadCueRoundedRectEffect(),
       loadCueTextureEffect(),
     ]);
@@ -140,7 +174,13 @@ export class CueDocument extends CycloComponent {
   protected override onUpdate(): void {
     this.#syncImageAssets();
     const textRasterizer = this.#textRasterizer;
-    if (!this.#material || !this.#textureEffect || !textRasterizer) {
+    if (
+      !this.#backgroundEffect
+      || !this.#shadowEffect
+      || !this.#roundedRectEffect
+      || !this.#textureEffect
+      || !textRasterizer
+    ) {
       return;
     }
     const paintList = createCuePaintList(
@@ -148,6 +188,7 @@ export class CueDocument extends CycloComponent {
       this.#styleSheetCollection?.styleSheets ?? [],
       textRasterizer,
       (source) => this.#imageAssets.get(source),
+      (source) => this.#backgroundAssets.get(source),
     );
     this.#syncRenderRecords(paintList);
   }
@@ -155,30 +196,49 @@ export class CueDocument extends CycloComponent {
   protected override onDestroy(): void {
     super.onDestroy();
     this.unmount();
-    this.#destroyRenderRecord();
+    this.#destroyRectRenderRecords();
+    this.#destroyClipRenderRecords();
+    this.#destroyBackgroundRenderRecords();
+    this.#destroyShadowRenderRecords();
     this.#destroyImageRenderRecords();
     this.#destroyTextRenderRecords();
     this.#acceptImageAssets = false;
+    for (const background of this.#backgroundAssets.values()) {
+      background.decRef();
+    }
+    this.#backgroundAssets.clear();
+    this.#backgroundSources.clear();
+    this.#reportedBackgroundSources.clear();
     for (const image of this.#imageAssets.values()) {
       image.decRef();
     }
     this.#imageAssets.clear();
     this.#imageSources.clear();
-    this.#material?.destroy();
-    this.#material = undefined;
+    this.#roundedRectEffect = undefined;
+    this.#backgroundEffect = undefined;
+    this.#shadowEffect = undefined;
     this.#textureEffect = undefined;
     this.#textRasterizer = undefined;
   }
 
   readonly #rootElement = new CueRootElement();
+  readonly #backgroundAssets = new Map<string, Texture2D>();
+  #backgroundEffect: EffectAsset | undefined;
+  readonly #backgroundLoads = new Map<string, Promise<void>>();
+  readonly #backgroundRenderRecords = new Map<CueElement, CueBackgroundRenderRecord>();
+  readonly #backgroundSources = new Set<string>();
+  readonly #reportedBackgroundSources = new Set<string>();
+  #shadowEffect: EffectAsset | undefined;
+  #shadowRenderRecords: CueShadowRenderRecord[] = [];
+  #clipRenderRecords: CueRenderRecord[] = [];
   #acceptImageAssets = true;
   readonly #imageAssets = new Map<string, SpriteFrame>();
   readonly #imageLoads = new Map<string, Promise<void>>();
   readonly #imageRenderRecords = new Map<CueImageElement, CueImageRenderRecord>();
   #imageSources = new Set<string>();
   readonly #reportedImageSources = new Set<string>();
-  #material: Material | undefined;
-  #renderRecord: CueRenderRecord | undefined;
+  #rectRenderRecords: CueRenderRecord[] = [];
+  #roundedRectEffect: EffectAsset | undefined;
   #styleSheetCollection: CueStyleSheetCollection | undefined;
   #textureEffect: EffectAsset | undefined;
   #textRasterizer: CanvasTextRasterizer | undefined;
@@ -187,19 +247,19 @@ export class CueDocument extends CycloComponent {
 
   async #prepareRenderResources(): Promise<void> {
     try {
-      const [roundedRectEffect, textureEffect] = await Promise.all([
+      const [backgroundEffect, roundedRectEffect, shadowEffect, textureEffect] = await Promise.all([
+        loadCueBackgroundEffect(),
         loadCueRoundedRectEffect(),
+        loadCueShadowEffect(),
         loadCueTextureEffect(),
         initializeCueLayout(),
       ]);
       if (!this.isValid) {
         return;
       }
-      const material = new Material();
-      material.reset({
-        effectAsset: roundedRectEffect,
-      });
-      this.#material = material;
+      this.#roundedRectEffect = roundedRectEffect;
+      this.#backgroundEffect = backgroundEffect;
+      this.#shadowEffect = shadowEffect;
       this.#textureEffect = textureEffect;
       this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
     } catch (cause) {
@@ -209,6 +269,7 @@ export class CueDocument extends CycloComponent {
 
   #syncImageAssets(): void {
     const liveSources = new Set<string>();
+    const liveBackgroundSources = new Set<string>();
     const observedSources = new Set<string>();
     const elements: CueElement[] = [this.#rootElement];
     while (elements.length > 0) {
@@ -220,6 +281,10 @@ export class CueDocument extends CycloComponent {
         if (child instanceof CueElement) {
           elements.push(child);
         }
+      }
+      const backgroundSource = this.#backgroundSource(element);
+      if (backgroundSource) {
+        liveBackgroundSources.add(backgroundSource);
       }
       if (!(element instanceof CueImageElement)) {
         continue;
@@ -241,6 +306,7 @@ export class CueDocument extends CycloComponent {
       liveSources.add(source);
     }
 
+    this.#syncBackgroundAssets(liveBackgroundSources);
     this.#imageSources = liveSources;
     for (const [source, image] of this.#imageAssets) {
       if (!liveSources.has(source)) {
@@ -262,6 +328,79 @@ export class CueDocument extends CycloComponent {
         this.#loadImage(source);
       }
     }
+  }
+
+  #backgroundSource(element: CueElement): string | undefined {
+    const style = computeCueElementStyle(
+      element,
+      this.#styleSheetCollection?.styleSheets ?? [],
+    );
+    return typeof style.backgroundImage === 'string'
+      && style.backgroundImage !== 'none'
+      ? style.backgroundImage
+      : undefined;
+  }
+
+  #syncBackgroundAssets(liveSources: ReadonlySet<string>): void {
+    this.#backgroundSources.clear();
+    for (const source of liveSources) {
+      this.#backgroundSources.add(source);
+    }
+    for (const [source, texture] of this.#backgroundAssets) {
+      if (!liveSources.has(source)) {
+        this.#backgroundAssets.delete(source);
+        texture.decRef();
+      }
+    }
+    for (const source of this.#reportedBackgroundSources) {
+      if (!liveSources.has(source)) {
+        this.#reportedBackgroundSources.delete(source);
+      }
+    }
+    for (const source of liveSources) {
+      if (
+        !this.#backgroundAssets.has(source)
+        && !this.#backgroundLoads.has(source)
+        && !this.#reportedBackgroundSources.has(source)
+      ) {
+        this.#loadBackground(source);
+      }
+    }
+  }
+
+  #loadBackground(source: string): void {
+    const loading = loadAsset<Texture2D>(source.slice('uuid:'.length))
+      .then((texture) => {
+        if (!(texture instanceof Texture2D)) {
+          throw new TypeError(
+            `background-image source ${JSON.stringify(source)} is not a Texture2D asset.`,
+          );
+        }
+        if (!this.#acceptImageAssets || !this.#backgroundSources.has(source)) {
+          return;
+        }
+        texture.addRef();
+        this.#backgroundAssets.set(source, texture);
+      })
+      .catch((cause: unknown) => {
+        if (
+          this.#acceptImageAssets
+          && this.#backgroundSources.has(source)
+          && !this.#reportedBackgroundSources.has(source)
+        ) {
+          this.#reportedBackgroundSources.add(source);
+          error(
+            `Failed to load background-image source ${JSON.stringify(source)}.`,
+            cause,
+          );
+        }
+      })
+      .finally(() => {
+        if (this.#backgroundLoads.get(source) === loading) {
+          this.#backgroundLoads.delete(source);
+        }
+      });
+    this.#backgroundLoads.set(source, loading);
   }
 
   #loadImage(source: string): void {
@@ -297,41 +436,164 @@ export class CueDocument extends CycloComponent {
   }
 
   #syncRenderRecords(paintList: CuePaintList): void {
-    this.#syncRenderRecord(paintList.rects);
-    this.#syncImageRenderRecords(paintList.images);
-    this.#syncTextRenderRecords(paintList.texts);
+    const rectRuns: Array<{
+      clipDepth: number;
+      priority: number;
+      rects: CuePaintRect[];
+    }> = [];
+    const clips: Array<{
+      entering: boolean;
+      priority: number;
+      rect: CuePaintRect;
+    }> = [];
+    const backgrounds: CuePaintBackground[] = [];
+    const shadowRuns: Array<{
+      clipDepth: number;
+      priority: number;
+      shadows: CuePaintShadow[];
+    }> = [];
+    const images: CuePaintImage[] = [];
+    const texts: CuePaintText[] = [];
+    for (const [priority, command] of paintList.commands.entries()) {
+      switch (command.kind) {
+      case CuePaintCommandKind.background:
+        backgrounds.push(command.paint);
+        break;
+      case CuePaintCommandKind.rect: {
+        const lastRun = rectRuns.at(-1);
+        if (
+          lastRun?.clipDepth === command.paint.clipDepth
+          && lastRun.priority + lastRun.rects.length === priority
+        ) {
+          lastRun.rects.push(command.paint);
+        } else {
+          rectRuns.push({
+            clipDepth: command.paint.clipDepth,
+            priority,
+            rects: [command.paint],
+          });
+        }
+        break;
+      }
+      case CuePaintCommandKind.clipEnter:
+      case CuePaintCommandKind.clipExit:
+        clips.push({
+          entering: command.kind === CuePaintCommandKind.clipEnter,
+          priority,
+          rect: command.paint,
+        });
+        break;
+      case CuePaintCommandKind.shadow: {
+        const lastRun = shadowRuns.at(-1);
+        if (
+          lastRun?.clipDepth === command.paint.clipDepth
+          && lastRun.priority + lastRun.shadows.length === priority
+        ) {
+          lastRun.shadows.push(command.paint);
+        } else {
+          shadowRuns.push({
+            clipDepth: command.paint.clipDepth,
+            priority,
+            shadows: [command.paint],
+          });
+        }
+        break;
+      }
+      case CuePaintCommandKind.image:
+        images.push(command.paint);
+        break;
+      case CuePaintCommandKind.text:
+        texts.push(command.paint);
+        break;
+      }
+    }
+    this.#syncClipRenderRecords(clips);
+    this.#syncBackgroundRenderRecords(backgrounds);
+    this.#syncShadowRenderRecords(shadowRuns);
+    this.#syncRectRenderRecords(rectRuns);
+    this.#syncImageRenderRecords(images);
+    this.#syncTextRenderRecords(texts);
+    for (const [priority, command] of paintList.commands.entries()) {
+      if (command.kind === CuePaintCommandKind.background) {
+        const model = this.#backgroundRenderRecords.get(
+          command.paint.element,
+        )?.model;
+        if (model) {
+          model.priority = priority;
+        }
+      } else if (command.kind === CuePaintCommandKind.image) {
+        const model = this.#imageRenderRecords.get(command.paint.element)?.model;
+        if (model) {
+          model.priority = priority;
+        }
+      } else if (command.kind === CuePaintCommandKind.text) {
+        const model = this.#textRenderRecords.get(command.paint.element)?.model;
+        if (model) {
+          model.priority = priority;
+        }
+      }
+    }
   }
 
-  #syncRenderRecord(paintRects: readonly CuePaintRect[]): void {
-    if (paintRects.length === 0) {
-      this.#destroyRenderRecord();
-      return;
+  #syncRectRenderRecords(
+    runs: ReadonlyArray<{
+      clipDepth: number;
+      priority: number;
+      rects: readonly CuePaintRect[];
+    }>,
+  ): void {
+    while (this.#rectRenderRecords.length > runs.length) {
+      const record = this.#rectRenderRecords.pop();
+      if (record) {
+        this.#destroyRectRenderRecord(record);
+      }
     }
-
-    if (!this.#renderRecord || this.#renderRecord.quadCount !== paintRects.length) {
-      this.#reconstructRenderRecord(paintRects.length);
+    for (const [runIndex, run] of runs.entries()) {
+      const geometry = createRectGeometry(run.rects);
+      let record = this.#rectRenderRecords[runIndex];
+      if (
+        record?.vertexFloatCount !== geometry.vertices.length
+        || record.indexCount !== geometry.indices.length
+      ) {
+        if (record) {
+          this.#destroyRectRenderRecord(record);
+        }
+        record = this.#createRectRenderRecord(geometry);
+        if (!record) {
+          continue;
+        }
+        this.#rectRenderRecords[runIndex] = record;
+      }
+      record.localVertexBuffer.set(geometry.vertices);
+      configureClipRead(record.material, run.clipDepth);
+      record.model.setSubModelMaterial(0, record.material);
+      updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
+      updateGfxBuffer(record.indexBuffer, geometry.indices);
+      updateGeometryModelBounds(record.model, geometry.vertices, vertexStrideFloats);
+      record.model.priority = run.priority;
+      record.model.enabled = this.enabledInHierarchy;
     }
-    const renderRecord = this.#renderRecord;
-    if (!renderRecord) {
-      return;
-    }
-    writeVertexBuffer(renderRecord.localVertexBuffer, paintRects);
-    updateGfxBuffer(renderRecord.vertexBuffer, renderRecord.localVertexBuffer);
-    updateModelBounds(renderRecord.model, paintRects);
-    this.#syncRenderRecordEnabled();
   }
 
-  #reconstructRenderRecord(quadCount: number): void {
-    this.#destroyRenderRecord();
+  #createRectRenderRecord(
+    geometry: CueRectGeometry,
+  ): CueRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
-    const material = this.#material;
-    if (!renderScene || !material) {
-      return;
+    const effect = this.#roundedRectEffect;
+    if (!renderScene || !effect) {
+      return undefined;
     }
+    const material = new Material();
+    material.reset({
+      effectAsset: effect,
+    });
+    const materialInstance = new renderer.MaterialInstance({
+      parent: material,
+    });
 
     const device = renderScene.root.device;
     const localVertexBuffer = new Float32Array(
-      quadCount * verticesPerQuad * vertexStrideFloats,
+      geometry.vertices.length,
     );
     const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
       gfx.BufferUsageBit.VERTEX,
@@ -340,18 +602,198 @@ export class CueDocument extends CycloComponent {
       Float32Array.BYTES_PER_ELEMENT * vertexStrideFloats,
       gfx.BufferFlagBit.NONE,
     ));
-    const indices = createIndices(quadCount);
     const indexBuffer = device.createBuffer(new gfx.BufferInfo(
       gfx.BufferUsageBit.INDEX,
       gfx.MemoryUsageBit.DEVICE,
-      indices.byteLength,
-      indices.BYTES_PER_ELEMENT,
+      geometry.indices.byteLength,
+      geometry.indices.BYTES_PER_ELEMENT,
       gfx.BufferFlagBit.NONE,
     ));
-    updateGfxBuffer(indexBuffer, indices);
+    updateGfxBuffer(indexBuffer, geometry.indices);
     const renderingSubMesh = new RenderingSubMesh(
       [vertexBuffer],
       vertexAttributes,
+      gfx.PrimitiveMode.TRIANGLE_LIST,
+      indexBuffer,
+      null,
+      true,
+    );
+    const model = new renderer.scene.Model();
+    model.node = this.node;
+    model.transform = this.node;
+    model.initSubModel(0, renderingSubMesh, materialInstance);
+    model.visFlags = this.node.layer;
+    model.enabled = this.enabledInHierarchy;
+    renderScene.addModel(model);
+    return {
+      baseMaterial: material,
+      localVertexBuffer,
+      material: materialInstance,
+      indexBuffer,
+      indexCount: geometry.indices.length,
+      model,
+      renderScene,
+      renderingSubMesh,
+      vertexBuffer,
+      vertexFloatCount: geometry.vertices.length,
+    };
+  }
+
+  #destroyRectRenderRecords(): void {
+    for (const record of this.#rectRenderRecords) {
+      this.#destroyRectRenderRecord(record);
+    }
+    this.#rectRenderRecords = [];
+  }
+
+  #destroyRectRenderRecord(renderRecord: CueRenderRecord): void {
+    renderRecord.renderScene.removeModel(renderRecord.model);
+    renderRecord.renderingSubMesh.destroy();
+    renderRecord.model.destroy();
+    renderRecord.material.destroy();
+    renderRecord.baseMaterial.destroy();
+  }
+
+  #syncClipRenderRecords(
+    clips: ReadonlyArray<{
+      entering: boolean;
+      priority: number;
+      rect: CuePaintRect;
+    }>,
+  ): void {
+    while (this.#clipRenderRecords.length > clips.length) {
+      const record = this.#clipRenderRecords.pop();
+      if (record) {
+        this.#destroyRectRenderRecord(record);
+      }
+    }
+    for (const [clipIndex, clip] of clips.entries()) {
+      const geometry = createRectGeometry([clip.rect]);
+      let record = this.#clipRenderRecords[clipIndex];
+      if (
+        record?.vertexFloatCount !== geometry.vertices.length
+        || record.indexCount !== geometry.indices.length
+      ) {
+        if (record) {
+          this.#destroyRectRenderRecord(record);
+        }
+        record = this.#createRectRenderRecord(geometry);
+        if (!record) {
+          continue;
+        }
+        this.#clipRenderRecords[clipIndex] = record;
+      }
+      record.localVertexBuffer.set(geometry.vertices);
+      configureClipWrite(
+        record.material,
+        clip.rect.clipDepth,
+        clip.entering,
+      );
+      record.model.setSubModelMaterial(0, record.material);
+      updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
+      updateGfxBuffer(record.indexBuffer, geometry.indices);
+      updateGeometryModelBounds(record.model, geometry.vertices, vertexStrideFloats);
+      record.model.priority = clip.priority;
+      record.model.enabled = this.enabledInHierarchy;
+    }
+  }
+
+  #destroyClipRenderRecords(): void {
+    for (const record of this.#clipRenderRecords) {
+      this.#destroyRectRenderRecord(record);
+    }
+    this.#clipRenderRecords = [];
+  }
+
+  #syncBackgroundRenderRecords(
+    backgrounds: readonly CuePaintBackground[],
+  ): void {
+    const effect = this.#backgroundEffect;
+    if (!effect) {
+      return;
+    }
+    const liveElements = new Set<CueElement>();
+    for (const background of backgrounds) {
+      liveElements.add(background.element);
+      const geometry = createBackgroundGeometry(background);
+      let record = this.#backgroundRenderRecords.get(background.element);
+      if (
+        record
+        && (
+          record.texture !== background.texture
+          || record.vertexFloatCount !== geometry.vertices.length
+          || record.indexCount !== geometry.indices.length
+        )
+      ) {
+        this.#destroyBackgroundRenderRecord(record);
+        record = undefined;
+      }
+      if (!record) {
+        record = this.#createBackgroundRenderRecord(
+          background,
+          geometry,
+          effect,
+        );
+        if (record) {
+          this.#backgroundRenderRecords.set(background.element, record);
+        }
+      }
+      if (!record) {
+        continue;
+      }
+      record.localVertexBuffer.set(geometry.vertices);
+      configureClipRead(record.material, background.clipDepth);
+      record.model.setSubModelMaterial(0, record.material);
+      updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
+      updateGfxBuffer(record.indexBuffer, geometry.indices);
+      updateGeometryModelBounds(record.model, geometry.vertices, textureVertexStrideFloats);
+      record.model.enabled = this.enabledInHierarchy;
+    }
+    for (const [element, record] of this.#backgroundRenderRecords) {
+      if (!liveElements.has(element)) {
+        this.#backgroundRenderRecords.delete(element);
+        this.#destroyBackgroundRenderRecord(record);
+      }
+    }
+  }
+
+  #createBackgroundRenderRecord(
+    background: CuePaintBackground,
+    geometry: CueRectGeometry,
+    effect: EffectAsset,
+  ): CueBackgroundRenderRecord | undefined {
+    const renderScene = this.node.scene?.renderScene;
+    if (!renderScene) {
+      return undefined;
+    }
+    const baseMaterial = new Material();
+    baseMaterial.reset({
+      effectAsset: effect,
+    });
+    const material = new renderer.MaterialInstance({
+      parent: baseMaterial,
+    });
+    material.setProperty('mainTexture', background.texture);
+    const device = renderScene.root.device;
+    const localVertexBuffer = new Float32Array(geometry.vertices.length);
+    const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.VERTEX,
+      gfx.MemoryUsageBit.DEVICE,
+      localVertexBuffer.byteLength,
+      Float32Array.BYTES_PER_ELEMENT * textureVertexStrideFloats,
+      gfx.BufferFlagBit.NONE,
+    ));
+    const indexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.INDEX,
+      gfx.MemoryUsageBit.DEVICE,
+      geometry.indices.byteLength,
+      geometry.indices.BYTES_PER_ELEMENT,
+      gfx.BufferFlagBit.NONE,
+    ));
+    updateGfxBuffer(indexBuffer, geometry.indices);
+    const renderingSubMesh = new RenderingSubMesh(
+      [vertexBuffer],
+      textureVertexAttributes,
       gfx.PrimitiveMode.TRIANGLE_LIST,
       indexBuffer,
       null,
@@ -364,30 +806,164 @@ export class CueDocument extends CycloComponent {
     model.visFlags = this.node.layer;
     model.enabled = this.enabledInHierarchy;
     renderScene.addModel(model);
-    this.#renderRecord = {
+    return {
+      baseMaterial,
+      indexBuffer,
+      indexCount: geometry.indices.length,
       localVertexBuffer,
+      material,
       model,
-      quadCount,
       renderScene,
       renderingSubMesh,
+      texture: background.texture,
       vertexBuffer,
+      vertexFloatCount: geometry.vertices.length,
     };
   }
 
-  #destroyRenderRecord(): void {
-    const renderRecord = this.#renderRecord;
-    if (!renderRecord) {
-      return;
+  #destroyBackgroundRenderRecords(): void {
+    for (const record of this.#backgroundRenderRecords.values()) {
+      this.#destroyBackgroundRenderRecord(record);
     }
-    this.#renderRecord = undefined;
-    renderRecord.renderScene.removeModel(renderRecord.model);
-    renderRecord.renderingSubMesh.destroy();
-    renderRecord.model.destroy();
+    this.#backgroundRenderRecords.clear();
+  }
+
+  #destroyBackgroundRenderRecord(record: CueBackgroundRenderRecord): void {
+    record.renderScene.removeModel(record.model);
+    record.renderingSubMesh.destroy();
+    record.model.destroy();
+    record.material.destroy();
+    record.baseMaterial.destroy();
+  }
+
+  #syncShadowRenderRecords(
+    runs: ReadonlyArray<{
+      clipDepth: number;
+      priority: number;
+      shadows: readonly CuePaintShadow[];
+    }>,
+  ): void {
+    while (this.#shadowRenderRecords.length > runs.length) {
+      const record = this.#shadowRenderRecords.pop();
+      if (record) {
+        this.#destroyShadowRenderRecord(record);
+      }
+    }
+    for (const [runIndex, run] of runs.entries()) {
+      const geometry = createShadowGeometry(run.shadows);
+      let record = this.#shadowRenderRecords[runIndex];
+      if (
+        record?.vertexFloatCount !== geometry.vertices.length
+        || record.indexCount !== geometry.indices.length
+      ) {
+        if (record) {
+          this.#destroyShadowRenderRecord(record);
+        }
+        record = this.#createShadowRenderRecord(geometry);
+        if (!record) {
+          continue;
+        }
+        this.#shadowRenderRecords[runIndex] = record;
+      }
+      record.localVertexBuffer.set(geometry.vertices);
+      configureClipRead(record.material, run.clipDepth);
+      record.model.setSubModelMaterial(0, record.material);
+      updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
+      updateGfxBuffer(record.indexBuffer, geometry.indices);
+      updateGeometryModelBounds(record.model, geometry.vertices, cueShadowVertexStrideFloats);
+      record.model.priority = run.priority;
+      record.model.enabled = this.enabledInHierarchy;
+    }
+  }
+
+  #createShadowRenderRecord(
+    geometry: CueShadowGeometry,
+  ): CueShadowRenderRecord | undefined {
+    const renderScene = this.node.scene?.renderScene;
+    const effect = this.#shadowEffect;
+    if (!renderScene || !effect) {
+      return undefined;
+    }
+    const baseMaterial = new Material();
+    baseMaterial.reset({
+      effectAsset: effect,
+    });
+    const material = new renderer.MaterialInstance({
+      parent: baseMaterial,
+    });
+    const device = renderScene.root.device;
+    const localVertexBuffer = new Float32Array(geometry.vertices.length);
+    const vertexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.VERTEX,
+      gfx.MemoryUsageBit.DEVICE,
+      localVertexBuffer.byteLength,
+      Float32Array.BYTES_PER_ELEMENT * cueShadowVertexStrideFloats,
+      gfx.BufferFlagBit.NONE,
+    ));
+    const indexBuffer = device.createBuffer(new gfx.BufferInfo(
+      gfx.BufferUsageBit.INDEX,
+      gfx.MemoryUsageBit.DEVICE,
+      geometry.indices.byteLength,
+      geometry.indices.BYTES_PER_ELEMENT,
+      gfx.BufferFlagBit.NONE,
+    ));
+    updateGfxBuffer(indexBuffer, geometry.indices);
+    const renderingSubMesh = new RenderingSubMesh(
+      [vertexBuffer],
+      shadowVertexAttributes,
+      gfx.PrimitiveMode.TRIANGLE_LIST,
+      indexBuffer,
+      null,
+      true,
+    );
+    const model = new renderer.scene.Model();
+    model.node = this.node;
+    model.transform = this.node;
+    model.initSubModel(0, renderingSubMesh, material);
+    model.visFlags = this.node.layer;
+    model.enabled = this.enabledInHierarchy;
+    renderScene.addModel(model);
+    return {
+      baseMaterial,
+      indexBuffer,
+      indexCount: geometry.indices.length,
+      localVertexBuffer,
+      material,
+      model,
+      renderScene,
+      renderingSubMesh,
+      vertexBuffer,
+      vertexFloatCount: geometry.vertices.length,
+    };
+  }
+
+  #destroyShadowRenderRecords(): void {
+    for (const record of this.#shadowRenderRecords) {
+      this.#destroyShadowRenderRecord(record);
+    }
+    this.#shadowRenderRecords = [];
+  }
+
+  #destroyShadowRenderRecord(record: CueShadowRenderRecord): void {
+    record.renderScene.removeModel(record.model);
+    record.renderingSubMesh.destroy();
+    record.model.destroy();
+    record.material.destroy();
+    record.baseMaterial.destroy();
   }
 
   #syncRenderRecordEnabled(): void {
-    if (this.#renderRecord) {
-      this.#renderRecord.model.enabled = this.enabledInHierarchy;
+    for (const record of this.#rectRenderRecords) {
+      record.model.enabled = this.enabledInHierarchy;
+    }
+    for (const record of this.#clipRenderRecords) {
+      record.model.enabled = this.enabledInHierarchy;
+    }
+    for (const record of this.#backgroundRenderRecords.values()) {
+      record.model.enabled = this.enabledInHierarchy;
+    }
+    for (const record of this.#shadowRenderRecords) {
+      record.model.enabled = this.enabledInHierarchy;
     }
     for (const renderRecord of this.#textRenderRecords.values()) {
       renderRecord.model.enabled = this.enabledInHierarchy;
@@ -433,11 +1009,17 @@ export class CueDocument extends CycloComponent {
         paintImage,
         spriteFrameTextureCoordinates(paintImage.spriteFrame),
       );
+      configureClipRead(renderRecord.material, paintImage.clipDepth);
+      renderRecord.model.setSubModelMaterial(0, renderRecord.material);
       updateGfxBuffer(
         renderRecord.vertexBuffer,
         renderRecord.localVertexBuffer,
       );
-      updateTextureModelBounds(renderRecord.model, paintImage);
+      updateGeometryModelBounds(
+        renderRecord.model,
+        renderRecord.localVertexBuffer,
+        textureVertexStrideFloats,
+      );
       renderRecord.model.enabled = this.enabledInHierarchy;
     }
     for (const [element, renderRecord] of this.#imageRenderRecords) {
@@ -456,9 +1038,12 @@ export class CueDocument extends CycloComponent {
     if (!renderScene) {
       return undefined;
     }
-    const material = new Material();
-    material.reset({
+    const baseMaterial = new Material();
+    baseMaterial.reset({
       effectAsset: textureEffect,
+    });
+    const material = new renderer.MaterialInstance({
+      parent: baseMaterial,
     });
     material.setProperty('mainTexture', paintImage.spriteFrame.texture);
 
@@ -494,10 +1079,10 @@ export class CueDocument extends CycloComponent {
     model.transform = this.node;
     model.initSubModel(0, renderingSubMesh, material);
     model.visFlags = this.node.layer;
-    model.priority = 1;
     model.enabled = this.enabledInHierarchy;
     renderScene.addModel(model);
     return {
+      baseMaterial,
       localVertexBuffer,
       material,
       model,
@@ -521,6 +1106,7 @@ export class CueDocument extends CycloComponent {
     renderRecord.renderingSubMesh.destroy();
     renderRecord.model.destroy();
     renderRecord.material.destroy();
+    renderRecord.baseMaterial.destroy();
   }
 
   #syncTextRenderRecords(paintTexts: readonly CuePaintText[]): void {
@@ -568,11 +1154,17 @@ export class CueDocument extends CycloComponent {
         paintText,
         textTextureCoordinates,
       );
+      configureClipRead(renderRecord.material, paintText.clipDepth);
+      renderRecord.model.setSubModelMaterial(0, renderRecord.material);
       updateGfxBuffer(
         renderRecord.vertexBuffer,
         renderRecord.localVertexBuffer,
       );
-      updateTextureModelBounds(renderRecord.model, paintText);
+      updateGeometryModelBounds(
+        renderRecord.model,
+        renderRecord.localVertexBuffer,
+        textureVertexStrideFloats,
+      );
       renderRecord.model.enabled = this.enabledInHierarchy;
     }
     for (const [element, renderRecord] of this.#textRenderRecords) {
@@ -607,9 +1199,12 @@ export class CueDocument extends CycloComponent {
     );
     texture.uploadData(rasterizedText.canvas);
 
-    const material = new Material();
-    material.reset({
+    const baseMaterial = new Material();
+    baseMaterial.reset({
       effectAsset: textureEffect,
+    });
+    const material = new renderer.MaterialInstance({
+      parent: baseMaterial,
     });
     material.setProperty('mainTexture', texture);
 
@@ -645,10 +1240,10 @@ export class CueDocument extends CycloComponent {
     model.transform = this.node;
     model.initSubModel(0, renderingSubMesh, material);
     model.visFlags = this.node.layer;
-    model.priority = 2;
     model.enabled = this.enabledInHierarchy;
     renderScene.addModel(model);
     return {
+      baseMaterial,
       cacheKey,
       localVertexBuffer,
       material,
@@ -672,93 +1267,47 @@ export class CueDocument extends CycloComponent {
     renderRecord.renderingSubMesh.destroy();
     renderRecord.model.destroy();
     renderRecord.material.destroy();
+    renderRecord.baseMaterial.destroy();
     renderRecord.texture.destroy();
   }
 }
 
 const verticesPerQuad = 4;
-const indicesPerQuad = 6;
-const positionOffset = 0;
-const textureCoordinateOffset = 2;
-const colorOffset = 4;
-const sizeOffset = 8;
-const radiusOffset = 10;
-const borderColorOffset = 14;
-const borderWidthOffset = 18;
-const vertexStrideFloats = 19;
+const vertexStrideFloats = 6;
 const vertexAttributes = [
   new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
-  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_COLOR, gfx.Format.RGBA32F),
-  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD1, gfx.Format.RG32F),
-  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD2, gfx.Format.RGBA32F),
-  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD3, gfx.Format.RGBA32F),
-  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD4, gfx.Format.R32F),
 ];
-const rectTextureCoordinates = [
-  0, 0,
-  0, 1,
-  1, 1,
-  1, 0,
-] as const;
 const textTextureCoordinates = [
   0, 1,
   0, 0,
   1, 0,
   1, 1,
 ] as const;
-const textureVertexStrideFloats = 4;
+const textureVertexStrideFloats = 8;
 const textureVertexAttributes = [
   new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
   new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_COLOR, gfx.Format.RGBA32F),
+];
+const shadowVertexAttributes = [
+  new gfx.Attribute(gfx.AttributeName.ATTR_POSITION, gfx.Format.RG32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD, gfx.Format.RG32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD1, gfx.Format.RG32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD2, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD3, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_COLOR, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD4, gfx.Format.RGBA32F),
+  new gfx.Attribute(gfx.AttributeName.ATTR_TEX_COORD5, gfx.Format.RGB32F),
 ];
 const textureIndices = new Uint16Array([
   0, 1, 2,
   0, 2, 3,
 ]);
 
-function writeVertexBuffer(
-  vertexBuffer: Float32Array,
-  paintRects: readonly CuePaintRect[],
-): void {
-  for (const [quadIndex, paintRect] of paintRects.entries()) {
-    const positions = [
-      paintRect.x, paintRect.y - paintRect.height,
-      paintRect.x, paintRect.y,
-      paintRect.x + paintRect.width, paintRect.y,
-      paintRect.x + paintRect.width, paintRect.y - paintRect.height,
-    ];
-    const radii = normalizeRadii(paintRect);
-    for (let vertexIndex = 0; vertexIndex < verticesPerQuad; vertexIndex += 1) {
-      const vertexOffset = (
-        quadIndex * verticesPerQuad + vertexIndex
-      ) * vertexStrideFloats;
-      const vectorOffset = vertexIndex * 2;
-      vertexBuffer[vertexOffset + positionOffset] = positions[vectorOffset] ?? 0;
-      vertexBuffer[vertexOffset + positionOffset + 1] = positions[vectorOffset + 1] ?? 0;
-      vertexBuffer[vertexOffset + textureCoordinateOffset] = rectTextureCoordinates[vectorOffset] ?? 0;
-      vertexBuffer[vertexOffset + textureCoordinateOffset + 1] = rectTextureCoordinates[vectorOffset + 1] ?? 0;
-      vertexBuffer[vertexOffset + colorOffset] = paintRect.color.red / 255;
-      vertexBuffer[vertexOffset + colorOffset + 1] = paintRect.color.green / 255;
-      vertexBuffer[vertexOffset + colorOffset + 2] = paintRect.color.blue / 255;
-      vertexBuffer[vertexOffset + colorOffset + 3] = paintRect.color.alpha;
-      vertexBuffer[vertexOffset + sizeOffset] = paintRect.width;
-      vertexBuffer[vertexOffset + sizeOffset + 1] = paintRect.height;
-      for (let radiusIndex = 0; radiusIndex < radii.length; radiusIndex += 1) {
-        vertexBuffer[vertexOffset + radiusOffset + radiusIndex] = radii[radiusIndex] ?? 0;
-      }
-      vertexBuffer[vertexOffset + borderColorOffset] = paintRect.borderColor.red / 255;
-      vertexBuffer[vertexOffset + borderColorOffset + 1] = paintRect.borderColor.green / 255;
-      vertexBuffer[vertexOffset + borderColorOffset + 2] = paintRect.borderColor.blue / 255;
-      vertexBuffer[vertexOffset + borderColorOffset + 3] = paintRect.borderColor.alpha;
-      vertexBuffer[vertexOffset + borderWidthOffset] = paintRect.borderWidth;
-    }
-  }
-}
-
 function writeTextureVertexBuffer(
   vertexBuffer: Float32Array,
-  paintTexture: Pick<CuePaintText, 'height' | 'width' | 'x' | 'y'>,
+  paintTexture: Pick<CuePaintText, 'height' | 'opacity' | 'width' | 'x' | 'y' | 'transform'>,
   textureCoordinates: readonly number[],
 ): void {
   const positions = [
@@ -770,10 +1319,19 @@ function writeTextureVertexBuffer(
   for (let vertexIndex = 0; vertexIndex < verticesPerQuad; vertexIndex += 1) {
     const vertexOffset = vertexIndex * textureVertexStrideFloats;
     const vectorOffset = vertexIndex * 2;
-    vertexBuffer[vertexOffset] = positions[vectorOffset] ?? 0;
-    vertexBuffer[vertexOffset + 1] = positions[vectorOffset + 1] ?? 0;
+    const [x, y] = transformCuePaintPoint(
+      paintTexture.transform,
+      positions[vectorOffset] ?? 0,
+      positions[vectorOffset + 1] ?? 0,
+    );
+    vertexBuffer[vertexOffset] = x;
+    vertexBuffer[vertexOffset + 1] = y;
     vertexBuffer[vertexOffset + 2] = textureCoordinates[vectorOffset] ?? 0;
     vertexBuffer[vertexOffset + 3] = textureCoordinates[vectorOffset + 1] ?? 0;
+    vertexBuffer[vertexOffset + 4] = 1;
+    vertexBuffer[vertexOffset + 5] = 1;
+    vertexBuffer[vertexOffset + 6] = 1;
+    vertexBuffer[vertexOffset + 7] = paintTexture.opacity;
   }
 }
 
@@ -789,63 +1347,23 @@ function spriteFrameTextureCoordinates(
   ];
 }
 
-function normalizeRadii(
-  paintRect: CuePaintRect,
-): readonly [number, number, number, number] {
-  const topLeft = Math.max(paintRect.radii[0], 0);
-  const topRight = Math.max(paintRect.radii[1], 0);
-  const bottomRight = Math.max(paintRect.radii[2], 0);
-  const bottomLeft = Math.max(paintRect.radii[3], 0);
-  const scale = Math.min(
-    1,
-    sideScale(paintRect.width, topLeft + topRight),
-    sideScale(paintRect.width, bottomLeft + bottomRight),
-    sideScale(paintRect.height, topLeft + bottomLeft),
-    sideScale(paintRect.height, topRight + bottomRight),
-  );
-  return [
-    topLeft * scale,
-    topRight * scale,
-    bottomRight * scale,
-    bottomLeft * scale,
-  ];
-}
-
-function sideScale(sideLength: number, radiiLength: number): number {
-  return radiiLength > 0 ? sideLength / radiiLength : 1;
-}
-
-function createIndices(quadCount: number): Uint16Array {
-  if (quadCount * verticesPerQuad > 65_536) {
-    throw new RangeError('One CueDocument batch cannot exceed 16,384 rectangles.');
-  }
-  const indices = new Uint16Array(quadCount * indicesPerQuad);
-  for (let quadIndex = 0; quadIndex < quadCount; quadIndex += 1) {
-    const vertexOffset = quadIndex * verticesPerQuad;
-    const indexOffset = quadIndex * indicesPerQuad;
-    indices[indexOffset] = vertexOffset;
-    indices[indexOffset + 1] = vertexOffset + 1;
-    indices[indexOffset + 2] = vertexOffset + 2;
-    indices[indexOffset + 3] = vertexOffset;
-    indices[indexOffset + 4] = vertexOffset + 2;
-    indices[indexOffset + 5] = vertexOffset + 3;
-  }
-  return indices;
-}
-
-function updateModelBounds(
+function updateGeometryModelBounds(
   model: renderer.scene.Model,
-  paintRects: readonly CuePaintRect[],
+  vertices: Float32Array,
+  stride: number,
 ): void {
   let xMin = Number.POSITIVE_INFINITY;
   let yMin = Number.POSITIVE_INFINITY;
   let xMax = Number.NEGATIVE_INFINITY;
   let yMax = Number.NEGATIVE_INFINITY;
-  for (const paintRect of paintRects) {
-    xMin = Math.min(xMin, paintRect.x);
-    yMin = Math.min(yMin, paintRect.y - paintRect.height);
-    xMax = Math.max(xMax, paintRect.x + paintRect.width);
-    yMax = Math.max(yMax, paintRect.y);
+  for (let offset = 0; offset < vertices.length; offset += stride) {
+    xMin = Math.min(xMin, vertices[offset]!);
+    yMin = Math.min(yMin, vertices[offset + 1]!);
+    xMax = Math.max(xMax, vertices[offset]!);
+    yMax = Math.max(yMax, vertices[offset + 1]!);
+  }
+  if (!Number.isFinite(xMin)) {
+    return;
   }
   model.createBoundingShape(
     new Vec3(xMin, yMin, 0),
@@ -854,15 +1372,58 @@ function updateModelBounds(
   model.updateWorldBound();
 }
 
-function updateTextureModelBounds(
-  model: renderer.scene.Model,
-  paintTexture: Pick<CuePaintText, 'height' | 'width' | 'x' | 'y'>,
+function configureClipRead(material: Material, clipDepth: number): void {
+  const stencilTest = clipDepth > 0;
+  material.overridePipelineStates({
+    depthStencilState: {
+      stencilFuncBack: gfx.ComparisonFunc.EQUAL,
+      stencilFuncFront: gfx.ComparisonFunc.EQUAL,
+      stencilPassOpBack: gfx.StencilOp.KEEP,
+      stencilPassOpFront: gfx.StencilOp.KEEP,
+      stencilReadMaskBack: 0xFF,
+      stencilReadMaskFront: 0xFF,
+      stencilRefBack: clipDepth,
+      stencilRefFront: clipDepth,
+      stencilTestBack: stencilTest,
+      stencilTestFront: stencilTest,
+      stencilWriteMaskBack: 0,
+      stencilWriteMaskFront: 0,
+    },
+  });
+}
+
+function configureClipWrite(
+  material: Material,
+  clipDepth: number,
+  entering: boolean,
 ): void {
-  model.createBoundingShape(
-    new Vec3(paintTexture.x, paintTexture.y - paintTexture.height, 0),
-    new Vec3(paintTexture.x + paintTexture.width, paintTexture.y, 0),
-  );
-  model.updateWorldBound();
+  const operation = entering ? gfx.StencilOp.INCR : gfx.StencilOp.DECR;
+  const reference = entering ? clipDepth : clipDepth + 1;
+  material.overridePipelineStates({
+    blendState: {
+      targets: [{
+        blendColorMask: gfx.ColorMask.NONE,
+      }],
+    },
+    depthStencilState: {
+      stencilFailOpBack: gfx.StencilOp.KEEP,
+      stencilFailOpFront: gfx.StencilOp.KEEP,
+      stencilFuncBack: gfx.ComparisonFunc.EQUAL,
+      stencilFuncFront: gfx.ComparisonFunc.EQUAL,
+      stencilPassOpBack: operation,
+      stencilPassOpFront: operation,
+      stencilReadMaskBack: 0xFF,
+      stencilReadMaskFront: 0xFF,
+      stencilRefBack: reference,
+      stencilRefFront: reference,
+      stencilTestBack: true,
+      stencilTestFront: true,
+      stencilWriteMaskBack: 0xFF,
+      stencilWriteMaskFront: 0xFF,
+      stencilZFailOpBack: gfx.StencilOp.KEEP,
+      stencilZFailOpFront: gfx.StencilOp.KEEP,
+    },
+  });
 }
 
 function loadCueRoundedRectEffect(): Promise<EffectAsset> {
@@ -877,6 +1438,34 @@ function loadCueRoundedRectEffect(): Promise<EffectAsset> {
     return effect;
   });
   return cueRoundedRectEffect;
+}
+
+function loadCueBackgroundEffect(): Promise<EffectAsset> {
+  if (cueBackgroundEffect instanceof EffectAsset) {
+    return Promise.resolve(cueBackgroundEffect);
+  }
+  if (cueBackgroundEffect) {
+    return cueBackgroundEffect;
+  }
+  cueBackgroundEffect = loadAsset<EffectAsset>(cueBackgroundEffectUuid).then((effect) => {
+    cueBackgroundEffect = effect;
+    return effect;
+  });
+  return cueBackgroundEffect;
+}
+
+function loadCueShadowEffect(): Promise<EffectAsset> {
+  if (cueShadowEffect instanceof EffectAsset) {
+    return Promise.resolve(cueShadowEffect);
+  }
+  if (cueShadowEffect) {
+    return cueShadowEffect;
+  }
+  cueShadowEffect = loadAsset<EffectAsset>(cueShadowEffectUuid).then((effect) => {
+    cueShadowEffect = effect;
+    return effect;
+  });
+  return cueShadowEffect;
 }
 
 function loadCueTextureEffect(): Promise<EffectAsset> {

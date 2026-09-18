@@ -1,0 +1,66 @@
+/// transform-2d.cue.js
+
+import component from "./transform-2d.cue.script.js";
+import { render } from "./transform-2d.cue.template.js";
+import styleSheet from "./transform-2d.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/fixtures/transform-2d.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// transform-2d.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// transform-2d.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "card" }))
+}
+
+/// transform-2d.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "block",
+        "width": 100,
+        "height": 50,
+        "transformOrigin": [
+          "25%",
+          10
+        ],
+        "transform": [
+          {
+            "type": "translate",
+            "x": 10,
+            "y": "20%"
+          },
+          {
+            "angle": 15,
+            "type": "rotate"
+          },
+          {
+            "type": "scale",
+            "x": 1.2000000476837158,
+            "y": 1.2000000476837158
+          }
+        ]
+      },
+      "selectors": [
+        [
+          "card"
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

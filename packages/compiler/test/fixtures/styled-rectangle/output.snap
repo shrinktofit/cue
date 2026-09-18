@@ -47,9 +47,19 @@ const styleSheet = {
           "green": 102,
           "red": 51
         },
-        "borderRadius": [
+        "borderBottomLeftRadius": [
           24,
+          24
+        ],
+        "borderBottomRightRadius": [
           24,
+          24
+        ],
+        "borderTopLeftRadius": [
+          24,
+          24
+        ],
+        "borderTopRightRadius": [
           24,
           24
         ],
@@ -76,9 +86,19 @@ const styleSheet = {
           "green": 204,
           "red": 255
         },
-        "borderRadius": [
+        "borderBottomLeftRadius": [
           6,
+          6
+        ],
+        "borderBottomRightRadius": [
           6,
+          6
+        ],
+        "borderTopLeftRadius": [
+          6,
+          6
+        ],
+        "borderTopRightRadius": [
           6,
           6
         ]
