@@ -1,8 +1,8 @@
 # Cue 开发计划
 
-状态：推进 Phase 0 剩余契约与验证 Gate；Box/Flex 原型进入标准语义补齐阶段
+状态：推进 Phase 0 剩余契约与验证 Gate；本轮六类原生控件已实现，保留用户验收与平台 Gate
 目标运行环境：Cocos Creator / Vortex 3.8
-文档日期：2026-09-12
+文档日期：2026-09-18
 
 ## 1. 项目定位
 
@@ -25,7 +25,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 本计划补充原始设计报告没有展开的 compiler、language-service、扩展工程化、发布与验证方案。运行时设计仍以原始报告为准。
 
-当前能力边界与 Web CSS 差异统一记录在 [`implementation-status.md`](implementation-status.md)；本文件只保留尚未完成的工作和仍有效的架构约束。
+当前能力边界与 Web CSS 差异统一记录在 [`implementation-status.md`](implementation-status.md)。本文件维护剩余工作和仍有效的架构约束；已实现但尚未获用户明确验收的交付项保留，并附状态引用，不因自动测试通过而删除。
 
 ## 2. 资料优先级与已验证事实
 
@@ -42,10 +42,11 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 ### 2.2 当前未完成事项
 
-- 本轮 Pointer Events / 命中 / Vue 事件与 Input Gallery 的具体边界见 [`input.md`](input.md)；后续仍需 Native、focus / keyboard / IME、wheel / scrolling 和长期交互回归 Gate，完成项待用户确认后移除。
+- Pointer Events / 命中 / Vue 事件与 Input Gallery 的边界见 [`input.md`](input.md)。本轮已接通内置控件 focus、Web keyboard、wheel 与文本编辑/composition 桥接；Native、OS IME 人工验收、通用 scrolling / gestures 和长期交互回归仍为 Gate，完成项待用户确认后移除。
+- 六类原生控件、真实 type/state selectors、低来源默认样式和各自 gallery 已交付，契约见 [`builtin-controls.md`](builtin-controls.md)。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/touch 回归已有通过记录；不据此关闭 OS IME、production、Native 或用户验收。
 - `.cue` 仍通过 CLI 预编译，尚未接入 OMS source compiler、依赖图、source map 与 HMR。
 - language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
-- Box/Flex 只覆盖无 intrinsic measurement 的 box-level 子集；尚无几何断言矩阵、完整文本/inline 语义和 Grid。
+- Box/Flex 已有纯文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、inline/baseline 标准语义和 Grid。
 - Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
 - 本轮 Position / Style API / TTF 描边与 `game-ui-showcase/player-profile` 的交付状态见 implementation-status；后续仍需 production / Native、长期资源释放和视觉回归 Gate。功能计划的完成项待用户确认后再移除。
 
@@ -65,7 +66,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 从 `cc` 类型自动生成全部 Component 标签和 props。
 - `CueComponentAsset` 挂载传统 Cocos 节点树的运行时模型。
 
-新的模板原语必须是设计报告定义的 `div`、`span`、文本、`br`、`img` 及后续标准 Web 风格控件；Cocos 只存在于 panel host 和 backend 边界。
+模板原语保持真实 `CueElement` 身份，包括当前容器/图片、本轮六类 `cue-*` 控件及后续确认的 `span`、`br`、`img` 等原语。Cue 自有控件不宣称完整 HTML 控件兼容性；Cocos 只存在于 panel host 和 backend 边界。
 
 ## 3. 已确定的产品与架构约束
 
@@ -74,12 +75,12 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 每个 `CueElement` 都不是 Cocos Node 或 Component。
 - 内建元素与项目自定义 element 都通过 `globalElementRegistry.define/get` 注册和查询；renderer 不维护按标签分支的创建逻辑。
 - runtime 只暴露一个模块级 `globalElementRegistry`，不提供局部 registry 或 parent 继承；同一模块实例内的重复注册必须显式报错。
-- compiler 不读取运行时 `globalElementRegistry`；Custom Element 标签通过可序列化项目配置传入，保证 CLI、OMS 和独立进程得到一致结果。
+- compiler 不读取运行时 `globalElementRegistry`；内置控件使用 compiler/runtime 共享的 `control-schema`，项目 Custom Element 标签通过可序列化配置传入，保证 CLI、OMS 和独立进程得到一致结果。
 - 场景中只保留一个或少量 `CueDocument`。
 - 使用标准 Web CSS 名称与尽可能一致的语义，不创建平行的私有样式词汇。
 - Taffy 负责 Block/Flex/Grid；inline layout 由 Cue 自己负责。
 - CSS parser/compiler 仅在开发和构建阶段存在；runtime 自己执行 cascade、inheritance、variables、computed values 和 invalidation。
-- 运行时动态样式通过 `CueElement.style` 类型化 API 修改；状态切换使用预编译 class。静态 style attribute 在编译期生成 IR，不支持运行时解析 CSS 字符串或 Vue `:style`。
+- 运行时动态样式通过 `CueElement.style` 类型化 API、class 和已支持的真实 pseudo-state 更新。静态 style attribute 在编译期生成 IR，不支持运行时解析 CSS 字符串或 Vue `:style`。内置默认普通声明来源低于作者样式；内部部件以真实节点和稳定 class 公开，不冒充 Shadow DOM `::part`。
 - 普通圆角、边框、outline、gradient 走参数化 GPU 绘制。
 - 对外只提供 Pointer Events 作为鼠标/触控/笔的统一模型；键盘、IME、focus、wheel 独立保留。
 - UI 动画以 transition、keyframes 和 `element.animate()` 为入口，不让 Cocos Tween 直接写 computed style。
@@ -111,6 +112,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 ## 5. 产品包职责
 
 - `runtime`：Vue renderer、UI tree、style/layout/paint/input/animation 和 Cocos runtime bridge。
+- `style-schema`：compiler/runtime 共用的类型化 Style IR。
+- `control-schema`：compiler/runtime 共用的六类内置控件身份与 model 契约；不承载业务行为或 runtime compiler。
 - `compiler`：SFC、template、CSS、asset reference、IR、source map 和 HMR metadata 编译。
 - `cue-cli`：早期开发阶段的 compiler 命令行前端，只调用 compiler 库，不承载独立编译逻辑。
 - `language-service`：`.cue` 的 Volar/Vue/TypeScript/CSS profile 集成。
@@ -161,7 +164,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 - `scoped`、CSS Modules 和预处理器必须分别经过 ADR 后再支持。
 - 不支持 DOM-specific custom block、HTML parser 行为和 SSR 输出。
-- 为 `span`、`br`、`img` 以及后续控件补充共享的 element metadata 和 template diagnostics。
+- 六类内置标签和原生 model 元数据已接通；继续为 `span`、`br`、`img`、完整 props/events 类型检查及 LS 补充共享 metadata 和 diagnostics。
 - PascalCase 名称仍由 Vue component resolution 处理；Custom Element 配置必须继续保持可序列化，供 CLI、OMS 与独立进程共用。
 
 ### 7.2 编译流水线
@@ -458,6 +461,8 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
 
+本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面仍用 Cocos UI；控件不通过 `.cue` 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
+
 后续项目与验收序列：
 
 1. `basic`
@@ -530,7 +535,7 @@ OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入
 交付：
 
 - 增加 `span`、`br`、`img`，并让 `Text` 进入 measure、layout 与 paint。
-- 把 class-only cascade 扩展到目标 selector、inheritance 和 variables。
+- 在现有 type/ID/class/universal/compound/list、child/descendant 和七种状态基础上继续扩展目标 selector、inheritance 和 variables；本轮 cascade 交付待用户验收。
 - 补齐 Block/Flex 标准语义与自动 conformance fixtures，再接入 Grid。
 - individual border、outline、2D transform 和三类 gradient。
 - AssetResolver 和 Pointer Events 基线。
@@ -548,7 +553,9 @@ OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入
 交付：
 
 - button/label/input/textarea/checkbox/radio/range/select/option。
+- 本轮六类 `cue-button` / `cue-toggle` / `cue-slider` / `cue-select` / `cue-text-input` / `cue-number-input` 已实现并各有 gallery，保留待用户验收；不将其等同于上一条完整 HTML 标签语义。
 - overflow/scroll、GestureArena、focus navigation、IME。
+- focus navigation、Web keyboard、wheel 与隐藏 Web 编辑载体已接通；OS IME 候选/提交/取消的人工验收、Native 编辑后端及通用 scrolling/gestures 仍未完成。
 - transition、keyframes、`element.animate()`。
 - 公开的 Custom Element 注册 API、类型元数据与静态/动态发现。
 
@@ -556,6 +563,7 @@ OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入
 
 - `input-focus` 和 `animation` 通过 mouse/touch/keyboard 场景。
 - pointer capture、focus、IME、scroll 的 detach/reload 清理通过。
+- 真实 OS IME 和目标平台的人工结果独立记录；自动 composition 事件或 Chromium 文本注入不关闭这一 Gate。
 - layout animation diagnostics 可见。
 
 ### Phase 3：工程化与调试
@@ -638,7 +646,7 @@ Phase 0 前置决策：
 
 ## 17. 下一轮工作建议
 
-近期先不接 OMS，按当前可视化能力收敛 layout：
+近期先不接 OMS。先保留并收敛本轮六控件的用户验收、OS IME 人工检查、production/长期交互回归 Gate；已通过的鼠标、键盘和触摸用例保留为回归依据。随后按当前可视化能力收敛 layout：
 
 1. 为 Box/Flex 建立数据驱动的几何断言矩阵，并让每个 playground 控件组合都能对应可复现 fixture。
 2. 补齐不依赖文本的 Flexbox 值域与语义，优先处理 unsupported value diagnostics、alignment fallback、`display: none` 和 viewport containing block。

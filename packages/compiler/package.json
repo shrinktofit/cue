@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bsgames/cue-control-schema": "workspace:*",
     "@bsgames/cue-style-schema": "workspace:*",
     "@vue/compiler-core": "^3.5.42",
     "@vue/compiler-sfc": "^3.5.42",

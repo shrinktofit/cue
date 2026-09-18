@@ -40,7 +40,8 @@ import initializeTaffy, {
   type Size,
   type StylePropertyValues,
 } from 'taffy-layout/wasm';
-import { CueElement, setCueElementClientSize } from '../element/cue-element.js';
+import { CueElement, setCueElementClientSize, setCueElementContentBox } from '../element/cue-element.js';
+import { cueTopLayerElements } from './cue-top-layer.js';
 import {
   CueImageElement,
   getCueImageSource,
@@ -195,6 +196,7 @@ export type CueBackgroundSourceLookup = (
 ) => Texture2D | undefined;
 
 export interface CueTextMeasurer {
+  readonly fontRevision?: number;
   layout(
     text: string,
     style: ComputedCueTextStyle,
@@ -473,6 +475,7 @@ export function createCuePaintList(
     } finally {
       rootLayout.free();
     }
+    const topLayer: Array<() => void> = [];
     appendPaintCommands(
       tree,
       paintOrderedChildren(children, false),
@@ -483,7 +486,11 @@ export function createCuePaintList(
       1,
       paintList,
       [],
+      topLayer,
     );
+    for (const paint of topLayer) {
+      paint();
+    }
     return paintList;
   } finally {
     tree.free();
@@ -922,8 +929,14 @@ function appendPaintCommands(
   parentOpacity: number,
   paintList: CuePaintList,
   hitClips: readonly CueHitShape[],
+  topLayer: Array<() => void>,
+  paintingTopLayer = false,
 ): void {
   for (const record of records) {
+    if (!paintingTopLayer && cueTopLayerElements.has(record.element)) {
+      topLayer.push(() => appendPaintCommands(tree, [record], textMeasurer, backgroundSourceLookup, parentTransform, 0, parentOpacity, paintList, [], topLayer, true));
+      continue;
+    }
     const opacity = parentOpacity * record.style.cueOpacity;
     const layout = tree.getLayout(record.node);
     let x: number;
@@ -963,6 +976,7 @@ function appendPaintCommands(
         - layout.paddingTop
         - layout.paddingBottom,
       );
+      setCueElementContentBox(record.element, { x: layout.paddingLeft, y: layout.paddingTop, width: contentWidth, height: contentHeight });
     } finally {
       layout.free();
     }
@@ -1048,6 +1062,7 @@ function appendPaintCommands(
         opacity,
         paintList,
         contentHitClips,
+        topLayer,
       );
       continue;
     }
@@ -1307,6 +1322,7 @@ function appendPaintCommands(
       opacity,
       paintList,
       contentHitClips,
+      topLayer,
     );
     if (clipRect) {
       paintList.commands.push({

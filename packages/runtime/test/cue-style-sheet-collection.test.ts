@@ -18,7 +18,7 @@ const childStyleSheet: CueStyleSheet = {
       },
       selectors: [
         [
-          'child',
+          { type: 'class', name: 'child' },
         ],
       ],
     },

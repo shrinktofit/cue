@@ -13,6 +13,7 @@ CueDocument 接入宿主输入并进行命中测试；事件随后沿 CueElement
 - `setPointerCapture(pointerId)`、`releasePointerCapture(pointerId)`、`hasPointerCapture(pointerId)`。只能捕获当前按下且属于本 document 的指针；捕获的后续输入不再依赖元素命中范围。
 - Pointer 事件：down / move / up / cancel / over / out / enter / leave、gotpointercapture / lostpointercapture，以及主按钮 `click`。
 - Vue 修饰符：`.stop`、`.prevent`、`.self`、`.once`、`.capture`、`.passive`。`.passive.prevent` 会报错。原生动态事件名、原生 `v-on` 对象和未实现事件会在编译期报错；组件自定义 emit 不受原生事件列表限制。
+- 内置控件由 CueDocument 管理焦点、Tab 导航、键盘、wheel 与 Web 文本编辑事件。公开 `focus()` / `blur()`、`CueDocument.activeElement`、模型及按键修饰符契约见 [`builtin-controls.md`](builtin-controls.md)。
 
 ## 坐标与命中
 
@@ -31,6 +32,8 @@ CueDocument 接入宿主输入并进行命中测试；事件随后沿 CueElement
 
 该仲裁通过引擎的 `_registerEventDispatcher` 接口集中在 host 层完成；这是需要引擎版本 smoke 验证的内部接口，不属于 Cue 元素 API。卸载、禁用 document、窗口失焦与宿主取消输入会释放按下／捕获状态。
 
-尚未实现：Native 输入 backend、触控笔字段、wheel / scroll 默认行为、focus、键盘／IME、手势仲裁、完整 DOM 事件体系、CSS `:hover` / `:active` selector。当前 hover 视觉反馈由 Vue 状态切换 class 实现。多 document 的输入按相机优先级选择，不声明完整跨 document CSS stacking 语义。
+已提供真实 `:hover` / `:active`、焦点及控件状态 selector。Web keyboard 与隐藏编辑载体已接通，可见文本、光标和选区仍由 Cue 绘制；与 Cocos EditBox 的焦点切换已有实际 Preview 回归。wheel 支持派发和 Select 局部滚动，不等于通用 CSS scrolling。
 
-验收入口：examples 的 `basic` → **Input**，以及 `game-ui-showcase` → **Player Profile** 的头像和经验条。
+尚未实现：Native 输入/编辑 backend、触控笔字段、通用 scroll 默认行为、手势仲裁和完整 DOM 事件体系。composition 链路已实现，但真实操作系统 IME 候选窗、提交/取消仍待人工验收。多 document 的输入按相机优先级选择，不声明完整跨 document CSS stacking 语义。
+
+验收入口：examples 的 `basic` → **Input**、下方 **CONTROLS** 六个独立 gallery，以及 `game-ui-showcase` → **Player Profile** 的头像和经验条。

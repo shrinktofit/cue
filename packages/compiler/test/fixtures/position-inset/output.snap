@@ -43,7 +43,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "container"
+          {
+            "type": "class",
+            "name": "container"
+          }
         ]
       ]
     },
@@ -57,7 +60,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "absolute"
+          {
+            "type": "class",
+            "name": "absolute"
+          }
         ]
       ]
     },
@@ -71,7 +77,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "inset"
+          {
+            "type": "class",
+            "name": "inset"
+          }
         ]
       ]
     },
@@ -83,7 +92,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "relative"
+          {
+            "type": "class",
+            "name": "relative"
+          }
         ]
       ]
     },
@@ -97,7 +109,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "static"
+          {
+            "type": "class",
+            "name": "static"
+          }
         ]
       ]
     }

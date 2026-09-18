@@ -72,7 +72,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "card"
+          {
+            "type": "class",
+            "name": "card"
+          }
         ]
       ]
     },
@@ -105,10 +108,16 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "item"
+          {
+            "type": "class",
+            "name": "item"
+          }
         ],
         [
-          "badge"
+          {
+            "type": "class",
+            "name": "badge"
+          }
         ]
       ]
     },
@@ -118,8 +127,27 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "card",
-          "strong"
+          {
+            "type": "class",
+            "name": "card"
+          },
+          {
+            "type": "class",
+            "name": "strong"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 999
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "div"
+          }
         ]
       ]
     }

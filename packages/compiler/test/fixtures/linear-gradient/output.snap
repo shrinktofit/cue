@@ -72,7 +72,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "gradient"
+          {
+            "type": "class",
+            "name": "gradient"
+          }
         ]
       ]
     }

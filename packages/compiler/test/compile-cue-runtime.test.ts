@@ -99,6 +99,25 @@ describe('compiled Cue runtime integration', () => {
       'changed', 'custom-keydown', 'first-ready', 'dynamic', 'mapped',
     ]);
   });
+
+  it('mounts compiled native models, composition guards and keyboard modifiers', async () => {
+    /// @case All five value controls bind script-setup refs and a button handles Ctrl+Enter.
+    /// @expect Models preserve value types, ignore composing input, honor lazy change, reflect parent updates and cleanly unmount.
+    const integrationModule = await executeCompiledFixture('native-controls') as {
+      runNativeControlModels(): Promise<unknown>;
+    };
+    await expect(integrationModule.runNativeControlModels()).resolves.toEqual({
+      initial: { toggle: false, slider: 20, selection: undefined, text: 'initial', number: undefined, lazy: 'saved', presses: 0, inputValues: [] },
+      duringComposition: 'initial',
+      beforeCommit: 'saved',
+      updated: { toggle: true, slider: 42, selection: 'b', text: 'edited', number: 12, lazy: 'committed', presses: 1, inputValues: ['composing', 'edited'] },
+      reflected: [true, 42, 'b', 'edited', 12, 'committed'],
+      externalValues: [false, 75, undefined, 'external', undefined],
+      preserved: true,
+      prevented: true,
+      emptyAfterUnmount: true,
+    });
+  });
 });
 
 async function executeCompiledFixture(fixtureName: string): Promise<unknown> {

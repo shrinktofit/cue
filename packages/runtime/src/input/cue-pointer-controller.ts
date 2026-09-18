@@ -1,9 +1,13 @@
 import type { CueElement } from '../element/cue-element.js';
-import { setCueElementClientSize } from '../element/cue-element.js';
+import { getCueElementStates, setCueElementClientSize, setCueElementState } from '../element/cue-element.js';
 import { CuePointerEvent, type CuePointerType } from './cue-pointer-event.js';
 import { cueLocalPoint, pickCueElement, type CueHitRegion } from './cue-hit-region.js';
 
 export interface CuePointerSample {
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel';
   pointerId: number;
   pointerType: CuePointerType;
@@ -55,7 +59,7 @@ export function hasCuePointerCapture(element: CueElement, pointerId: number): bo
 
 /** Per-document pointer state. The host supplies layout-space coordinates. */
 export class CuePointerController {
-  constructor(readonly root: CueElement) {}
+  constructor(readonly root: CueElement, readonly onPointerDown?: (target: CueElement | undefined) => void) {}
 
   setRegions(regions: readonly CueHitRegion[]): void {
     const liveElements = new Set(regions.map((region) => region.element));
@@ -135,7 +139,12 @@ export class CuePointerController {
       this.#updateHover(state, target);
     }
     if (target) {
-      this.#dispatch(target, sample.type, state);
+      const allowed = this.#dispatch(target, sample.type, state);
+      if (sample.type === 'pointerdown' && sample.button === 0 && allowed) {
+        this.onPointerDown?.(target);
+      }
+    } else if (sample.type === 'pointerdown') {
+      this.onPointerDown?.(undefined);
     }
     if (sample.type === 'pointerup' || sample.type === 'pointercancel') {
       const clickTarget = sample.type === 'pointerup' && sample.button === 0 && state.downTarget && target
@@ -155,6 +164,7 @@ export class CuePointerController {
         this.#updateHover(state, hit);
       }
     }
+    this.#updateActiveStates();
     return target !== undefined;
   }
 
@@ -179,6 +189,7 @@ export class CuePointerController {
     this.#applyCapture(state);
     this.#updateHover(state, undefined);
     this.#pointers.delete(pointerId);
+    this.#updateActiveStates();
     if (activePointers.get(pointerId) === this) {
       activePointers.delete(pointerId);
     }
@@ -186,6 +197,27 @@ export class CuePointerController {
 
   readonly #pointers = new Map<number, PointerState>();
   #regions: readonly CueHitRegion[] = [];
+  #activeElements = new Set<CueElement>();
+
+  #updateActiveStates(): void {
+    const next = new Set<CueElement>();
+    for (const state of this.#pointers.values()) {
+      for (const element of elementPath(state.downTarget)) {
+        if (!getCueElementStates(element).has('disabled')) {
+          next.add(element);
+        }
+      }
+    }
+    for (const element of this.#activeElements) {
+      if (!next.has(element)) {
+        setCueElementState(element, 'active', false);
+      }
+    }
+    for (const element of next) {
+      setCueElementState(element, 'active', true);
+    }
+    this.#activeElements = next;
+  }
 
   #contains(element: CueElement): boolean {
     let ancestor: CueElement | undefined = element;
@@ -226,6 +258,14 @@ export class CuePointerController {
     }
     const previous = previousPath[0];
     state.hoverPath = nextPath;
+    for (const element of previousPath) {
+      if (![...this.#pointers.values()].some((pointer) => pointer.hoverPath.includes(element))) {
+        setCueElementState(element, 'hover', false);
+      }
+    }
+    for (const element of nextPath) {
+      setCueElementState(element, 'hover', true);
+    }
     if (previous) {
       this.#dispatch(previous, 'pointerout', state, next);
       for (const element of previousPath) {
@@ -244,11 +284,14 @@ export class CuePointerController {
     }
   }
 
-  #dispatch(target: CueElement, type: string, state: PointerState, relatedTarget?: CueElement): void {
+  #dispatch(target: CueElement, type: string, state: PointerState, relatedTarget?: CueElement): boolean {
+    if (type === 'click' && elementPath(target).some((element) => getCueElementStates(element).has('disabled'))) {
+      return false;
+    }
     const region = this.#regions.find((candidate) => candidate.element === target);
     const point = region && cueLocalPoint(region, state.sample.x, state.sample.y);
     const boundary = type === 'pointerenter' || type === 'pointerleave';
-    target.dispatchEvent(new CuePointerEvent(type, {
+    return target.dispatchEvent(new CuePointerEvent(type, {
       ...state.sample,
       bubbles: !boundary,
       cancelable: !boundary && type !== 'pointercancel' && type !== 'gotpointercapture' && type !== 'lostpointercapture',

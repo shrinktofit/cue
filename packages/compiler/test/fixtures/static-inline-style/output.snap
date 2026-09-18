@@ -22,14 +22,14 @@ import { createElementVNode as _createElementVNode, createTextVNode as _createTe
 export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", {
     class: "card",
-    __cueInlineStyle: {"declarations":{"cueTextStrokeWidth":2,"cueTextStrokeColor":{"alpha":1,"blue":255,"green":255,"red":255},"width":40,"height":"50%"},"importantDeclarations":{"width":30},"selectors":[["cue-inline"]]}
+    __cueInlineStyle: {"declarations":{"cueTextStrokeWidth":2,"cueTextStrokeColor":{"alpha":1,"blue":255,"green":255,"red":255},"width":40,"height":"50%"},"importantDeclarations":{"width":30},"selectors":[[{"type":"class","name":"cue-inline"}]]}
   }, [
     _createElementVNode("cue-image", {
       src: "uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941",
-      __cueInlineStyle: {"declarations":{"position":"absolute","top":0,"right":0,"bottom":0,"left":0},"selectors":[["cue-inline"]]}
+      __cueInlineStyle: {"declarations":{"position":"absolute","top":0,"right":0,"bottom":0,"left":0},"selectors":[[{"type":"class","name":"cue-inline"}]]}
     }),
     _createTextVNode(),
-    _createElementVNode("status-badge", { __cueInlineStyle: {"declarations":{"backgroundImage":"uuid:cb09da6a-4f20-485c-93a8-db46692a05b3@f9941","fontWeight":700},"selectors":[["cue-inline"]]} }),
+    _createElementVNode("status-badge", { __cueInlineStyle: {"declarations":{"backgroundImage":"uuid:cb09da6a-4f20-485c-93a8-db46692a05b3@f9941","fontWeight":700},"selectors":[[{"type":"class","name":"cue-inline"}]]} }),
     _createTextVNode(),
     _createElementVNode("div", null, "Empty inline declaration")
   ]))
@@ -45,7 +45,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "card"
+          {
+            "type": "class",
+            "name": "card"
+          }
         ]
       ]
     }

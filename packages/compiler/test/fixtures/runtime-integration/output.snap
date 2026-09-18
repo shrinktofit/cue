@@ -51,7 +51,7 @@ import { toDisplayString as _toDisplayString, createElementVNode as _createEleme
 export function render(_ctx, _cache, $props, $setup, $data, $options) {
   return (_openBlock(), _createElementBlock("div", {
     ref: "panel",
-    __cueInlineStyle: {"declarations":{"backgroundColor":{"alpha":1,"blue":86,"green":52,"red":18},"height":120},"selectors":[["cue-inline"]]}
+    __cueInlineStyle: {"declarations":{"backgroundColor":{"alpha":1,"blue":86,"green":52,"red":18},"height":120},"selectors":[[{"type":"class","name":"cue-inline"}]]}
   }, [
     _createElementVNode("counter-display", { value: $setup.count }, _toDisplayString($setup.count), 9 /* TEXT, PROPS */, ["value"]),
     _createTextVNode(),

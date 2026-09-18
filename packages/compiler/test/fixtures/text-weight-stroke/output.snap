@@ -45,7 +45,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "body"
+          {
+            "type": "class",
+            "name": "body"
+          }
         ]
       ]
     },
@@ -62,7 +65,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "title"
+          {
+            "type": "class",
+            "name": "title"
+          }
         ]
       ]
     },
@@ -79,7 +85,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "value"
+          {
+            "type": "class",
+            "name": "value"
+          }
         ]
       ]
     },
@@ -90,7 +99,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "outlined"
+          {
+            "type": "class",
+            "name": "outlined"
+          }
         ]
       ]
     },
@@ -106,7 +118,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "transparent"
+          {
+            "type": "class",
+            "name": "transparent"
+          }
         ]
       ]
     },
@@ -121,7 +136,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "named"
+          {
+            "type": "class",
+            "name": "named"
+          }
         ]
       ]
     },
@@ -131,7 +149,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "minimum"
+          {
+            "type": "class",
+            "name": "minimum"
+          }
         ]
       ]
     },
@@ -141,7 +162,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "maximum"
+          {
+            "type": "class",
+            "name": "maximum"
+          }
         ]
       ]
     }

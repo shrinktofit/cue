@@ -16,10 +16,13 @@ import {
   CueOverflow,
   CuePointerEvents,
   CuePosition,
+  CuePseudoClass,
+  CueSelectorCombinator,
   CueStyleProperty,
   CueTextAlign,
   CueWhiteSpace,
-  type CueClassSelector,
+  type CueSelector,
+  type CueSelectorToken,
   type CueBoxShadow,
   type CueColor,
   type CueCornerRadius,
@@ -114,11 +117,11 @@ export function compileCueStyleRules(
     }
 
     const selectors = rule.value.selectors.flatMap(
-      (selector): CueClassSelector[] => {
-        const classes = readClassSelector(selector);
-        return classes
+      (selector): CueSelector[] => {
+        const compiledSelector = compileSelector(selector, errors);
+        return compiledSelector
           ? [
-            classes,
+            compiledSelector,
           ]
           : [];
       },
@@ -768,15 +771,40 @@ function readAlignSelf(alignSelf: AlignSelf): CueAlignSelf | undefined {
   }
 }
 
-function readClassSelector(selector: Selector): string[] | undefined {
-  const classes: string[] = [];
+function compileSelector(selector: Selector, errors: Error[]): CueSelector | undefined {
+  const tokens: CueSelectorToken[] = [];
   for (const component of selector) {
-    if (component.type !== 'class') {
+    switch (component.type) {
+    case 'class':
+    case 'id':
+    case 'type':
+      tokens.push({ type: component.type, name: component.name });
+      break;
+    case 'universal':
+      tokens.push({ type: 'universal' });
+      break;
+    case 'combinator':
+      if (component.value === 'child' || component.value === 'descendant') {
+        tokens.push({ type: 'combinator', value: component.value === 'child' ? CueSelectorCombinator.child : CueSelectorCombinator.descendant });
+        break;
+      }
+      errors.push(new SyntaxError(`Unsupported Cue CSS combinator "${component.value}". Supported combinators: child and descendant.`));
+      return undefined;
+    case 'pseudo-class': {
+      const kind = Object.values(CuePseudoClass).find((state) => state === component.kind);
+      if (kind) {
+        tokens.push({ type: 'pseudo-class', kind });
+        break;
+      }
+      errors.push(new SyntaxError(`Unsupported Cue CSS pseudo-class ":${component.kind}".`));
       return undefined;
     }
-    classes.push(component.name);
+    default:
+      errors.push(new SyntaxError(`Unsupported Cue CSS selector component "${component.type}".`));
+      return undefined;
+    }
   }
-  return classes.length > 0 ? classes : undefined;
+  return tokens;
 }
 
 function readDimension(size: Size): CueDimension | undefined {

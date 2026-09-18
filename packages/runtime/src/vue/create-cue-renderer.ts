@@ -19,6 +19,9 @@ export function createCueRenderer(): Renderer<CueElement> {
       patchCueElementProperty(element, name, previousValue, nextValue);
     },
     insert(child, parent, anchor) {
+      if (!parent.acceptsAuthorChildren && !(child instanceof Comment)) {
+        throw new TypeError(parent.tagName + ' does not accept author children.');
+      }
       parent.insertBefore(child, anchor ?? undefined);
     },
     remove(child) {
@@ -45,6 +48,12 @@ export function createCueRenderer(): Renderer<CueElement> {
       throw new TypeError('Only text and comment nodes can receive text content.');
     },
     setElementText(element, text) {
+      if (!element.acceptsAuthorChildren) {
+        if (text.length > 0) {
+          throw new TypeError(element.tagName + ' does not accept author text.');
+        }
+        return;
+      }
       element.clearChildren();
       if (text.length > 0) {
         element.insertBefore(new Text(text));

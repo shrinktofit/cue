@@ -1,4 +1,5 @@
 import { CueNode } from './cue-node.js';
+import type { CueStyleDeclarations } from '@bsgames/cue-style-schema';
 import type { CueStyle } from '../style/cue-style.js';
 import { CueEvent, getCueEventDispatchState } from '../input/cue-event.js';
 import {
@@ -27,6 +28,20 @@ export let getCueElementProperties: (
   element: CueElement,
 ) => ReadonlyMap<string, unknown>;
 
+export let getCueElementStates: (element: CueElement) => ReadonlySet<string>;
+export let setCueElementState: (element: CueElement, state: string, active: boolean) => void;
+export let getCueElementDefaultStyle: (element: CueElement) => CueStyleDeclarations | undefined;
+export let setCueElementDefaultStyle: (element: CueElement, style: CueStyleDeclarations) => void;
+export let setCueElementConnected: (element: CueElement, connected: boolean) => void;
+export interface CueContentBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+export let getCueElementContentBox: (element: CueElement) => CueContentBox;
+export let setCueElementContentBox: (element: CueElement, box: CueContentBox) => void;
+
 export let patchCueElementProperty: (
   element: CueElement,
   name: string,
@@ -40,6 +55,16 @@ export abstract class CueElement extends CueNode {
   }
 
   readonly style: CueStyle = {};
+
+  /** Value controls own their presentation children; buttons accept author content. */
+  // eslint-disable-next-line @typescript-eslint/class-literal-property-style -- Subclasses override this content policy with an accessor.
+  get acceptsAuthorChildren(): boolean {
+    return true;
+  }
+
+  get isConnected(): boolean {
+    return this.#connected;
+  }
 
   get clientWidth(): number {
     return this.#clientWidth;
@@ -157,6 +182,13 @@ export abstract class CueElement extends CueNode {
         state.eventPhase = index === 0 ? CueEvent.AT_TARGET : CueEvent.BUBBLING_PHASE;
         path[index]!.#invokeEventListeners(event, false);
       }
+      // Ancestors can cancel default behavior; stopPropagation only stops listeners.
+      for (const element of path) {
+        if (event.defaultPrevented) {
+          break;
+        }
+        element.defaultAction(event);
+      }
     } finally {
       state.currentTarget = undefined;
       state.eventPhase = CueEvent.NONE;
@@ -192,7 +224,11 @@ export abstract class CueElement extends CueNode {
 
     const currentParent = child.parent;
     if (currentParent) {
-      currentParent.removeChild(child);
+      const sameDocument = treeRoot(currentParent) === treeRoot(this);
+      currentParent.#children.splice(currentParent.#children.indexOf(child), 1);
+      if (!sameDocument && child instanceof CueElement) {
+        setCueElementConnected(child, false);
+      }
     }
 
     const insertionIndex = anchor
@@ -200,6 +236,10 @@ export abstract class CueElement extends CueNode {
       : this.#children.length;
     this.#children.splice(insertionIndex, 0, child);
     CueElement.setParent(child, this);
+    if (child instanceof CueElement) {
+      setCueElementConnected(child, this.#connected);
+      child.#notifyReparented();
+    }
   }
 
   removeChild(child: CueNode): void {
@@ -210,13 +250,35 @@ export abstract class CueElement extends CueNode {
 
     this.#children.splice(childIndex, 1);
     CueElement.setParent(child, undefined);
+    if (child instanceof CueElement) {
+      setCueElementConnected(child, false);
+    }
   }
 
   clearChildren(): void {
-    for (const child of this.#children) {
-      CueElement.setParent(child, undefined);
+    for (const child of [...this.#children]) {
+      this.removeChild(child);
     }
-    this.#children.length = 0;
+  }
+
+  protected propertyChanged(_name: string, _previousValue: unknown, _nextValue: unknown): void {
+    // Element subclasses handle their own attribute contracts.
+  }
+
+  protected defaultAction(_event: CueEvent): void {
+    // Native controls supply behavior after propagation.
+  }
+
+  protected connected(): void {
+    // Custom elements may attach document-scoped resources.
+  }
+
+  protected disconnected(): void {
+    // Custom elements release document-scoped resources here.
+  }
+
+  protected reparented(): void {
+    // Same-document moves preserve state but can change ancestor-dependent state.
   }
 
   readonly #children: CueNode[] = [];
@@ -224,6 +286,19 @@ export abstract class CueElement extends CueNode {
   readonly #eventListeners = new Map<string, RegisteredCueEventListener[]>();
   #clientWidth = 0;
   #clientHeight = 0;
+  #connected = false;
+  readonly #states = new Set<string>();
+  #defaultStyle: CueStyleDeclarations | undefined;
+  #contentBox: CueContentBox = { x: 0, y: 0, width: 0, height: 0 };
+
+  #notifyReparented(): void {
+    this.reparented();
+    for (const child of this.#children) {
+      if (child instanceof CueElement) {
+        child.#notifyReparented();
+      }
+    }
+  }
 
   #invokeEventListeners(event: CueEvent, capture: boolean): void {
     const state = getCueEventDispatchState(event);
@@ -261,6 +336,38 @@ export abstract class CueElement extends CueNode {
       element.#clientHeight = height;
     };
     getCueElementProperties = (element) => element.#properties;
+    getCueElementContentBox = (element) => element.#contentBox;
+    setCueElementContentBox = (element, box) => {
+      element.#contentBox = box;
+    };
+    getCueElementStates = (element) => element.#states;
+    setCueElementState = (element, state, active) => {
+      if (active) {
+        element.#states.add(state);
+      } else {
+        element.#states.delete(state);
+      }
+    };
+    getCueElementDefaultStyle = (element) => element.#defaultStyle;
+    setCueElementDefaultStyle = (element, style) => {
+      element.#defaultStyle = style;
+    };
+    setCueElementConnected = (element, connected) => {
+      if (element.#connected === connected) {
+        return;
+      }
+      element.#connected = connected;
+      if (connected) {
+        element.connected();
+      } else {
+        element.disconnected();
+      }
+      for (const child of element.#children) {
+        if (child instanceof CueElement) {
+          setCueElementConnected(child, connected);
+        }
+      }
+    };
     patchCueElementProperty = (element, name, previousValue, nextValue) => {
       if (name === 'style' && nextValue !== undefined && nextValue !== null) {
         throw new TypeError('Runtime CSS style bindings are unsupported. Use the typed CueElement.style API.');
@@ -268,11 +375,31 @@ export abstract class CueElement extends CueNode {
       if (previousValue === nextValue) {
         return;
       }
+      const hadValue = element.#properties.has(name);
+      const storedValue = element.#properties.get(name);
       if (nextValue === undefined || nextValue === null) {
         element.#properties.delete(name);
       } else {
         element.#properties.set(name, nextValue);
       }
+      try {
+        element.propertyChanged(name, previousValue, nextValue);
+      } catch (error) {
+        if (hadValue) {
+          element.#properties.set(name, storedValue);
+        } else {
+          element.#properties.delete(name);
+        }
+        throw error;
+      }
     };
   }
+}
+
+function treeRoot(element: CueElement): CueElement {
+  let root = element;
+  while (root.parent) {
+    root = root.parent;
+  }
+  return root;
 }

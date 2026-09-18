@@ -55,7 +55,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "card"
+          {
+            "type": "class",
+            "name": "card"
+          }
         ]
       ]
     }

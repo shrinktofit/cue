@@ -39,7 +39,7 @@ const styleSheet: CueStyleSheet = {
       },
       selectors: [
         [
-          'parent',
+          { type: 'class', name: 'parent' },
         ],
       ],
     },
@@ -54,7 +54,7 @@ const styleSheet: CueStyleSheet = {
       },
       selectors: [
         [
-          'child',
+          { type: 'class', name: 'child' },
         ],
       ],
     },
@@ -151,7 +151,7 @@ describe('computeCueElementStyle', () => {
           borderTopWidth: 4,
           color,
         },
-        selectors: [['bordered']],
+        selectors: [[{ type: 'class', name: 'bordered' }]],
       }],
       version: cueStyleSchemaVersion,
     }]);

@@ -1,0 +1,291 @@
+/// native-controls.cue.js
+
+import component from "./native-controls.cue.script.js";
+import { render } from "./native-controls.cue.template.js";
+import styleSheet from "./native-controls.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "native-controls.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// native-controls.cue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+import { ref } from '@bsgames/cue';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'native-controls',
+    setup(__props, { expose: __expose }) {
+        const toggle = ref(false);
+        const slider = ref(20);
+        const selection = ref();
+        const text = ref('initial');
+        const number = ref();
+        const lazy = ref('saved');
+        const presses = ref(0);
+        const inputValues = [];
+        function current() {
+            return { toggle: toggle.value, slider: slider.value, selection: selection.value, text: text.value, number: number.value, lazy: lazy.value, presses: presses.value, inputValues: [...inputValues] };
+        }
+        function replace() {
+            toggle.value = false;
+            slider.value = 75;
+            selection.value = undefined;
+            text.value = 'external';
+            number.value = undefined;
+        }
+        __expose({ current, replace });
+        const __returned__ = { toggle, slider, selection, text, number, lazy, presses, inputValues, current, replace };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// native-controls.cue.template.js
+
+import { createElementVNode as _createElementVNode, withModifiers as _withModifiers, withKeys as _withKeys, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("div", { class: "controls" }, [
+    _createElementVNode("cue-toggle", {
+      value: $setup.toggle,
+      onInput: $event => !$event.isComposing && ($event => (($setup.toggle) = $event))($event.value)
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onInput"]),
+    _createTextVNode(),
+    _createElementVNode("cue-slider", {
+      id: "volume",
+      value: $setup.slider,
+      onInput: $event => !$event.isComposing && ($event => (($setup.slider) = $event))($event.value)
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onInput"]),
+    _createTextVNode(),
+    _createElementVNode("cue-select", {
+      value: $setup.selection,
+      onInput: $event => !$event.isComposing && ($event => (($setup.selection) = $event))($event.value),
+      options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onInput"]),
+    _createTextVNode(),
+    _createElementVNode("cue-text-input", {
+      value: $setup.text,
+      onInput: [
+        $event => !$event.isComposing && ($event => (($setup.text) = $event))($event.value),
+        _cache[0] || (_cache[0] = $event => ($setup.inputValues.push($event.value)))
+      ]
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onInput"]),
+    _createTextVNode(),
+    _createElementVNode("cue-number-input", {
+      value: $setup.number,
+      onInput: $event => !$event.isComposing && ($event => (($setup.number) = $event))($event.value)
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onInput"]),
+    _createTextVNode(),
+    _createElementVNode("cue-text-input", {
+      value: $setup.lazy,
+      onChange: $event => ($event => (($setup.lazy) = $event))($event.value)
+    }, null, 40 /* PROPS, NEED_HYDRATION */, ["value", "onChange"]),
+    _createTextVNode(),
+    _createElementVNode("cue-button", {
+      onKeydown: _cache[1] || (_cache[1] = _withKeys(_withModifiers($event => ($setup.presses++), ["ctrl","exact","prevent"]), ["enter"]))
+    }, "Apply", 32 /* NEED_HYDRATION */)
+  ]))
+}
+
+/// native-controls.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "fontSize": 16
+      },
+      "selectors": [
+        [
+          {
+            "type": "universal"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 180
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "controls"
+          },
+          {
+            "type": "combinator",
+            "value": "child"
+          },
+          {
+            "type": "type",
+            "name": "cue-slider"
+          },
+          {
+            "type": "id",
+            "name": "volume"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 120,
+          "green": 69,
+          "red": 18
+        }
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "cue-toggle"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "checked"
+          }
+        ],
+        [
+          {
+            "type": "type",
+            "name": "cue-button"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "hover"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "width": 12
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "controls"
+          },
+          {
+            "type": "combinator",
+            "value": "descendant"
+          },
+          {
+            "type": "class",
+            "name": "cue-slider-thumb"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "outlineColor": {
+          "alpha": 1,
+          "blue": 255,
+          "green": 0,
+          "red": 0
+        },
+        "outlineStyle": "solid",
+        "outlineWidth": 1
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "cue-text-input"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "focus"
+          }
+        ],
+        [
+          {
+            "type": "type",
+            "name": "cue-number-input"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "focus-within"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "backgroundColor": {
+          "alpha": 1,
+          "blue": 0,
+          "green": 0,
+          "red": 255
+        }
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "cue-button"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "active"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "color": {
+          "alpha": 1,
+          "blue": 0,
+          "green": 0,
+          "red": 0
+        }
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "cue-select"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "enabled"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "color": {
+          "alpha": 1,
+          "blue": 128,
+          "green": 128,
+          "red": 128
+        }
+      },
+      "selectors": [
+        [
+          {
+            "type": "type",
+            "name": "cue-select"
+          },
+          {
+            "type": "pseudo-class",
+            "kind": "disabled"
+          }
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

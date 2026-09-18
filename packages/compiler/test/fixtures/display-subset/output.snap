@@ -33,7 +33,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "block"
+          {
+            "type": "class",
+            "name": "block"
+          }
         ]
       ]
     },
@@ -43,7 +46,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "flex"
+          {
+            "type": "class",
+            "name": "flex"
+          }
         ]
       ]
     }

@@ -11,6 +11,7 @@ import {
   CueOverflow,
   CuePointerEvents,
   CuePosition,
+  CueSelectorCombinator,
   CueStyleProperty,
   CueTextAlign,
   CueWhiteSpace,
@@ -31,9 +32,13 @@ import {
   type CueStyleDeclarations,
   type CueStyleRule,
   type CueStyleSheet,
+  type CueSelector,
+  type CueSpecificity,
 } from '@bsgames/cue-style-schema';
 import {
   getCueElementProperties,
+  getCueElementDefaultStyle,
+  getCueElementStates,
   type CueElement,
 } from '../element/cue-element.js';
 import { DivElement } from '../element/div-element.js';
@@ -123,8 +128,9 @@ export interface ComputedCueElementStyle extends ComputedCueTextStyle {
 
 interface DeclarationCandidate {
   important: boolean;
+  inline: boolean;
   order: number;
-  specificity: number;
+  specificity: CueSpecificity;
 }
 
 const cueStyleProperties = Object.values(CueStyleProperty);
@@ -153,21 +159,30 @@ export function computeCueElementStyle(
   styleSheets: readonly CueStyleSheet[],
   inheritedTextStyle: ComputedCueTextStyle & { pointerEvents?: CuePointerEvents } = initialCueTextStyle,
 ): ComputedCueElementStyle {
-  const classNames = readClassNames(getCueElementProperties(element).get('class'));
   const candidates = new Map<CueStyleProperty, DeclarationCandidate>();
-  const declarations: CueStyleDeclarations = {};
+  // Builtin defaults are a lower origin than every author declaration, even *.
+  const declarations: CueStyleDeclarations = { ...getCueElementDefaultStyle(element) };
   let order = 0;
 
   for (const styleSheet of styleSheets) {
     for (const rule of styleSheet.rules) {
       order += 1;
-      let specificity: number | undefined;
+      let specificity: CueSpecificity | undefined;
       for (const selector of rule.selectors) {
-        if (
-          selector.every((className) => classNames.has(className))
-          && (specificity === undefined || selector.length > specificity)
-        ) {
-          specificity = selector.length;
+        if (matchesCueSelector(element, selector)) {
+          const selectorSpecificity: [number, number, number] = [0, 0, 0];
+          for (const token of selector) {
+            if (token.type === 'id') {
+              selectorSpecificity[0]++;
+            } else if (token.type === 'class' || token.type === 'pseudo-class') {
+              selectorSpecificity[1]++;
+            } else if (token.type === 'type') {
+              selectorSpecificity[2]++;
+            }
+          }
+          if (specificity === undefined || compareSpecificity(selectorSpecificity, specificity) > 0) {
+            specificity = selectorSpecificity;
+          }
         }
       }
       if (specificity === undefined) {
@@ -194,9 +209,9 @@ export function computeCueElementStyle(
 
   // Private compiler output, never CSS source text.
   const inlineStyle = getCueElementProperties(element).get('__cueInlineStyle') as CueStyleRule | undefined;
-  applyDeclarations(declarations, candidates, inlineStyle?.declarations, false, order + 1, Infinity);
-  applyDeclarations(declarations, candidates, inlineStyle?.importantDeclarations, true, order + 1, Infinity);
-  applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, Infinity);
+  applyDeclarations(declarations, candidates, inlineStyle?.declarations, false, order + 1, [0, 0, 0], true);
+  applyDeclarations(declarations, candidates, inlineStyle?.importantDeclarations, true, order + 1, [0, 0, 0], true);
+  applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, [0, 0, 0], true);
 
   const computedStyle: ComputedCueElementStyle = {
     pointerEvents: inheritedTextStyle.pointerEvents ?? CuePointerEvents.auto,
@@ -323,7 +338,8 @@ function applyDeclarations(
   declarations: CueStyleDeclarations | undefined,
   important: boolean,
   order: number,
-  specificity: number,
+  specificity: CueSpecificity,
+  inline = false,
 ): void {
   if (!declarations) {
     return;
@@ -335,6 +351,7 @@ function applyDeclarations(
     }
     const candidate = {
       important,
+      inline,
       order,
       specificity,
     };
@@ -378,6 +395,58 @@ function appendClassNames(classNames: Set<string>, value: unknown): void {
   }
 }
 
+function matchesCueSelector(element: CueElement, selector: CueSelector, end = selector.length - 1): boolean {
+  const properties = getCueElementProperties(element);
+  const classNames = readClassNames(properties.get('class'));
+  for (let index = end; index >= 0; index--) {
+    const token = selector[index]!;
+    switch (token.type) {
+    case 'type':
+      if (element.tagName !== token.name) {
+        return false;
+      }
+      break;
+    case 'id':
+      if (properties.get('id') !== token.name) {
+        return false;
+      }
+      break;
+    case 'class':
+      if (!classNames.has(token.name)) {
+        return false;
+      }
+      break;
+    case 'pseudo-class':
+      if (!getCueElementStates(element).has(token.kind)) {
+        return false;
+      }
+      break;
+    case 'universal':
+      break;
+    case 'combinator': {
+      let ancestor = element.parent;
+      while (ancestor) {
+        if (matchesCueSelector(ancestor, selector, index - 1)) {
+          return true;
+        }
+        if (token.value === CueSelectorCombinator.child) {
+          return false;
+        }
+        ancestor = ancestor.parent;
+      }
+      return false;
+    }
+    default:
+      throw new TypeError('Invalid Cue stylesheet selector token; recompile the stylesheet with the current compiler.');
+    }
+  }
+  return true;
+}
+
+function compareSpecificity(left: CueSpecificity, right: CueSpecificity): number {
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
+}
+
 function hasHigherPriority(
   candidate: DeclarationCandidate,
   previous: DeclarationCandidate,
@@ -385,8 +454,12 @@ function hasHigherPriority(
   if (candidate.important !== previous.important) {
     return candidate.important;
   }
-  if (candidate.specificity !== previous.specificity) {
-    return candidate.specificity > previous.specificity;
+  if (candidate.inline !== previous.inline) {
+    return candidate.inline;
+  }
+  const specificityOrder = compareSpecificity(candidate.specificity, previous.specificity);
+  if (specificityOrder !== 0) {
+    return specificityOrder > 0;
   }
   return candidate.order >= previous.order;
 }

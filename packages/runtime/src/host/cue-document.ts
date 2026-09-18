@@ -24,6 +24,7 @@ import {
   UITransform,
   Vec3,
   view,
+  screen,
   type Asset,
 } from 'cc';
 import { CueElement } from '../element/cue-element.js';
@@ -63,6 +64,16 @@ import { CanvasTextRasterizer, type RasterizedCueText } from './canvas-text-rast
 import { transformCuePaintPoint } from '../render/cue-affine-transform.js';
 import { CuePointerController, type CuePointerSample } from '../input/cue-pointer-controller.js';
 import { registerCueInputSource } from './cue-input-source.js';
+import { CueControlElement } from '../builtin-controls/cue-control-element.js';
+import { CueSliderElement, updateCueSliderLayout } from '../builtin-controls/slider/cue-slider-element.js';
+import { CueSelectElement, updateCueSelectLayout } from '../builtin-controls/select/cue-select-element.js';
+import { CueEditableInputElement, readCueTextInputCaretBox, updateCueTextInputLayout } from '../builtin-controls/text-input/cue-editable-input-element.js';
+import { CueFocusController } from '../input/cue-focus-controller.js';
+import { CueWheelEvent } from '../input/cue-wheel-event.js';
+import { pickCueElement, type CueHitRegion } from '../input/cue-hit-region.js';
+import { CueTextInputSource } from './cue-text-input-source.js';
+import { activateCueKeyboardSource, releaseCueKeyboardSource, type CueKeyboardClient } from './cue-keyboard-source.js';
+import { initialCueTextStyle, type ComputedCueTextStyle } from '../style/compute-cue-element-style.js';
 
 const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
 const cueTextureEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
@@ -136,6 +147,10 @@ export class CueDocument extends CycloComponent {
     return this.#rootElement;
   }
 
+  get activeElement(): CueControlElement | undefined {
+    return this.#focusController.activeElement;
+  }
+
   mount(
     rootComponent: VueComponent,
     rootProps?: Record<string, unknown> | null,
@@ -160,6 +175,7 @@ export class CueDocument extends CycloComponent {
 
   unmount(): void {
     this.#pointerController.cancel();
+    this.#focusController.focus(undefined);
     this.#unmount?.();
     this.#unmount = undefined;
     this.#styleSheetCollection?.clear();
@@ -176,8 +192,17 @@ export class CueDocument extends CycloComponent {
     this.#removeInputSource = registerCueInputSource({
       priority: () => this.#inputCamera()?.priority ?? 0,
       handle: (sample, capturedOnly) => this.#handlePointer(sample, capturedOnly),
-      cancel: () => this.#pointerController.cancel(),
+      cancel: () => {
+        this.#pointerController.cancel();
+        this.#focusController.focus(undefined);
+      },
       cancelPointer: (pointerId) => this.#pointerController.cancelPointer(pointerId),
+      blur: () => this.#focusController.focus(undefined),
+      wheel: (sample, event) => {
+        const point = this.#pointerPoint(sample);
+        const target = point && pickCueElement(this.#hitRegions, point.x, point.y);
+        return target ? !target.dispatchEvent(new CueWheelEvent(event)) : false;
+      },
     });
   }
 
@@ -185,6 +210,7 @@ export class CueDocument extends CycloComponent {
     this.#syncRenderRecordEnabled();
     this.#removeInputSource?.();
     this.#removeInputSource = undefined;
+    this.#focusController.focus(undefined);
   }
 
   protected override onUpdate(): void {
@@ -199,7 +225,7 @@ export class CueDocument extends CycloComponent {
       return;
     }
     this.#syncImageAssets();
-    const paintList = createCuePaintList(
+    const paint = () => createCuePaintList(
       this.#rootElement,
       this.#styleSheetCollection?.styleSheets ?? [],
       textRasterizer,
@@ -207,13 +233,38 @@ export class CueDocument extends CycloComponent {
       (source) => this.#backgroundAssets.get(source),
       this.getComponent(UITransform)?.contentSize,
     );
+    let paintList = paint();
+    let updated = false;
+    const visit = (element: CueElement, inherited: ComputedCueTextStyle): void => {
+      const style = computeCueElementStyle(element, this.#styleSheetCollection?.styleSheets ?? [], inherited);
+      updated = updateCueTextInputLayout(element, style, textRasterizer, this.#styleSheetCollection?.styleSheets ?? []) || updated;
+      if (element instanceof CueSliderElement) {
+        updated = updateCueSliderLayout(element, paintList.hitRegions) || updated;
+      }
+      if (element instanceof CueSelectElement && element.open) {
+        updated = updateCueSelectLayout(element, this.#rootElement.clientHeight, paintList.hitRegions) || updated;
+      }
+      for (const child of element.children) {
+        if (child instanceof CueElement) {
+          visit(child, style);
+        }
+      }
+    };
+    visit(this.#rootElement, initialCueTextStyle);
+    if (updated) {
+      paintList = paint();
+    }
     this.#syncRenderRecords(paintList);
     this.#pointerController.setRegions(paintList.hitRegions);
+    this.#hitRegions = paintList.hitRegions;
+    this.#syncTextInputSource();
   }
 
   protected override onDestroy(): void {
     super.onDestroy();
     this.unmount();
+    this.#focusController.dispose();
+    this.#textInputSource.dispose();
     this.#removeInputSource?.();
     this.#removeInputSource = undefined;
     this.#destroyRectRenderRecords();
@@ -242,7 +293,35 @@ export class CueDocument extends CycloComponent {
   }
 
   readonly #rootElement = new CueRootElement();
-  readonly #pointerController = new CuePointerController(this.#rootElement);
+  readonly #pointerController = new CuePointerController(this.#rootElement, (target) => {
+    let control = target;
+    while (control && !(control instanceof CueControlElement)) {
+      control = control.parent;
+    }
+    this.#focusController.focus(control);
+  });
+
+  readonly #focusController = new CueFocusController(this.#rootElement, (active) => {
+    if (active) {
+      activateCueKeyboardSource(this.#keyboardClient);
+    } else {
+      releaseCueKeyboardSource(this.#keyboardClient);
+    }
+    this.#syncTextInputSource();
+  });
+
+  readonly #textInputSource = new CueTextInputSource();
+  readonly #keyboardClient: CueKeyboardClient = {
+    handle: (type, init) => {
+      const prevented = this.#focusController.handle(type, init);
+      this.#syncTextInputSource();
+      return prevented;
+    },
+    ownsTarget: (target) => this.#textInputSource.ownsTarget(target),
+    blur: () => this.#focusController.focus(undefined),
+  };
+
+  #hitRegions: readonly CueHitRegion[] = [];
   #removeInputSource: (() => void) | undefined;
   readonly #backgroundAssets = new Map<string, Texture2D>();
   #backgroundEffect: EffectAsset | undefined;
@@ -278,9 +357,14 @@ export class CueDocument extends CycloComponent {
     if (capturedOnly && !captured) {
       return false;
     }
+    const point = this.#pointerPoint(sample);
+    return point ? this.#pointerController.handle({ ...sample, ...point }) : false;
+  }
+
+  #pointerPoint(sample: { screenX: number; screenY: number }): { x: number; y: number } | undefined {
     const camera = this.#inputCamera();
     if (!camera) {
-      return false;
+      return undefined;
     }
     // Use the same camera and node world transform as the submitted geometry.
     const ray = camera.screenPointToRay(new geometry.Ray(), sample.screenX, sample.screenY);
@@ -289,13 +373,33 @@ export class CueDocument extends CycloComponent {
     const endpoint = Vec3.transformMat4(new Vec3(), Vec3.add(new Vec3(), ray.o, ray.d), worldToLocal);
     const direction = Vec3.subtract(new Vec3(), endpoint, origin);
     if (direction.z === 0) {
-      return false;
+      return undefined;
     }
     const distance = -origin.z / direction.z;
-    return this.#pointerController.handle({
-      ...sample,
+    return {
       x: origin.x + direction.x * distance,
       y: -(origin.y + direction.y * distance),
+    };
+  }
+
+  #syncTextInputSource(): void {
+    const active = this.activeElement;
+    const region = this.#hitRegions.find((candidate) => candidate.element === active);
+    const camera = this.#inputCamera();
+    const canvas = document.getElementById('GameCanvas');
+    if (!region || !camera || !canvas) {
+      this.#textInputSource.sync(active);
+      return;
+    }
+    const caret = active instanceof CueEditableInputElement ? readCueTextInputCaretBox(active) : undefined;
+    const point = transformCuePaintPoint(region.transform, region.x + region.borderLeft + (caret?.x ?? 0), region.y + region.borderTop + (caret?.y ?? 0));
+    const world = Vec3.transformMat4(new Vec3(), new Vec3(point[0], -point[1], 0), this.node.worldMatrix);
+    const projected = camera.worldToScreen(new Vec3(), world);
+    const rect = canvas.getBoundingClientRect();
+    this.#textInputSource.sync(active, {
+      x: rect.left + projected.x / screen.devicePixelRatio,
+      y: rect.bottom - projected.y / screen.devicePixelRatio,
+      height: caret?.height ?? 20,
     });
   }
 

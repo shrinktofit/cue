@@ -42,7 +42,7 @@ describe('Typed element style API', () => {
     const sheet: CueStyleSheet = {
       version: 1,
       rules: [{
-        selectors: [['card', 'strong']],
+        selectors: [[{ type: 'class', name: 'card' }, { type: 'class', name: 'strong' }]],
         declarations: { width: 10 },
         importantDeclarations: { height: 30 },
       }],

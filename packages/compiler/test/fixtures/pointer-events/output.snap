@@ -34,7 +34,7 @@ export function render(_ctx, _cache) {
     onLostpointercapture: _cache[11] || (_cache[11] = (...args) => (_ctx.handle && _ctx.handle(...args))),
     onClick: _cache[12] || (_cache[12] = _withModifiers((...args) => (_ctx.handle && _ctx.handle(...args)), ["self","prevent"]))
   }, [
-    _createElementVNode("div", { __cueInlineStyle: {"declarations":{"pointerEvents":"auto"},"selectors":[["cue-inline"]]} }),
+    _createElementVNode("div", { __cueInlineStyle: {"declarations":{"pointerEvents":"auto"},"selectors":[[{"type":"class","name":"cue-inline"}]]} }),
     _createTextVNode(),
     _createElementVNode("cue-image", {
       src: "uuid:image",
@@ -57,7 +57,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "overlay"
+          {
+            "type": "class",
+            "name": "overlay"
+          }
         ]
       ]
     },
@@ -67,7 +70,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "interactive"
+          {
+            "type": "class",
+            "name": "interactive"
+          }
         ]
       ]
     }

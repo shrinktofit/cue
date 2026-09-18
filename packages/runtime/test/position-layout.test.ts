@@ -462,7 +462,7 @@ function boxes(
         backgroundColor: { alpha: 1, blue: 0, green: 0, red: 255 },
         ...style,
       },
-      selectors: [[className]],
+      selectors: [[{ type: 'class', name: className }]],
     })),
     version: cueStyleSchemaVersion,
   };

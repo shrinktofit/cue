@@ -87,6 +87,9 @@ importers:
 
   packages/compiler:
     dependencies:
+      '@bsgames/cue-control-schema':
+        specifier: workspace:*
+        version: link:../control-schema
       '@bsgames/cue-style-schema':
         specifier: workspace:*
         version: link:../style-schema
@@ -118,6 +121,18 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.2.2(@types/node@25.9.5)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@25.9.5)
+
+  packages/control-schema:
+    devDependencies:
+      '@bsgames/cue-workflow':
+        specifier: workspace:*
+        version: link:../workflow
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@25.9.5)
@@ -192,6 +207,9 @@ importers:
 
   packages/runtime:
     dependencies:
+      '@bsgames/cue-control-schema':
+        specifier: workspace:*
+        version: link:../control-schema
       '@bsgames/cue-style-schema':
         specifier: workspace:*
         version: link:../style-schema

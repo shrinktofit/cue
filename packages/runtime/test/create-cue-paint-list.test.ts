@@ -51,7 +51,7 @@ const styleSheet: CueStyleSheet = {
         overflowY: CueOverflow.hidden,
         width: 80,
       },
-      selectors: [['container']],
+      selectors: [[{ type: 'class', name: 'container' }]],
     },
     {
       declarations: {
@@ -61,7 +61,7 @@ const styleSheet: CueStyleSheet = {
         width: 10,
         zIndex: 2,
       },
-      selectors: [['high']],
+      selectors: [[{ type: 'class', name: 'high' }]],
     },
     {
       declarations: {
@@ -71,7 +71,7 @@ const styleSheet: CueStyleSheet = {
         width: 10,
         zIndex: -1,
       },
-      selectors: [['low']],
+      selectors: [[{ type: 'class', name: 'low' }]],
     },
     {
       declarations: {
@@ -81,7 +81,7 @@ const styleSheet: CueStyleSheet = {
         cueOpacity: 0,
         width: 10,
       },
-      selectors: [['hidden']],
+      selectors: [[{ type: 'class', name: 'hidden' }]],
     },
   ],
   version: cueStyleSchemaVersion,
@@ -118,9 +118,9 @@ describe('createCuePaintList', () => {
 
     const paintList = createCuePaintList(root, [{
       rules: [
-        { declarations: { display, height: 100, position: CuePosition.relative, width: 200 }, selectors: [['container']] },
-        { declarations: { backgroundColor: red, height: 40, left: 20, position, top: 20, width: 40 }, selectors: [['positioned']] },
-        { declarations: { backgroundColor: blue, height: 40, width: 40 }, selectors: [['normal']] },
+        { declarations: { display, height: 100, position: CuePosition.relative, width: 200 }, selectors: [[{ type: 'class', name: 'container' }]] },
+        { declarations: { backgroundColor: red, height: 40, left: 20, position, top: 20, width: 40 }, selectors: [[{ type: 'class', name: 'positioned' }]] },
+        { declarations: { backgroundColor: blue, height: 40, width: 40 }, selectors: [[{ type: 'class', name: 'normal' }]] },
       ],
       version: cueStyleSchemaVersion,
     }], textMeasurer, () => undefined, () => undefined);
@@ -152,7 +152,7 @@ describe('createCuePaintList', () => {
     root.insertBefore(container);
     const paintList = createCuePaintList(root, [{
       rules: [
-        { declarations: { display, height: 100, position: CuePosition.relative, width: 500 }, selectors: [['container']] },
+        { declarations: { display, height: 100, position: CuePosition.relative, width: 500 }, selectors: [[{ type: 'class', name: 'container' }]] },
         ...cases.map((entry) => ({
           declarations: {
             backgroundColor: { alpha: 1, blue: 0, green: 0, red: entry.color },
@@ -161,7 +161,7 @@ describe('createCuePaintList', () => {
             width: 20,
             zIndex: entry.zIndex,
           },
-          selectors: [[entry.name]],
+          selectors: [[{ type: 'class', name: entry.name }]],
         })),
       ],
       version: cueStyleSchemaVersion,
@@ -220,7 +220,7 @@ describe('createCuePaintList', () => {
             height: 40,
             width: 80,
           },
-          selectors: [['faded-parent']],
+          selectors: [[{ type: 'class', name: 'faded-parent' }]],
         },
         {
           declarations: {
@@ -230,7 +230,7 @@ describe('createCuePaintList', () => {
             height: 20,
             width: 20,
           },
-          selectors: [['faded-child']],
+          selectors: [[{ type: 'class', name: 'faded-child' }]],
         },
       ],
       version: cueStyleSchemaVersion,

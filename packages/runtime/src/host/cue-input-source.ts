@@ -1,11 +1,14 @@
 import { EventMouse, EventTouch, Input, input, screen, type Event } from 'cc';
 import type { CuePointerSample } from '../input/cue-pointer-controller.js';
+import type { CueWheelEventInit } from '../input/cue-wheel-event.js';
 
 export interface CueInputClient {
   priority(): number;
   handle(sample: CuePointerSample, capturedOnly: boolean): boolean;
   cancelPointer(pointerId: number): void;
   cancel(): void;
+  blur?(): void;
+  wheel?(sample: { screenX: number; screenY: number }, event: CueWheelEventInit): boolean;
 }
 
 interface CueInputDispatcher {
@@ -23,13 +26,14 @@ interface NativePointerDispatch {
   sawCocosInput: boolean;
   mouseType: CuePointerSample['type'];
   pendingUpdates: Map<number, CueInputClient>;
+  pointerDownOwner?: CueInputClient;
 }
 
 const clients = new Set<CueInputClient>();
 const pointerClients = new Map<number, CueInputClient>();
 const nativeDispatches: NativePointerDispatch[] = [];
 const latestPointerDispatches = new Map<number, NativePointerDispatch>();
-const nativeEventNames = ['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'touchcancel'] as const;
+const nativeEventNames = ['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'wheel'] as const;
 let dispatchersRegistered = false;
 let primaryTouchId: number | undefined;
 let mouseButtons = 0;
@@ -152,6 +156,13 @@ function markNativePointerDispatch(event: MouseEvent | TouchEvent): void {
       }
     }
     // Native UI can swallow the engine event between our two dispatchers.
+    if (event.type === 'mousedown' || event.type === 'touchstart') {
+      for (const client of clients) {
+        if (client !== dispatch.pointerDownOwner) {
+          client.blur?.();
+        }
+      }
+    }
     // Clear stale hover and active presses when their client was not reached.
     for (const [pointerId, owner] of dispatch.pendingUpdates) {
       if (latestPointerDispatches.get(pointerId) !== dispatch) {
@@ -199,6 +210,21 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
     return true;
   }
   const native = dispatch.event;
+  if (native.type === 'wheel' && native instanceof WheelEvent) {
+    if (capturedOnly || !(event instanceof EventMouse) || event.type !== Input.EventType.MOUSE_WHEEL) {
+      return true;
+    }
+    const location = event.getLocation();
+    for (const client of [...clients].sort((left, right) => right.priority() - left.priority())) {
+      if (client.wheel?.({ screenX: location.x, screenY: location.y }, native)) {
+        if (native.cancelable) {
+          native.preventDefault();
+        }
+        return false;
+      }
+    }
+    return true;
+  }
   let sample: CuePointerSample;
   let mouseTouch = false;
   if (!('changedTouches' in native)) {
@@ -238,6 +264,7 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
       screenY: location.y,
       button: native.type === 'mousemove' ? -1 : native.button,
       buttons: native.buttons,
+      ctrlKey: native.ctrlKey, shiftKey: native.shiftKey, altKey: native.altKey, metaKey: native.metaKey,
     };
   } else {
     if (!(event instanceof EventTouch)) {
@@ -273,6 +300,7 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
       screenY: location.y,
       button: type === 'pointermove' ? -1 : 0,
       buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
+      ctrlKey: native.ctrlKey, shiftKey: native.shiftKey, altKey: native.altKey, metaKey: native.metaKey,
     };
   }
   dispatch.sawCocosInput = true;
@@ -306,6 +334,12 @@ function dispatchCueSample(
       }
     }
     if (handled) {
+      if (sample.type === 'pointerdown') {
+        dispatch.pointerDownOwner = client;
+        if (dispatch.event.cancelable) {
+          dispatch.event.preventDefault();
+        }
+      }
       if (owner && owner !== client) {
         dispatch.pendingUpdates.delete(sample.pointerId);
         owner.cancelPointer(sample.pointerId);

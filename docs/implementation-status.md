@@ -17,6 +17,8 @@
 | `<script>` 与 `<script setup>` | ✅ | JavaScript / TypeScript 输出为 JavaScript |
 | `<template>` 编译为 Vue render function | ✅ | runtime helper 指向 `@bsgames/cue` |
 | 项目配置声明 Custom Element | ✅ | 通过 `CompileCueOptions.customElements` 传入 |
+| 六类内置原生控件标签 | ✅[^builtin-controls] | 共享 control schema；compiler 不读取 runtime registry |
+| 原生控件 `v-model` / `.lazy` | ✅[^builtin-controls] | value + input / change；跳过 composing input，不生成 DOM model 指令 |
 | 多个 `<style>` block | ✅ | 按源码顺序合并进入一份 Style IR |
 | 使用 Lightning CSS 解析样式 | ✅ | 不手写 CSS parser |
 | 版本化 Style IR | ✅ | 当前 schema version 为 `1` |
@@ -26,7 +28,8 @@
 | Compiler → runtime 可执行 fixture | ✅ | 覆盖 Vue 响应式更新、Custom Element 与组件样式挂载 |
 | Source map | ❌ | script、template、style 均未回映到 `.cue` |
 | 稳定 diagnostic code 与精确 source range | ❌ | 当前主要透传 parser/compiler error |
-| 对不支持 CSS 的显式 diagnostics | ❌ | 当前会忽略无法编译的 selector、property 或 value |
+| 未支持 selector 的 diagnostics | ✅[^selector-subset] | 未支持的 combinator、attribute / pseudo selector 显式诊断 |
+| 全量 CSS property / value / at-rule diagnostics | ❌ | 尚未统一覆盖；部分未支持的声明仍会被忽略 |
 | `<style scoped>` | ❌ | 尚未定义公开语义 |
 | CSS Modules | ❌ | 尚未定义公开语义 |
 | CSS preprocessors | ❌ | 尚未实现 |
@@ -44,7 +47,7 @@
 | `CueRootElement` | ✅ | 作为 Vue app 的脱离 Cocos Node 的挂载根 |
 | Vue custom renderer | ✅ | 覆盖 element、text、comment、property patch 与 keyed reorder |
 | Vue 响应式更新 | ✅ | 已由 compiler → runtime fixture 执行验证 |
-| `globalElementRegistry.define/get` | ✅ | `div` 与项目 Custom Element 使用同一路径创建 |
+| `globalElementRegistry.define/get` | ✅ | 容器、图片、六类内置控件与项目 Custom Element 使用同一路径 |
 | `div` | ✅[^display] | 内建通用容器元素 |
 | `cue-image` | ✅[^cue-image] | 内建 replaced element；公开接口当前只有 `src` |
 | `span` | ❌ | 尚未实现 inline formatting context |
@@ -53,25 +56,47 @@
 | 纯文本元素的 intrinsic measure | ✅[^text-raster] | 文本宽高参与 Taffy Block/Flex 布局 |
 | 整文本块 TTF 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
 | Inline formatting context | ❌ | 混合文本与子元素、`span`、`br` 和跨 run 排版尚未实现；纯文本 Element 已有独立换行路径 |
-| DOM 风格事件派发 | ✅[^input] | CueEvent / CuePointerEvent；捕获、目标、冒泡、取消、once / passive |
-| Element 生命周期 / document 归属 | ❌ | 尚未形成完整 attach / detach 契约 |
+| DOM 风格事件派发 | ✅[^input] | Cue pointer / keyboard / focus / value / composition / wheel 事件；捕获、冒泡、取消、once / passive |
+| 基础 attach / detach / move 生命周期 | ✅[^builtin-controls] | 控件焦点、捕获和内部状态清理 |
+| 完整 document 归属与 invalidation 契约 | ❌ | 当前生命周期不代表完整 DOM/document 模型 |
+
+## 内置控件
+
+六类控件统一位于 `packages/runtime/src/builtin-controls/`。API、提交点、部件与平台边界见 [Builtin controls](builtin-controls.md)。
+
+| 能力 | 状态 | 当前边界 |
+| --- | :---: | --- |
+| `cue-button` | ✅[^builtin-controls] | Pointer、Enter、Space 激活；接受作者 children；无 model |
+| `cue-toggle` | ✅[^builtin-controls] | boolean value；click / Space；checked 状态 |
+| `cue-slider` | ✅[^builtin-controls] | number；min/max/step、水平/垂直、pointer capture 与键盘调整 |
+| `cue-select` | ✅[^builtin-controls] | string / undefined；数据 options、禁用选项、候选与提交分离、有限弹层滚动 |
+| `cue-text-input` | ✅[^builtin-controls] | string；单行/多行/密码/只读、placeholder、选择范围；LTR |
+| `cue-number-input` | ✅[^builtin-controls] | number / undefined；草稿与有效数值分离、范围、精确步进；不输出 NaN |
+| 外部 value 同步 | ✅[^builtin-controls] | 不主动发 input / change；显式交互操作另有提交语义 |
+| 内部节点所有权 | ✅[^builtin-controls] | Button 以外拒绝作者 children；真实节点与稳定 class 定制 |
+| `.ce.cue` / 内置控件自举 | ❌ | 本轮不实现；生产控件用 TypeScript，gallery 用 `.cue` 消费 |
+| 完整 HTML form / label / validation | ❌ | 不声明浏览器 HTML 控件兼容性 |
 
 ## CSS Selector 与 Cascade
 
 | 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
 | 单 class selector（`.item`） | ✅ | 编译、匹配与运行时更新已接通 |
-| 复合 class selector（`.item.selected`） | ✅[^selector-subset] | specificity 按 class 数量计算 |
-| Selector list（`.a, .b`） | ✅[^selector-subset] | 列表中的每项仍必须是纯 class selector |
+| 复合 selector（`cue-slider#volume.item:hover`） | ✅[^selector-subset] | 同一元素匹配 type / ID / class / state |
+| Selector list（`.a, cue-button`） | ✅[^selector-subset] | 仅匹配成功的项参与该规则的最大 specificity |
 | Class 的 string / array / object Vue binding | ✅ | runtime 会归一化为 class name set |
-| `!important` | ✅[^selector-subset] | 参与当前 class-only cascade |
-| Specificity 与 source order | ✅[^selector-subset] | 只覆盖当前 class-only selector profile |
+| `!important` | ✅[^selector-subset] | 作者规则与静态 inline declaration 比较 importance |
+| Specificity 与 source order | ✅[^selector-subset] | 标准 ID / class-pseudo / type 三元组；同优先级按 source order |
+| 内置默认样式低来源 | ✅[^builtin-controls] | 仅普通声明，低于所有作者声明，包括通配选择器 |
 | 组件样式随 mount / unmount 生效 | ✅ | 相同 stylesheet 按组件实例引用计数 |
-| Type selector（`div`） | ❌ | 尚未实现 |
-| ID selector（`#app`） | ❌ | 尚未实现 |
-| Universal / attribute selector | ❌ | 尚未实现 |
-| Descendant / child / sibling combinator | ❌ | 尚未实现 |
-| Pseudo-class / pseudo-element | ❌ | 尚未实现 |
+| Type selector（`div` / `cue-button`） | ✅[^selector-subset] | 匹配真实 tagName，不改写为 class |
+| ID selector（`#app`） | ✅[^selector-subset] | 匹配元素 id |
+| Universal selector（`*`） | ✅[^selector-subset] | specificity 为零 |
+| Attribute selector | ❌ | compiler 显式诊断 |
+| Descendant / child combinator | ✅[^selector-subset] | 空格 / `>`；按真实逻辑树匹配 |
+| Sibling combinator | ❌ | compiler 显式诊断 |
+| 七种控件/交互 pseudo-class | ✅[^selector-subset] | hover、active、focus、focus-within、enabled、disabled、checked |
+| 其他 pseudo-class / pseudo-element | ❌ | 未支持；不提供 Shadow DOM / `::part` |
 | 静态 `style` attribute | ✅[^inline-style] | 编译期 Lightning CSS → IR，保留 normal / important |
 | `CueElement.style` 类型化 API | ✅[^style-api] | px / %、结构化颜色、font-family 名称、longhand enum；修改与移除 |
 | 动态 CSS 字符串 / Vue `:style` | ❌ | 明确不支持；使用类型化 API 或动态 class，不引入 runtime parser |
@@ -229,10 +254,14 @@
 | `pointer-events: auto / none` | ✅[^input] | 继承，后代可显式 auto 恢复命中；不影响捕获／冒泡路径 |
 | Web 鼠标／触摸 Pointer Events / pointer capture | ✅[^input] | CueDocument 接入；click、边界事件、捕获与取消清理 |
 | Native / pen input backend | ❌ | 尚未验证／实现 |
-| Vue 原生事件与修饰符 | ✅[^input] | stop / prevent / self / once / capture / passive；非法组合和未支持事件编译报错 |
-| Wheel / scrolling | ❌ | 尚未实现 |
-| Focus navigation | ❌ | 尚未实现 |
-| Keyboard / IME | ❌ | 尚未实现 |
+| Vue 原生事件与修饰符 | ✅[^input] | 传播、键盘 alias、系统键/exact、pointer 按钮过滤；非法组合明确诊断 |
+| Wheel event / Select 局部列表滚动 | ✅[^builtin-controls] | Web wheel 接入；不等于通用 CSS scroll container |
+| 通用 scrolling | ❌ | overflow auto/scroll 与完整滚动 API 未实现 |
+| 内置控件 focus navigation | ✅[^builtin-controls] | focus/blur、Tab/Shift+Tab、tabIndex、禁用与移除清理 |
+| Web keyboard 与 Cocos EditBox 共存 | ✅[^builtin-controls] | 真实 Chromium 键盘/文本操作已验证 |
+| Web 编辑与 composition 桥接 | ✅[^builtin-controls] | 隐藏 input/textarea；Cue 绘制文本/选择/光标，model 忽略 composing 草稿 |
+| OS IME 人工验收 | ❌ | 未完成真实候选窗、提交/取消及目标设备验收 |
+| Native 编辑后端 | ❌ | 尚未实现 |
 | Gesture arbitration | ❌ | 尚未实现 |
 | CSS transitions | ❌ | 尚未实现 |
 | CSS keyframes | ❌ | 尚未实现 |
@@ -260,6 +289,9 @@
 | Position playground | ✅ | 独立页面验证 relative、absolute、四边偏移与定位祖先 |
 | Style API playground | ✅ | 独立页面验证类型化进度/颜色更新、优先级与清除覆盖 |
 | Input playground | ✅[^input] | 独立页面验收点击、hover、传播、捕获、穿透、旋转与裁剪；原生 Cocos UI 控制面 |
+| 六类独立控件 gallery | ✅[^builtin-controls] | 默认/自定义外观、独立值、事件日志和重挂载；导航/控制面仍用 Cocos UI |
+| 控件 Chromium keyboard / mouse / text 回归 | ✅[^builtin-controls] | 真实操作与 Cocos EditBox 共存；不替代 OS IME 人工验收 |
+| Toggle / Slider touch Preview 回归 | ✅[^builtin-controls] | 页面启用触摸并断言 pointerType=touch；Toggle 激活与 Slider 越界捕获 |
 | Game UI Showcase | ✅ | 独立 Cocos 项目，case registry + tabs；首个 `player-profile` case |
 | Flex playground 自动几何断言 | ❌ | 当前以人工可视化验收为主 |
 | Grid gallery | ❌ | Grid 尚未实现 |
@@ -270,7 +302,9 @@
 
 ## 已知 CSS 差异脚注
 
-[^input]: 当前面向 Cocos / Vortex 3.8 Web Preview；真实 Chromium 验证鼠标和触摸，未宣称完整 DOM／Pointer Events conformance。CueDocument 通过集中式 host backend 接入，原生 UI 优先于普通 Cue 命中，捕获的指针优先返回 Cue。只支持已列出的事件与修饰符；focus、键盘、IME、wheel、手势与 CSS pseudo-state selector 未实现。命中跟随当前 paint order，因此仍受现有 stacking-context 范围限制。坐标、尺寸 API、取消生命周期与内部引擎接口边界详见 [Input](input.md)。
+[^input]: 当前面向 Cocos / Vortex 3.8 Web Preview；真实 Chromium 鼠标和触摸已经验证，不宣称完整 DOM／Pointer Events conformance。CueDocument 集中接入 host backend，原生 UI 优先于普通 Cue 命中，捕获指针优先返回 Cue。控件 focus、keyboard、wheel 与 Web 编辑见 [Builtin controls](builtin-controls.md)，不把 composition 自动测试当作 OS IME 人工验收。命中仍受当前 paint/stacking-context 范围限制。坐标、清理和引擎接口边界见 [Input](input.md)。
+
+[^builtin-controls]: 六控件为真实 CueElement，统一以 TypeScript 实现，不引入 `.ce.cue` 自举、运行时 compiler 或 CSS parser。默认普通声明低于作者样式；部件是普通节点与稳定 class，不是 `::part`。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/Cocos EditBox 共存已通过；touch 回归确认 Toggle 和 Slider 的实际 touch 事件。文本仅声明 Web Preview / LTR。OS IME 人工验收、Native、production smoke、长期资源释放和用户明确验收仍保留。详见 [Builtin controls](builtin-controls.md)。
 
 [^inline-style]: 静态 attribute 仅在编译期使用 Lightning CSS；inline normal 高于 stylesheet normal、低于 stylesheet important，inline important 高于 stylesheet important。支持范围同静态 stylesheet，没有 runtime CSS parser。
 
@@ -282,7 +316,7 @@
 
 [^display]: Cue 当前只实现 block-level `display: block` 与 `display: flex`。标准 CSS 的初始值 `inline`、`inline-flex`、`none`、list-item、table 等 display 类型尚未支持；block layout 也尚无 inline formatting、float、margin collapsing 等完整浏览器语义。非 `div` 元素若未显式声明已支持的 display，会在布局阶段报错。
 
-[^selector-subset]: 属性名、selector 语法与优先级规则没有改名，但 selector profile 仅接受一个或多个连续 class component；Web CSS 的其他 selector 以及它们共同参与的完整 specificity 尚不存在。
+[^selector-subset]: 当前支持 type、ID、class、universal、compound/list、descendant/child 及表中七种状态，按标准三元组比较 specificity。未支持 attribute、sibling、其他 pseudo selector、namespace 或 Shadow DOM；这不是完整 CSS。Style IR 保持 version 1，但旧 class-string selector 产物须重新编译，不提供兼容兜底。
 
 [^lengths]: 对外仍使用标准 CSS 属性和值写法，但当前 Style IR 只保留 `px`、`%` 以及该属性合法的 `auto` / `none`。其他合法 Web CSS 单位、数学函数与 intrinsic keywords 会被忽略，且尚无 diagnostic。
 

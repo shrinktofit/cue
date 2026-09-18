@@ -4,6 +4,10 @@ import { CueEvent, type CueEventInit } from './cue-event.js';
 export type CuePointerType = 'mouse' | 'touch' | 'pen';
 
 export interface CuePointerEventInit extends CueEventInit {
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
   pointerId?: number;
   pointerType?: CuePointerType;
   isPrimary?: boolean;
@@ -29,6 +33,10 @@ export class CuePointerEvent extends CueEvent {
     this.button = init.button ?? 0;
     this.buttons = init.buttons ?? 0;
     this.relatedTarget = init.relatedTarget;
+    this.ctrlKey = init.ctrlKey ?? false;
+    this.shiftKey = init.shiftKey ?? false;
+    this.altKey = init.altKey ?? false;
+    this.metaKey = init.metaKey ?? false;
   }
 
   readonly pointerId: number;
@@ -41,4 +49,8 @@ export class CuePointerEvent extends CueEvent {
   readonly button: number;
   readonly buttons: number;
   readonly relatedTarget: CueElement | undefined;
+  readonly ctrlKey: boolean;
+  readonly shiftKey: boolean;
+  readonly altKey: boolean;
+  readonly metaKey: boolean;
 }

@@ -1,9 +1,14 @@
+import { cueControlDefinitions } from '@bsgames/cue-control-schema';
 import {
   ConstantTypes,
+  createCompoundExpression,
   createSimpleExpression,
   ElementTypes,
   NodeTypes,
+  transformModel,
   type AttributeNode,
+  type CompoundExpressionNode,
+  type DirectiveTransform,
   type ElementNode,
   type NodeTransform,
   type RootNode,
@@ -74,6 +79,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
   const isCustomElement = (tagName: string): boolean => (
     tagName === 'cue-image'
+    || Object.hasOwn(cueControlDefinitions, tagName)
     || configuredCustomElements.has(tagName)
     || configuredIsCustomElement?.(tagName) === true
   );
@@ -124,6 +130,10 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     ...options.templateCompilerOptions,
     hoistStatic: false,
     isCustomElement,
+    directiveTransforms: {
+      ...options.templateCompilerOptions?.directiveTransforms,
+      model: transformCueModel,
+    },
     nodeTransforms: [
       createCueImageSourceTransform(options, imageSourceErrors),
       ...(options.templateCompilerOptions?.nodeTransforms ?? []),
@@ -251,8 +261,47 @@ const supportedNativeEvents = new Set([
   'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
   'pointerover', 'pointerout', 'pointerenter', 'pointerleave',
   'gotpointercapture', 'lostpointercapture', 'click',
+  'keydown', 'keyup', 'focus', 'blur', 'focusin', 'focusout',
+  'beforeinput', 'input', 'change',
+  'compositionstart', 'compositionupdate', 'compositionend', 'wheel',
 ]);
-const supportedEventModifiers = new Set(['stop', 'prevent', 'self', 'once', 'capture', 'passive']);
+const supportedEventModifiers = new Set([
+  'stop', 'prevent', 'self', 'once', 'capture', 'passive',
+  'ctrl', 'shift', 'alt', 'meta', 'exact',
+  'enter', 'tab', 'delete', 'esc', 'space', 'up', 'down', 'left', 'right', 'middle',
+]);
+
+const transformCueModel: DirectiveTransform = (directive, node, context) => {
+  if (node.tagType !== ElementTypes.ELEMENT) {
+    return transformModel(directive, node, context);
+  }
+  const model = cueControlDefinitions[node.tag]?.model;
+  // Native model contracts have already been checked at the original source location.
+  if (!model) {
+    throw new Error(`Missing validated native model contract for <${node.tag}>.`);
+  }
+  const transformed = transformModel(directive, node, { ...context, cacheHandlers: false });
+  const [value, update] = transformed.props;
+  if (!value || !update) {
+    return transformed;
+  }
+  const lazy = directive.modifiers.some((modifier) => modifier.content === 'lazy');
+  return {
+    props: [
+      { ...value, key: createSimpleExpression(model.property, true) },
+      {
+        ...update,
+        key: createSimpleExpression(lazy ? 'onChange' : 'onInput', true),
+        value: createCompoundExpression([
+          lazy ? '$event => (' : '$event => !$event.isComposing && (',
+          // With handler caching disabled, Vue's core model transform returns its assignment expression.
+          update.value as CompoundExpressionNode,
+          ')($event.value)',
+        ]),
+      },
+    ],
+  };
+};
 
 function compileTemplateProperties(
   node: RootNode | ElementNode,
@@ -262,6 +311,20 @@ function compileTemplateProperties(
   if (node.type === NodeTypes.ELEMENT) {
     for (let index = 0; index < node.props.length; ++index) {
       const property = node.props[index]!;
+      if (node.tagType === ElementTypes.ELEMENT && property.type === NodeTypes.DIRECTIVE && property.name === 'model') {
+        const model = Object.hasOwn(cueControlDefinitions, node.tag) ? cueControlDefinitions[node.tag]?.model : undefined;
+        let message: string | undefined;
+        if (!model) {
+          message = `Cue native element <${node.tag}> does not support v-model.`;
+        } else if (property.arg) {
+          message = 'Cue native control v-model does not support arguments; bind its value without an argument.';
+        } else if (property.modifiers.some((modifier) => modifier.content !== 'lazy')) {
+          message = 'Cue native control v-model supports only the .lazy modifier.';
+        }
+        if (message) {
+          errors.push(Object.assign(new SyntaxError(message), { loc: property.loc }));
+        }
+      }
       if (property.type === NodeTypes.DIRECTIVE && property.name === 'on') {
         if (node.tagType === ElementTypes.ELEMENT) {
           if (property.arg?.type !== NodeTypes.SIMPLE_EXPRESSION || !property.arg.isStatic) {
@@ -279,6 +342,19 @@ function compileTemplateProperties(
             errors.push(Object.assign(new SyntaxError(
               `Unsupported Cue event modifier ".${modifier.content}". Supported modifiers: stop, prevent, self, once, capture, passive.`,
             ), { loc: modifier.loc }));
+          }
+          if (node.tagType === ElementTypes.ELEMENT && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION && property.arg.isStatic) {
+            if (['enter', 'tab', 'delete', 'esc', 'space', 'up', 'down'].includes(modifier.content)
+              && property.arg.content !== 'keydown' && property.arg.content !== 'keyup') {
+              errors.push(Object.assign(new SyntaxError(
+                `Cue key modifier ".${modifier.content}" requires keydown or keyup.`,
+              ), { loc: modifier.loc }));
+            }
+            if (property.arg.content === 'click' && (modifier.content === 'right' || modifier.content === 'middle')) {
+              errors.push(Object.assign(new SyntaxError(
+                `Cue click.${modifier.content} is unsupported; use pointerdown.${modifier.content} or pointerup.${modifier.content}.`,
+              ), { loc: modifier.loc }));
+            }
           }
         }
         if (property.modifiers.some((modifier) => modifier.content === 'passive')

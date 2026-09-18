@@ -1,0 +1,19 @@
+{
+  "name": "@bsgames/cue-control-schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["lib", "!lib/**/*.map"],
+  "exports": "./lib/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@bsgames/cue-workflow": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

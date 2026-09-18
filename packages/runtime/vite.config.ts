@@ -25,6 +25,7 @@ export default defineConfig({
     outDir: 'lib',
     rollupOptions: {
       external: [
+        '@bsgames/cue-control-schema',
         '@bsgames/cue-style-schema',
         '@cyclonium/core/framework',
         '@cyclonium/core/legacy-decorator',

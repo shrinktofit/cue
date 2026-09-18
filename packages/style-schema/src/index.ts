@@ -246,7 +246,36 @@ export type CueTransformFunction = {
   type: 'matrix';
 };
 
-export type CueClassSelector = readonly string[];
+export enum CueSelectorCombinator {
+  child = 'child',
+  descendant = 'descendant',
+}
+
+export enum CuePseudoClass {
+  hover = 'hover',
+  active = 'active',
+  focus = 'focus',
+  focusWithin = 'focus-within',
+  enabled = 'enabled',
+  disabled = 'disabled',
+  checked = 'checked',
+}
+
+export type CueSelectorToken = {
+  type: 'type' | 'class' | 'id';
+  name: string;
+} | {
+  type: 'universal';
+} | {
+  type: 'pseudo-class';
+  kind: CuePseudoClass;
+} | {
+  type: 'combinator';
+  value: CueSelectorCombinator;
+};
+
+export type CueSelector = readonly CueSelectorToken[];
+export type CueSpecificity = readonly [ids: number, classes: number, types: number];
 export type CueLengthPercentage = number | `${number}%`;
 export type CueDimension = CueLengthPercentage | CueDimensionKeyword;
 export type CueMargin = CueLengthPercentage | CueDimensionKeyword;
@@ -332,7 +361,7 @@ export interface CueStyleDeclarations {
 export interface CueStyleRule {
   declarations?: CueStyleDeclarations;
   importantDeclarations?: CueStyleDeclarations;
-  selectors: readonly CueClassSelector[];
+  selectors: readonly CueSelector[];
 }
 
 export interface CueStyleSheet {

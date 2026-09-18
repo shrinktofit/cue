@@ -107,7 +107,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "container"
+          {
+            "type": "class",
+            "name": "container"
+          }
         ]
       ]
     },
@@ -130,7 +133,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "item"
+          {
+            "type": "class",
+            "name": "item"
+          }
         ]
       ]
     },
@@ -144,7 +150,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "override"
+          {
+            "type": "class",
+            "name": "override"
+          }
         ]
       ]
     }

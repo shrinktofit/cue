@@ -119,7 +119,10 @@ const styleSheet = {
       },
       "selectors": [
         [
-          "frame"
+          {
+            "type": "class",
+            "name": "frame"
+          }
         ]
       ]
     }
