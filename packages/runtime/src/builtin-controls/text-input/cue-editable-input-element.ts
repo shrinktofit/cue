@@ -2,6 +2,7 @@ import { CueDisplay, CueOverflow, CueBorderStyle, CueBoxSizing, CuePointerEvents
 import { CueElement, getCueElementContentBox, getCueElementProperties, patchCueElementProperty, setCueElementDefaultStyle } from '../../element/cue-element.js';
 import { DivElement } from '../../element/div-element.js';
 import { Text } from '../../element/text.js';
+import { markCueNodeChanged } from '../../element/cue-node.js';
 import type { CueEvent } from '../../input/cue-event.js';
 import { CuePointerEvent } from '../../input/cue-pointer-event.js';
 import { CueKeyboardEvent } from '../../input/cue-keyboard-event.js';
@@ -30,6 +31,7 @@ export let applyCueTextInputEdit: (element: CueEditableInputElement, text: strin
 export let setCueTextInputComposing: (element: CueEditableInputElement, composing: boolean) => void;
 export let commitCueTextInputEdit: (element: CueEditableInputElement) => void;
 export let updateCueTextInputLayout: (element: CueElement, style: ComputedCueElementStyle, measurer: CueTextMeasurer, styleSheets?: readonly CueStyleSheet[]) => boolean;
+export let updateCueTextInputCaret: (element: CueEditableInputElement) => boolean;
 /** Shared editing state; browser input and pointer hit testing use one selection. */
 export abstract class CueEditableInputElement extends CueControlElement {
   constructor(tagName: string) {
@@ -86,7 +88,10 @@ export abstract class CueEditableInputElement extends CueControlElement {
   }
 
   set placeholder(value: string) {
-    this.#placeholder = String(value);
+    const next = String(value);
+    if (next === this.#placeholder) return;
+    this.#placeholder = next;
+    markCueNodeChanged(this);
   }
 
   get readOnly(): boolean {
@@ -124,6 +129,7 @@ export abstract class CueEditableInputElement extends CueControlElement {
     this.#selectionStart = nextStart;
     this.#selectionDirection = nextDirection;
     this.#lastCaretChange = Date.now();
+    markCueNodeChanged(this);
     this.#preferredCaretX = undefined;
   }
 
@@ -151,7 +157,11 @@ export abstract class CueEditableInputElement extends CueControlElement {
   }
 
   protected replaceEditingText(text: string): void {
-    this.#editingText = this.#normalizeText(text);
+    const next = this.#normalizeText(text);
+    if (next !== this.#editingText) {
+      this.#editingText = next;
+      markCueNodeChanged(this);
+    }
     this.setSelectionRange(this.#selectionStart, this.#selectionEnd, this.#selectionDirection);
   }
 
@@ -328,18 +338,15 @@ export abstract class CueEditableInputElement extends CueControlElement {
       textAlign: partStyle.textAlign,
       whiteSpace: CueWhiteSpace.pre,
     };
-    const lineHeight = measurer.layout('M', textStyle).height;
-    const measure = (text: string) => measurer.layout(text, textStyle).width;
     const key = JSON.stringify([this.#editingText, this.#placeholder, this.editingMultiline,
       this.editingPassword, contentBox, style, textStyle, this.focused,
-      this.#selectionStart, this.#selectionEnd, this.#selectionDirection, measurer.fontRevision,
-      this.focused && this.#selectionStart === this.#selectionEnd
-        ? Math.floor((Date.now() - this.#lastCaretChange) / 500) % 2
-        : 0]);
+      this.#selectionStart, this.#selectionEnd, this.#selectionDirection, measurer.fontRevision]);
     if (key === this.#paintKey) {
       return false;
     }
     this.#paintKey = key;
+    const lineHeight = measurer.metrics(textStyle).lineHeight;
+    const measure = (text: string) => measurer.measureWidth(text, textStyle);
     this.#layout = alignEditableLayout(layoutEditableText(this.#editingText, viewportWidth, lineHeight, this.editingMultiline, this.editingPassword, measure), textStyle.textAlign, viewportWidth);
     const caret = editableTextCaret(this.#layout, this.#selectionDirection === 'backward' ? this.#selectionStart : this.#selectionEnd);
     if (this.focused) {
@@ -395,6 +402,15 @@ export abstract class CueEditableInputElement extends CueControlElement {
   }
 
   static {
+    updateCueTextInputCaret = (element) => {
+      const opacity = element.focused && element.#selectionStart === element.#selectionEnd
+        && Math.floor((Date.now() - element.#lastCaretChange) / 500) % 2 === 0
+        ? 1
+        : 0;
+      if (element.#caret.style.cueOpacity === opacity) return false;
+      element.#caret.style.cueOpacity = opacity;
+      return true;
+    };
     readCueTextInputCaretBox = (element) => {
       if (!element.#layout) {
         return undefined;
@@ -413,7 +429,7 @@ export abstract class CueEditableInputElement extends CueControlElement {
         return;
       }
       element.#composing = composing;
-      element.#editingText = element.#normalizeText(text);
+      element.replaceEditingText(text);
       element.setSelectionRange(start, end, direction);
       element.editValue(element.#editingText, composing);
     };

@@ -63,16 +63,45 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
   }
 
   metrics(style: ComputedCueTextStyle): CueFontMetrics {
-    const context = this.#measurementContext;
-    context.font = toCanvasFont(style);
+    const context = this.#useFont(style);
+    const key = this.#font + '|' + usedLineHeight(style);
+    const cached = this.#metrics.get(key);
+    if (cached) return cached;
     context.textBaseline = 'alphabetic';
     const metrics = context.measureText('Mg');
-    return {
+    const result = {
       ascent: metrics.fontBoundingBoxAscent,
       descent: metrics.fontBoundingBoxDescent,
       xHeight: context.measureText('x').actualBoundingBoxAscent,
       lineHeight: usedLineHeight(style),
     };
+    if (this.#metrics.size >= 128) this.#metrics.delete(this.#metrics.keys().next().value!);
+    this.#metrics.set(key, result);
+    return result;
+  }
+
+  measureWidth(text: string, style: ComputedCueTextStyle): number {
+    if (text.length === 0) return 0;
+    const context = this.#useFont(style);
+    const key = this.#font + '|' + text;
+    const cached = this.#widths.get(key);
+    if (cached !== undefined) {
+      this.#widths.delete(key);
+      this.#widths.set(key, cached);
+      return cached;
+    }
+    const width = context.measureText(text).width;
+    // Bound retained strings as well as entry count, including arbitrary user input.
+    if (key.length <= 8192) {
+      while (this.#widths.size >= 4096 || this.#widthCharacters + key.length > 262144) {
+        const oldest = this.#widths.keys().next().value!;
+        this.#widthCharacters -= oldest.length;
+        this.#widths.delete(oldest);
+      }
+      this.#widths.set(key, width);
+      this.#widthCharacters += key.length;
+    }
+    return width;
   }
 
   layout(
@@ -80,13 +109,11 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     style: ComputedCueTextStyle,
     availableWidth?: number,
   ): CueTextLayout {
-    const context = this.#measurementContext;
-    context.font = toCanvasFont(style);
     const lines = layoutCueTextLines(
       text,
       style.whiteSpace,
       availableWidth,
-      (line) => context.measureText(line).width,
+      (line) => this.measureWidth(line, style),
     );
     return {
       height: usedLineHeight(style) * lines.length,
@@ -99,7 +126,7 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     const { style } = paintText;
     const pixelScale = this.pixelScale;
     const measurementContext = this.#measurementContext;
-    measurementContext.font = toCanvasFont(style);
+    this.#useFont(style);
     measurementContext.textAlign = 'left';
     measurementContext.textBaseline = 'alphabetic';
     const lineHeight = usedLineHeight(style);
@@ -167,6 +194,26 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
 
   readonly #measurementContext: CanvasRenderingContext2D;
   readonly #readPixelScale: () => number;
+  readonly #widths = new Map<string, number>();
+  readonly #metrics = new Map<string, CueFontMetrics>();
+  #widthCharacters = 0;
+  #font = '';
+  #fontRevision = -1;
+
+  #useFont(style: ComputedCueTextStyle): CanvasRenderingContext2D {
+    if (this.#fontRevision !== this.fontRevision) {
+      this.#widths.clear();
+      this.#metrics.clear();
+      this.#widthCharacters = 0;
+      this.#fontRevision = this.fontRevision;
+    }
+    const font = toCanvasFont(style);
+    if (font !== this.#font) {
+      this.#measurementContext.font = font;
+      this.#font = font;
+    }
+    return this.#measurementContext;
+  }
 }
 
 function toCanvasColor(color: CueColor): string {

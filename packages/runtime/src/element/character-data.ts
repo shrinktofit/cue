@@ -1,4 +1,4 @@
-import { CueNode } from './cue-node.js';
+import { CueNode, markCueNodeChanged } from './cue-node.js';
 
 export abstract class CharacterData extends CueNode {
   constructor(data: string) {
@@ -6,5 +6,16 @@ export abstract class CharacterData extends CueNode {
     this.data = data;
   }
 
-  data: string;
+  get data(): string {
+    return this.#data;
+  }
+
+  set data(value: string) {
+    if (this.#data === value) return;
+    const structural = /[^ \t\r\n\f]/u.test(this.#data) !== /[^ \t\r\n\f]/u.test(value);
+    this.#data = value;
+    markCueNodeChanged(this, structural);
+  }
+
+  #data = '';
 }

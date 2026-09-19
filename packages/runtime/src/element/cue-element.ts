@@ -1,4 +1,5 @@
-import { CueNode } from './cue-node.js';
+import { CueNode, markCueNodeChanged } from './cue-node.js';
+import { copyCueStyleValue, createCueStyle, equalCueStyleValue } from '../style/cue-style-values.js';
 import type { CueStyleDeclarations } from '@bsgames/cue-style-schema';
 import type { CueStyle } from '../style/cue-style.js';
 import { CueEvent, getCueEventDispatchState } from '../input/cue-event.js';
@@ -54,7 +55,7 @@ export abstract class CueElement extends CueNode {
     super();
   }
 
-  readonly style: CueStyle = {};
+  readonly style: CueStyle = createCueStyle(() => markCueNodeChanged(this));
 
   /** Value controls own their presentation children; buttons accept author content. */
   // eslint-disable-next-line @typescript-eslint/class-literal-property-style -- Subclasses override this content policy with an accessor.
@@ -226,6 +227,7 @@ export abstract class CueElement extends CueNode {
     if (currentParent) {
       const sameDocument = treeRoot(currentParent) === treeRoot(this);
       currentParent.#children.splice(currentParent.#children.indexOf(child), 1);
+      markCueNodeChanged(currentParent, true);
       if (!sameDocument && child instanceof CueElement) {
         setCueElementConnected(child, false);
       }
@@ -236,6 +238,7 @@ export abstract class CueElement extends CueNode {
       : this.#children.length;
     this.#children.splice(insertionIndex, 0, child);
     CueElement.setParent(child, this);
+    markCueNodeChanged(this, true);
     if (child instanceof CueElement) {
       setCueElementConnected(child, this.#connected);
       child.#notifyReparented();
@@ -250,6 +253,7 @@ export abstract class CueElement extends CueNode {
 
     this.#children.splice(childIndex, 1);
     CueElement.setParent(child, undefined);
+    markCueNodeChanged(this, true);
     if (child instanceof CueElement) {
       setCueElementConnected(child, false);
     }
@@ -342,15 +346,19 @@ export abstract class CueElement extends CueNode {
     };
     getCueElementStates = (element) => element.#states;
     setCueElementState = (element, state, active) => {
+      if (element.#states.has(state) === active) return;
       if (active) {
         element.#states.add(state);
       } else {
         element.#states.delete(state);
       }
+      markCueNodeChanged(element);
     };
     getCueElementDefaultStyle = (element) => element.#defaultStyle;
     setCueElementDefaultStyle = (element, style) => {
-      element.#defaultStyle = style;
+      if (equalCueStyleValue(element.#defaultStyle, style)) return;
+      element.#defaultStyle = copyCueStyleValue(style);
+      markCueNodeChanged(element);
     };
     setCueElementConnected = (element, connected) => {
       if (element.#connected === connected) {
@@ -384,6 +392,7 @@ export abstract class CueElement extends CueNode {
       }
       try {
         element.propertyChanged(name, previousValue, nextValue);
+        markCueNodeChanged(element);
       } catch (error) {
         if (hadValue) {
           element.#properties.set(name, storedValue);

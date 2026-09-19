@@ -3,12 +3,56 @@ import { BrElement, CueButtonElement, CueDisplay, CueRootElement, CueSelectEleme
 import { createCuePaintList, initializeCueLayout, type CueTextMeasurer } from '../src/render/create-cue-paint-list.js';
 
 const measurer: CueTextMeasurer = {
+  measureWidth: (text) => text.length * 8,
   metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
   layout: (text) => ({ width: text.length * 8, height: 20, lines: [{ text, width: text.length * 8 }] }),
 };
 
 describe('inline formatting in rendered controls', () => {
   beforeAll(initializeCueLayout);
+
+  it('excludes collapsible trailing space before an inline end edge when probing wraps', () => {
+    /// @case A span ending in a space also has right padding at an exact line-width boundary.
+    /// @expect The trailing space is trimmed; the first line still fits its text and padding.
+    const root = new CueRootElement();
+    const block = new DivElement();
+    block.style.width = 25;
+    const span = new SpanElement();
+    span.style.paddingRight = 1;
+    span.insertBefore(new Text('a b '));
+    block.insertBefore(span);
+    block.insertBefore(new Text('b c'));
+    root.insertBefore(block);
+    const list = createCuePaintList(root, [], measurer, () => undefined, () => undefined);
+    expect(list.commands.filter((entry) => entry.kind === 'text').map((entry) => entry.paint.lines[0]!.text)).toEqual(['a b', 'b c']);
+    expect(list.hitRegions.find((region) => region.element === block)?.height).toBe(40);
+  });
+
+  it('does not repeatedly measure identical prefixes while laying out a long line', () => {
+    /// @case A wide text box contains a long sentence with many possible line breaks.
+    /// @expect Width requests grow linearly instead of rescanning every line prefix.
+    const root = new CueRootElement();
+    const block = new DivElement();
+    block.style.width = 5000;
+    const text = 'alpha beta gamma delta '.repeat(4);
+    block.insertBefore(new Text(text));
+    root.insertBefore(block);
+    let measurements = 0;
+    const countingMeasurer: CueTextMeasurer = {
+      measureWidth: (text, style) => {
+        measurements++;
+        return measurer.measureWidth(text, style);
+      },
+      metrics: (style) => measurer.metrics(style),
+      layout: (...args) => {
+        measurements++;
+        return measurer.layout(...args);
+      },
+    };
+    const list = createCuePaintList(root, [], countingMeasurer, () => undefined, () => undefined);
+    expect(list.commands.filter((entry) => entry.kind === 'text').map((entry) => entry.paint.lines[0]!.text).join('')).toBe(text.trim());
+    expect(measurements).toBeLessThan(text.length * 8);
+  });
 
   it('centers direct button text without changing its author children', () => {
     /// @case A default button contains one bare text node in a taller flex box.
@@ -56,6 +100,7 @@ describe('inline formatting in rendered controls', () => {
       root.insertBefore(button);
     }
     const fractionalMeasurer: CueTextMeasurer = {
+      measureWidth: (text) => text.length * 8.1875,
       metrics: (style) => measurer.metrics(style),
       layout: (text) => ({ width: text.length * 8.1875, height: 20, lines: [{ text, width: text.length * 8.1875 }] }),
     };

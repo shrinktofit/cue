@@ -14,6 +14,22 @@ import {
 import { computeCueElementStyle } from '../src/style/compute-cue-element-style.js';
 
 describe('Typed element style API', () => {
+  it('copies composite values on assignment', () => {
+    /// @case Assign caller-owned color and transform objects, then mutate those objects.
+    /// @expect Only a subsequent style property assignment updates the element.
+    const element = new DivElement();
+    const color = { red: 255, green: 0, blue: 0, alpha: 1 };
+    const transform = { type: 'translate' as const, x: 10, y: 20 };
+    element.style.color = color;
+    element.style.transform = [transform];
+    color.red = 64;
+    transform.x = 90;
+    expect(computeCueElementStyle(element, []).color.red).toBe(255);
+    expect(computeCueElementStyle(element, []).transform).toEqual([{ type: 'translate', x: 10, y: 20 }]);
+    element.style.color = color;
+    expect(computeCueElementStyle(element, []).color.red).toBe(64);
+  });
+
   it('updates properties without initialization and removes individual overrides', () => {
     /// @case Assign pixel/percentage lengths and structured colors, then clear width.
     /// @expect Updates apply without a CSS parser and clearing one property preserves the others.

@@ -1,4 +1,5 @@
 import { CueInputEvent, CueChangeEvent } from '../../input/cue-value-event.js';
+import { markCueNodeChanged } from '../../element/cue-node.js';
 import { CueEditableInputElement } from './cue-editable-input-element.js';
 export class CueTextInputElement extends CueEditableInputElement {
   constructor() {
@@ -33,7 +34,10 @@ export class CueTextInputElement extends CueEditableInputElement {
     if (value && this.#password) {
       throw new TypeError('A password input cannot be multiline.');
     }
-    this.#multiline = Boolean(value);
+    const next = Boolean(value);
+    if (next === this.#multiline) return;
+    this.#multiline = next;
+    markCueNodeChanged(this);
     this.value = this.#value;
   }
 
@@ -45,7 +49,10 @@ export class CueTextInputElement extends CueEditableInputElement {
     if (value && this.#multiline) {
       throw new TypeError('A multiline input cannot be a password input.');
     }
-    this.#password = Boolean(value);
+    const next = Boolean(value);
+    if (next === this.#password) return;
+    this.#password = next;
+    markCueNodeChanged(this);
   }
 
   protected override get editingMultiline(): boolean {

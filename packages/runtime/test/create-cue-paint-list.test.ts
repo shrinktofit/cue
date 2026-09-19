@@ -88,6 +88,7 @@ const styleSheet: CueStyleSheet = {
 };
 
 const textMeasurer: CueTextMeasurer = {
+  measureWidth: () => 0,
   metrics: () => ({ ascent: 0, descent: 0, xHeight: 0, lineHeight: 0 }),
   layout: () => ({
     height: 0,

@@ -9,7 +9,7 @@ import type { Length, LengthUnit } from './length.js';
 type StyleValue<Value> = Value extends `${number}%`
   ? Length
   : Value extends object
-    ? { [Key in keyof Value]: StyleValue<Value[Key]> }
+    ? { readonly [Key in keyof Value]: StyleValue<Value[Key]> }
     : Value;
 
 type PixelProperty
@@ -20,6 +20,8 @@ type PixelProperty
  * Runtime longhand overrides. Numeric lengths are pixels; unitless properties
  * remain unitless. Assign undefined to remove an override. This is a typed API,
  * not Vue's CSS string/object style binding or a CSSStyleDeclaration parser.
+ * Composite values are copied on assignment and read back as immutable values.
+ * Reassign the property to change a color, point, transform or other component.
  */
 export type CueStyle = {
   [Property in keyof CueStyleDeclarations]: Property extends 'lineHeight'

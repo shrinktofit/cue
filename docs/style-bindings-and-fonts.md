@@ -43,6 +43,20 @@ element.style.width = undefined; // 删除 API 覆盖，恢复静态样式
 
 API 覆盖高于 stylesheet normal 和静态 inline normal，低于任何静态 `!important`；清除后恢复该元素原有的静态样式、继承或初始值。每个元素有独立的 style 对象，修改会在下一次样式计算 / 绘制时生效。Vue 中使用 `shallowRef<CueElement>` 保存元素引用，避免深层响应式代理宿主节点。
 
+复合样式按**值拷贝**赋值。颜色、Length、点、数组及其嵌套对象都成为 Cue 所有的只读快照；修改原对象不会更新元素，从 `element.style` 读回的复合值也不可原地修改。更新时重新赋值顶层属性，相等值不会触发失效：
+
+```ts
+const color = { red: 255, green: 128, blue: 0, alpha: 1 };
+element.style.color = color;
+color.green = 200; // 不影响已赋给元素的颜色
+element.style.color = color; // 显式提交新值
+element.style.color = { ...element.style.color!, alpha: 0.5 };
+```
+
+这是相对早期 Cue 引用赋值行为的 breaking change，依赖原地修改分量的代码须迁移为重新赋值。普通 Web CSSOM 的 `style.color` 接收 CSS 字符串，本来没有保留 Color 对象引用的语义；[CSS Typed OM 的 set 算法](https://www.w3.org/TR/css-typed-om-1/#dom-stylepropertymap-set)也从输入创建内部表示。Cue 的对象接口不是 Web 原样 API，但这里采用相同的值语义方向。
+
+变更通知、缓存边界与验证方式见 [Runtime performance](runtime-performance.md)。
+
 `<style>` 和静态 `style="..."` 仅由 compiler 的 native Lightning CSS 解析并生成 IR；静态 inline normal / important 保留 CSS 层叠顺序。`:style` 编译时报错；render function 或动态属性透传产生的 `style` prop 也会在 runtime 报错。没有 runtime CSS parser、样式 WASM 或 `initializeCueStyles()` 初始化入口。`CueDocument.prepare()` 只准备布局与渲染资源。
 
 内部仍把百分比编码为已有 Style IR 的紧凑字符串，以复用 layout / paint 契约；该字符串由类型化数值生成，不是对用户 CSS 文本的解析。Lightning AST lowering 回到 compiler 内部，不再保留只有一个消费者的共享 compiler 包。

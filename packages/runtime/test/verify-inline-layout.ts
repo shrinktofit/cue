@@ -40,7 +40,7 @@ try {
   await page.goto(server.resolvedUrls.local[0]);
   await page.addScriptTag({ type: 'module', content: `
     import { CueRootElement, CueButtonElement, DivElement, SpanElement, BrElement, Text, Length } from '/src/index.ts';
-    import { createCuePaintList, initializeCueLayout } from '/src/render/create-cue-paint-list.ts';
+    import { CueLayout, createCuePaintList, initializeCueLayout } from '/src/render/create-cue-paint-list.ts';
     import { CanvasTextRasterizer } from '/src/host/canvas-text-rasterizer.ts';
     await initializeCueLayout();
     const rasterizer = new CanvasTextRasterizer(() => 1);
@@ -158,6 +158,41 @@ try {
       results.push({name: example.name, ok: !mismatch && Math.abs(origin.height - box.height) < 0.6, expectedHeight: origin.height, actualHeight: box.height, ...(mismatch ? {expected, actual} : {})});
       pair.dom.remove();
     }
+    // Black-box Canvas calls guard the original per-prefix/per-frame regression.
+    const originalMeasureText = CanvasRenderingContext2D.prototype.measureText;
+    let calls = 0;
+    CanvasRenderingContext2D.prototype.measureText = function(text) {
+      calls++;
+      return originalMeasureText.call(this, text);
+    };
+    const performanceResults = [];
+    try {
+      for (const text of ['A short line of text.', 'alpha beta gamma delta '.repeat(8)]) {
+        const root = new CueRootElement();
+        const block = new DivElement();
+        block.style.width = 5000;
+        block.insertBefore(new Text(text));
+        root.insertBefore(block);
+        const layout = new CueLayout(root, new CanvasTextRasterizer(() => 1), () => undefined, () => undefined);
+        try {
+          calls = 0;
+          const first = layout.update([]);
+          const coldCalls = calls;
+          calls = 0;
+          let reused = true;
+          for (let frame = 0; frame < 120; frame++) reused &&= layout.update([]) === first;
+          const staticCalls = calls;
+          block.style.color = {red: 255, green: 0, blue: 0, alpha: 1};
+          layout.update([]);
+          performanceResults.push({characters: text.length, coldCalls, staticCalls, colorCalls: calls - staticCalls, reused});
+        } finally {
+          layout.dispose();
+        }
+      }
+    } finally {
+      CanvasRenderingContext2D.prototype.measureText = originalMeasureText;
+    }
+    window.cueInlinePerformance = performanceResults;
     window.cueInlineResults = results;
   ` });
   await page.waitForFunction('window.cueInlineResults', { timeout: 30000 });
@@ -165,6 +200,16 @@ try {
   console.log(JSON.stringify(results, undefined, 2));
   assert.deepEqual(errors, []);
   assert.equal(results.filter((result: { ok: boolean }) => !result.ok).length, 0, 'Cue inline layout must match the browser reference');
+  const performanceResults = await page.evaluate('window.cueInlinePerformance') as Array<{
+    characters: number; coldCalls: number; staticCalls: number; colorCalls: number; reused: boolean;
+  }>;
+  console.log('Canvas measurement regression:', performanceResults);
+  for (const result of performanceResults) {
+    assert.ok(result.coldCalls < result.characters * 4, 'Cold layout must not repeatedly reshape identical prefixes');
+    assert.equal(result.staticCalls, 0);
+    assert.equal(result.colorCalls, 0);
+    assert.equal(result.reused, true);
+  }
 } finally {
   await browser.close();
   await server.close();

@@ -49,6 +49,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 本轮水平 LTR inline formatting 已接入 line box、匿名 inline/block/flex item、span/br、inline-block 与 vertical-align，并补 Text Gallery；契约及剩余边界见 [`inline-layout.md`](inline-layout.md)。交付项保留至用户验收。
 - Box/Flex 已有文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、Flex text baseline 回调、完整 inline conformance 和 Grid。
 - Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
+- 本轮 P0–P2 性能改造已交付：静态文档复用、有界文本缓存、持久 Taffy 树、paint-only 分离与未变绘制记录复用；验证记录和剩余拓扑/生产性能边界见 [`runtime-performance.md`](runtime-performance.md)。保留用户验收 Gate，不据此关闭 production / Native 或长期资源压力测试。
 - 本轮 Position / Style API / TTF 描边与 `game-ui-showcase/player-profile` 的交付状态见 implementation-status；后续仍需 production / Native、长期资源释放和视觉回归 Gate。功能计划的完成项待用户确认后再移除。
 
 ### 2.3 从早期 Cue 实现保留与舍弃的内容

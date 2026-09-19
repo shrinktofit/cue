@@ -22,6 +22,14 @@ export function checkStyleApiTypes(): void {
   element.style.color = '#fff';
   // @ts-expect-error A scale factor is unitless, not a length.
   element.style.transform = [{ type: 'scale', x: Length.px(2), y: 1 }];
+
+  element.style.color = { red: 255, green: 0, blue: 0, alpha: 1 };
+  // @ts-expect-error Readback is an immutable value, not a live component mutation API.
+  element.style.color.red = 0;
+  element.style.fontFamily = ['Arial'];
+  // @ts-expect-error Arrays also require a new top-level assignment.
+  element.style.fontFamily.push('serif');
+  element.style.color = { ...element.style.color, red: 0 };
 }
 
 export {};

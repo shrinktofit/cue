@@ -16,6 +16,7 @@ import { CuePointerEvent } from '../src/input/cue-pointer-event.js';
 describe('native control interaction', () => {
   beforeAll(initializeCueLayout);
   const measurer: CueTextMeasurer = {
+    measureWidth: (text) => text.length * 8,
     metrics: () => ({ ascent: 12, descent: 4, xHeight: 8, lineHeight: 16 }),
     layout: (text) => ({ width: text.length * 8, height: 16, lines: [{ text, width: text.length * 8 }] }),
   };

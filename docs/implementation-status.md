@@ -60,6 +60,21 @@
 | 基础 attach / detach / move 生命周期 | ✅[^builtin-controls] | 控件焦点、捕获和内部状态清理 |
 | 完整 document 归属与 invalidation 契约 | ❌ | 当前生命周期不代表完整 DOM/document 模型 |
 
+## 增量更新与性能
+
+实现边界及本机测量见 [Runtime performance](runtime-performance.md)。
+
+| 能力 | 状态 | 当前边界 |
+| --- | :---: | --- |
+| 静态 document 跳过 style/layout/paint/upload | ✅ | 跟踪节点、样式表、视口、字体、图片版本；原生输入桥接仍按需同步 |
+| 样式复合值的拷贝赋值 | ✅ | 只读快照；改变原对象或读回值的分量不更新元素，须重新赋值顶层属性 |
+| 字宽/字体 metrics 与非 atomic inline 布局缓存 | ✅ | 有界缓存；字体/内容/几何变化失效 |
+| 持久 Taffy 树与几何节点失效 | ✅ | 普通几何/文本更新保留树；格式化拓扑或图片资源变化重建 |
+| Paint-only 更新跳过文本布局 | ✅ | 颜色、透明度等；文本颜色改变仍须重新栅格化纹理 |
+| 未变化绘制记录复用 geometry/GPU buffers | ✅ | 矩形、裁剪、阴影、背景、图片和文字；dirty 帧仍生成 paint list |
+| 格式化拓扑变化的局部树拼接 | ❌ | 当前重建整个 document 的格式化图 |
+| Glyph atlas / 跨文本 run 合批 | ❌ | 当前仍按文本 run 使用 RGBA 纹理 |
+
 ## 内置控件
 
 六类控件统一位于 `packages/runtime/src/builtin-controls/`。API、提交点、部件与平台边界见 [Builtin controls](builtin-controls.md)。

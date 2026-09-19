@@ -71,6 +71,40 @@ interface PositionedToken<Value> {
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
+/** Constraint-independent text preparation plus bounded intrinsic/line-layout reuse. */
+export class CueInlineFormatting<Value> {
+  constructor(
+    private readonly _root: CueInlineBox<Value>,
+    private readonly _items: ReadonlyArray<CueInlineItem<Value>>,
+    private readonly _measurer: CueTextMeasurer,
+  ) {
+    this.#cacheable = !_items.some((item) => item.kind === 'atomic');
+  }
+
+  layout(width?: number, height?: number): CueInlineLayout<Value> {
+    // Atomic measurement positions a separate Taffy tree. It must run even if
+    // this constraint was seen before but a different one was measured since.
+    if (!this.#cacheable) return layoutCueInline(this._root, this._items, this._measurer, width, height);
+    const key = JSON.stringify([width, height]);
+    const cached = this.#layouts.get(key);
+    if (cached) return cached;
+    this.#tokens ??= normalizeInlineContent(this._items);
+    const result = layoutInlineTokens(this._root, this.#tokens, this._measurer, width);
+    if (this.#layouts.size >= 16) this.#layouts.delete(this.#layouts.keys().next().value!);
+    this.#layouts.set(key, result);
+    return result;
+  }
+
+  clear(): void {
+    this.#tokens = undefined;
+    this.#layouts.clear();
+  }
+
+  readonly #cacheable: boolean;
+  readonly #layouts = new Map<string, CueInlineLayout<Value>>();
+  #tokens: Array<InlineToken<Value>> | undefined;
+}
+
 /** Horizontal LTR inline formatting. Boxes are independent of the author tree. */
 export function layoutCueInline<Value>(
   root: CueInlineBox<Value>,
@@ -80,8 +114,28 @@ export function layoutCueInline<Value>(
   availableHeight?: number,
 ): CueInlineLayout<Value> {
   const tokens = normalizeInlineContent(items, availableWidth, availableHeight);
+  return layoutInlineTokens(root, tokens, measurer, availableWidth);
+}
+
+function layoutInlineTokens<Value>(
+  root: CueInlineBox<Value>,
+  tokens: ReadonlyArray<InlineToken<Value>>,
+  measurer: CueTextMeasurer,
+  availableWidth?: number,
+): CueInlineLayout<Value> {
   const output: CueInlineLayout<Value> = { width: 0, height: 0, firstBaseline: 0, lastBaseline: 0, fragments: [] };
-  const measureWidth = (text: string, box: CueInlineBox<Value>): number => measurer.layout(text, { ...box.style, whiteSpace: CueWhiteSpace.pre }).width;
+  const widths = new Map<CueInlineBox<Value>, Map<string, number>>();
+  const measureWidth = (text: string, box: CueInlineBox<Value>): number => {
+    if (text.length === 0) return 0;
+    let cache = widths.get(box);
+    if (!cache) widths.set(box, cache = new Map());
+    let width = cache.get(text);
+    if (width === undefined) {
+      width = measurer.measureWidth(text, box.style);
+      cache.set(text, width);
+    }
+    return width;
+  };
   const fontMetrics = new Map<CueInlineBox<Value>, CueFontMetrics>();
   const metrics = (box: CueInlineBox<Value>): CueFontMetrics => {
     let value = fontMetrics.get(box);
@@ -141,6 +195,53 @@ export function layoutCueInline<Value>(
       previousBox = token.kind === 'text' ? token.box : undefined;
     }
     return positioned;
+  };
+
+  // Width probing advances through the line once. Final placement still applies
+  // line-edge whitespace rules, but wrapping no longer repositions every prefix.
+  let probeX = 0;
+  let probeEnd = 0;
+  let probePrefix = '';
+  let probeBox: CueInlineBox<Value> | undefined;
+  let probeContent = false;
+  let probeTrailingSpace = 0;
+  const probeToken = (token: InlineToken<Value>): void => {
+    let width = 0;
+    if (token.kind === 'text') {
+      const text = token.collapsible && !probeContent ? '' : token.text;
+      if (token.text === '\t') {
+        const stop = measureWidth('        ', token.box);
+        width = stop === 0 ? 0 : (Math.floor(probeX / stop) + 1) * stop - probeX;
+      } else {
+        if (probeBox !== token.box) probePrefix = '';
+        width = measureWidth(probePrefix + text, token.box) - measureWidth(probePrefix, token.box);
+        probePrefix += text;
+      }
+      if (!token.collapsible && text.length > 0) probeContent = true;
+    } else if (token.kind === 'atomic') {
+      width = token.size!.width;
+      probeContent = true;
+    } else if (token.kind === 'start' || token.kind === 'end') {
+      const style = token.box.style;
+      const start = token.kind === 'start';
+      width = length(start ? style.marginLeft : style.marginRight, availableWidth ?? 0)
+        + length(start ? style.paddingLeft : style.paddingRight, availableWidth ?? 0)
+        + (start ? border(style.borderLeftStyle, style.borderLeftWidth) : border(style.borderRightStyle, style.borderRightWidth));
+    }
+    probeX += width;
+    if (token.collapsible) probeTrailingSpace += width;
+    else if (token.kind !== 'start' && token.kind !== 'end') probeTrailingSpace = 0;
+    if (!token.collapsible && !token.hanging && width !== 0) probeEnd = probeX - probeTrailingSpace;
+    probeBox = token.kind === 'text' ? token.box : undefined;
+  };
+  const probeLine = (): void => {
+    probeX = 0;
+    probeEnd = 0;
+    probePrefix = '';
+    probeBox = undefined;
+    probeContent = false;
+    probeTrailingSpace = 0;
+    for (const token of line) probeToken(token);
   };
 
   const usedWidth = (positioned: ReadonlyArray<PositionedToken<Value>>): number => {
@@ -316,13 +417,16 @@ export function layoutCueInline<Value>(
       finishLine([...line, token], true);
       line = [];
       lastBreak = 0;
+      probeLine();
       continue;
     }
     line.push(token);
-    if (availableWidth !== undefined && lastBreak > 0 && lastBreak < line.length && usedWidth(positionLine(line)) > availableWidth) {
+    probeToken(token);
+    if (availableWidth !== undefined && lastBreak > 0 && lastBreak < line.length && probeEnd > availableWidth) {
       finishLine(line.slice(0, lastBreak), false);
       line = line.slice(lastBreak);
       lastBreak = 0;
+      probeLine();
     }
     if (token.breakAfter && token.wrap) {
       lastBreak = line.length;

@@ -296,6 +296,7 @@ describe('CSS relative and absolute box positioning', () => {
       wrapper: { height: 40, marginLeft: 70, width: 100 },
     }, undefined, {
       metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      measureWidth: (text: string) => text.length * 40,
       layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     })).toEqual([
       { height: 160, width: 300, x: 0, y: 0 },
@@ -364,6 +365,7 @@ describe('CSS relative and absolute box positioning', () => {
       },
     }, undefined, {
       metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      measureWidth: (text: string) => text.length * 40,
       layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     }).at(-1)).toEqual(expected);
   });
@@ -385,6 +387,7 @@ describe('CSS relative and absolute box positioning', () => {
       overlay: { left: 70, position: CuePosition.absolute, top: 0 },
     }, undefined, {
       metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      measureWidth: (text: string) => text.length * 40,
       layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     }).at(-1)).toEqual({ height: 40, width: 230, x: 70, y: 0 });
   });
@@ -448,7 +451,7 @@ function boxes(
   root: CueRootElement,
   declarations: Readonly<Record<string, CueStyleDeclarations>>,
   viewport?: { height: number; width: number },
-  textMeasurer: CueTextMeasurer = { metrics: () => ({ ascent: 0, descent: 0, xHeight: 0, lineHeight: 0 }), layout: () => ({ height: 0, lines: [], width: 0 }) },
+  textMeasurer: CueTextMeasurer = { measureWidth: () => 0, metrics: () => ({ ascent: 0, descent: 0, xHeight: 0, lineHeight: 0 }), layout: () => ({ height: 0, lines: [], width: 0 }) },
 ): Array<{ height: number; width: number; x: number; y: number }> {
   const styleSheet: CueStyleSheet = {
     rules: Object.entries(declarations).map(([className, style]) => ({

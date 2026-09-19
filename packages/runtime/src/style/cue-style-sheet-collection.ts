@@ -8,6 +8,7 @@ import { getCurrentInstance } from '@vue/runtime-core';
 import type { App, Component } from '@vue/runtime-core';
 
 export interface CueStyleSheetCollection {
+  readonly revision: number;
   readonly styleSheets: readonly CueStyleSheet[];
 
   clear(): void;
@@ -15,6 +16,7 @@ export interface CueStyleSheetCollection {
 
 export function trackCueStyleSheets(app: App): CueStyleSheetCollection {
   const counts = new Map<CueStyleSheet, number>();
+  let revision = 0;
   const styleSheets: CueStyleSheet[] = [];
   const styleSheetsByInstance = new WeakMap<object, readonly CueStyleSheet[]>();
 
@@ -30,6 +32,7 @@ export function trackCueStyleSheets(app: App): CueStyleSheetCollection {
         const count = counts.get(styleSheet) ?? 0;
         if (count === 0) {
           styleSheets.push(styleSheet);
+          revision++;
         }
         counts.set(styleSheet, count + 1);
       }
@@ -54,18 +57,21 @@ export function trackCueStyleSheets(app: App): CueStyleSheetCollection {
         const index = styleSheets.indexOf(styleSheet);
         if (index >= 0) {
           styleSheets.splice(index, 1);
+          revision++;
         }
       }
     },
   });
 
   return {
+    get revision() { return revision; },
     get styleSheets() {
       return styleSheets;
     },
     clear() {
       counts.clear();
       styleSheets.length = 0;
+      revision++;
     },
   };
 }
