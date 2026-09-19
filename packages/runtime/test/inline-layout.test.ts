@@ -38,6 +38,45 @@ describe('inline formatting in rendered controls', () => {
     expect(-command.paint.y + command.paint.height / 2).toBe(box.y + box.height / 2);
   });
 
+  it.each([false, true])('preserves fractional button text widths inside inline-block: %s', (nested) => {
+    /// @case A centered button label has a fractional advance; its width changes from ample to constrained and back.
+    /// @expect It wraps only when space is actually insufficient, and the entire text block stays vertically centered.
+    const root = new CueRootElement();
+    const button = new CueButtonElement();
+    Object.assign(button.style, { minWidth: 0, minHeight: 0, height: 60 });
+    button.insertBefore(new Text('click / hover'));
+    if (nested) {
+      const block = new DivElement();
+      const atomic = new SpanElement();
+      atomic.style.display = CueDisplay.inlineBlock;
+      atomic.insertBefore(button);
+      block.insertBefore(atomic);
+      root.insertBefore(block);
+    } else {
+      root.insertBefore(button);
+    }
+    const fractionalMeasurer: CueTextMeasurer = {
+      metrics: (style) => measurer.metrics(style),
+      layout: (text) => ({ width: text.length * 8.1875, height: 20, lines: [{ text, width: text.length * 8.1875 }] }),
+    };
+    for (const [width, lines] of [
+      [160, ['click / hover']],
+      [161, ['click / hover']],
+      [96, ['click /', 'hover']],
+      [162, ['click / hover']],
+    ] as const) {
+      button.style.width = width;
+      const list = createCuePaintList(root, [], fractionalMeasurer, () => undefined, () => undefined, { width: 300, height: 200 });
+      const box = list.hitRegions.find((region) => region.element === button)!;
+      const paints = list.commands.filter((entry) => entry.kind === 'text').map((entry) => entry.paint);
+      expect(paints.flatMap((paint) => paint.lines.map((line) => line.text))).toEqual(lines);
+      const top = Math.min(...paints.map((paint) => -paint.y));
+      const bottom = Math.max(...paints.map((paint) => -paint.y + paint.height));
+      expect(bottom - top).toBe(lines.length * 20);
+      expect((top + bottom) / 2).toBeCloseTo(box.y + box.height / 2);
+    }
+  });
+
   it('collapses whitespace across nested spans without inserting word breaks', () => {
     /// @case Bare text and nested spans split both whitespace and an unbreakable word.
     /// @expect Spaces collapse across element boundaries, and a span boundary does not permit wrapping.

@@ -357,6 +357,9 @@ export function createCuePaintList(
   }
 
   const tree = new TaffyTree();
+  // Layout uses fractional CSS pixels, not device pixels. Rounding before the
+  // final inline pass can wrap text that was measured and aligned as one line.
+  tree.disableRounding();
   const environment: CueLayoutEnvironment = { styleSheets, imageSourceLookup, textMeasurer, trees: [tree], absolutePortals: [] };
   try {
     const rootText = root.children
@@ -611,6 +614,8 @@ function createLayoutRecord(
             items.push({ kind: 'break', box });
           } else if (childStyle.display === CueDisplay.inlineBlock || child instanceof CueImageElement) {
             const atomicTree = new TaffyTree();
+            // Atomic inline boxes participate in the same fractional line flow.
+            atomicTree.disableRounding();
             environment.trees.push(atomicTree);
             const atomic = createLayoutRecord(atomicTree, child, parentBox.style, environment, false, childStyle, childContainingBlock);
             box.value = atomic;

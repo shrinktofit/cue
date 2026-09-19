@@ -39,7 +39,7 @@ try {
   });
   await page.goto(server.resolvedUrls.local[0]);
   await page.addScriptTag({ type: 'module', content: `
-    import { CueRootElement, DivElement, SpanElement, BrElement, Text, Length } from '/src/index.ts';
+    import { CueRootElement, CueButtonElement, DivElement, SpanElement, BrElement, Text, Length } from '/src/index.ts';
     import { createCuePaintList, initializeCueLayout } from '/src/render/create-cue-paint-list.ts';
     import { CanvasTextRasterizer } from '/src/host/canvas-text-rasterizer.ts';
     await initializeCueLayout();
@@ -75,6 +75,14 @@ try {
       { name: 'block-interruption', children: ['before', {tag: 'div', children: ['middle'], style: {height: 30}}, 'after'] },
       { name: 'nested-block-interruption', children: [span(['before', {tag: 'div', children: ['middle'], style: {height: 30}}, 'after'])] },
       { name: 'flex-text', children: ['Launch'], style: {display: 'flex', alignItems: 'center', justifyContent: 'center', height: 60} },
+      // Real Canvas font advances must not acquire an extra line after layout.
+      // Include insufficient widths and nowrap as controls, not just ample space.
+      ...[20, 40, 42.2, 42.234375, 42.25, 45, 50, 70].flatMap(width => ['normal', 'nowrap'].map(whiteSpace => ({
+        name: 'button-fractional-' + width + '-' + whiteSpace,
+        tag: 'cue-button',
+        children: ['click / hover'],
+        style: {width, minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 19, paddingLeft: 4, paddingRight: 4, fontSize: 8, lineHeight: 10, textAlign: 'center', whiteSpace},
+      }))),
       { name: 'flex-mixed', children: ['A', span('B'), 'C'], style: {display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60} },
     ];
     const results = [];
@@ -87,7 +95,7 @@ try {
           return {dom, cue: new Text(definition)};
         }
         const dom = document.createElement(definition.tag);
-        const cue = definition.tag === 'div' ? new DivElement() : definition.tag === 'br' ? new BrElement() : new SpanElement();
+        const cue = definition.tag === 'cue-button' ? new CueButtonElement() : definition.tag === 'div' ? new DivElement() : definition.tag === 'br' ? new BrElement() : new SpanElement();
         for (const [name, value] of Object.entries(definition.style ?? {})) {
           dom.style[name] = typeof value === 'number' && !['flexGrow', 'flexShrink', 'order'].includes(name) ? value + 'px' : value;
           if (name === 'lineHeight') cue.style[name] = Length.px(value);
@@ -107,7 +115,7 @@ try {
         }
         return {dom, cue};
       };
-      const pair = make({tag: 'div', style: {width: 180, fontFamily: 'Arial', fontSize: 16, lineHeight: 20, ...example.style}, children: example.children});
+      const pair = make({tag: example.tag ?? 'div', style: {width: 180, fontFamily: 'Arial', fontSize: 16, lineHeight: 20, ...example.style}, children: example.children});
       // Font-family is a list in Cue's typed API.
       pair.cue.style.fontFamily = ['Arial'];
       document.body.appendChild(pair.dom);
