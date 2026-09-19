@@ -326,7 +326,7 @@ export class CueDocument extends CycloComponent {
   readonly #backgroundAssets = new Map<string, Texture2D>();
   #backgroundEffect: EffectAsset | undefined;
   readonly #backgroundLoads = new Map<string, Promise<void>>();
-  readonly #backgroundRenderRecords = new Map<CueElement, CueBackgroundRenderRecord>();
+  readonly #backgroundRenderRecords = new Map<number, CueBackgroundRenderRecord>();
   readonly #backgroundSources = new Set<string>();
   readonly #reportedBackgroundSources = new Set<string>();
   #shadowEffect: EffectAsset | undefined;
@@ -343,7 +343,7 @@ export class CueDocument extends CycloComponent {
   #styleSheetCollection: CueStyleSheetCollection | undefined;
   #textureEffect: EffectAsset | undefined;
   #textRasterizer: CanvasTextRasterizer | undefined;
-  readonly #textRenderRecords = new Map<CuePaintText['element'], CueTextRenderRecord>();
+  readonly #textRenderRecords = new Map<number, CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
 
   #inputCamera(): renderer.scene.Camera | undefined {
@@ -671,10 +671,12 @@ export class CueDocument extends CycloComponent {
     this.#syncRectRenderRecords(rectRuns);
     this.#syncImageRenderRecords(images);
     this.#syncTextRenderRecords(texts);
+    let textIndex = 0;
+    let backgroundIndex = 0;
     for (const [priority, command] of paintList.commands.entries()) {
       if (command.kind === CuePaintCommandKind.background) {
         const model = this.#backgroundRenderRecords.get(
-          command.paint.element,
+          backgroundIndex++,
         )?.model;
         if (model) {
           model.priority = priority;
@@ -685,7 +687,7 @@ export class CueDocument extends CycloComponent {
           model.priority = priority;
         }
       } else if (command.kind === CuePaintCommandKind.text) {
-        const model = this.#textRenderRecords.get(command.paint.element)?.model;
+        const model = this.#textRenderRecords.get(textIndex++)?.model;
         if (model) {
           model.priority = priority;
         }
@@ -870,11 +872,9 @@ export class CueDocument extends CycloComponent {
     if (!effect) {
       return;
     }
-    const liveElements = new Set<CueElement>();
-    for (const background of backgrounds) {
-      liveElements.add(background.element);
+    for (const [index, background] of backgrounds.entries()) {
       const geometry = createBackgroundGeometry(background);
-      let record = this.#backgroundRenderRecords.get(background.element);
+      let record = this.#backgroundRenderRecords.get(index);
       if (
         record
         && (
@@ -893,7 +893,7 @@ export class CueDocument extends CycloComponent {
           effect,
         );
         if (record) {
-          this.#backgroundRenderRecords.set(background.element, record);
+          this.#backgroundRenderRecords.set(index, record);
         }
       }
       if (!record) {
@@ -907,9 +907,9 @@ export class CueDocument extends CycloComponent {
       updateGeometryModelBounds(record.model, geometry.vertices, textureVertexStrideFloats);
       record.model.enabled = this.enabledInHierarchy;
     }
-    for (const [element, record] of this.#backgroundRenderRecords) {
-      if (!liveElements.has(element)) {
-        this.#backgroundRenderRecords.delete(element);
+    for (const [index, record] of this.#backgroundRenderRecords) {
+      if (index >= backgrounds.length) {
+        this.#backgroundRenderRecords.delete(index);
         this.#destroyBackgroundRenderRecord(record);
       }
     }
@@ -1273,9 +1273,7 @@ export class CueDocument extends CycloComponent {
     if (!textRasterizer || !textureEffect) {
       return;
     }
-    const liveElements = new Set<CuePaintText['element']>();
-    for (const paintText of paintTexts) {
-      liveElements.add(paintText.element);
+    for (const [index, paintText] of paintTexts.entries()) {
       const cacheKey = JSON.stringify({
         color: paintText.style.color,
         fontFamily: paintText.style.fontFamily,
@@ -1292,7 +1290,7 @@ export class CueDocument extends CycloComponent {
         whiteSpace: paintText.style.whiteSpace,
         width: paintText.width,
       });
-      let renderRecord = this.#textRenderRecords.get(paintText.element);
+      let renderRecord = this.#textRenderRecords.get(index);
       if (renderRecord?.cacheKey !== cacheKey) {
         if (renderRecord) {
           this.#destroyTextRenderRecord(renderRecord);
@@ -1304,9 +1302,9 @@ export class CueDocument extends CycloComponent {
           textRasterizer,
         );
         if (renderRecord) {
-          this.#textRenderRecords.set(paintText.element, renderRecord);
+          this.#textRenderRecords.set(index, renderRecord);
         } else {
-          this.#textRenderRecords.delete(paintText.element);
+          this.#textRenderRecords.delete(index);
         }
       }
       if (!renderRecord) {
@@ -1336,9 +1334,9 @@ export class CueDocument extends CycloComponent {
       );
       renderRecord.model.enabled = this.enabledInHierarchy;
     }
-    for (const [element, renderRecord] of this.#textRenderRecords) {
-      if (!liveElements.has(element)) {
-        this.#textRenderRecords.delete(element);
+    for (const [index, renderRecord] of this.#textRenderRecords) {
+      if (index >= paintTexts.length) {
+        this.#textRenderRecords.delete(index);
         this.#destroyTextRenderRecord(renderRecord);
       }
     }

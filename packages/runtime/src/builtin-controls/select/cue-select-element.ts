@@ -1,4 +1,4 @@
-import { CueBoxSizing, CueDimensionKeyword, CueDisplay, CueFlexDirection, CueOverflow, CuePointerEvents, CuePosition, CueWhiteSpace } from '@bsgames/cue-style-schema';
+import { CueAlignItems, CueBoxSizing, CueDimensionKeyword, CueDisplay, CueFlexDirection, CueOverflow, CuePointerEvents, CuePosition, CueWhiteSpace } from '@bsgames/cue-style-schema';
 import { cueTopLayerElements } from '../../render/cue-top-layer.js';
 import { CueElement, getCueElementContentBox, setCueElementDefaultStyle, setCueElementState } from '../../element/cue-element.js';
 import { Text } from '../../element/text.js';
@@ -22,8 +22,8 @@ export class CueSelectElement extends CueControlElement {
   constructor() {
     super('cue-select');
     setCueElementDefaultStyle(this, {
-      display: CueDisplay.block, position: CuePosition.relative,
-      width: 240, minHeight: 40, paddingLeft: 12, paddingRight: 32, paddingTop: 8, paddingBottom: 8,
+      display: CueDisplay.flex, alignItems: CueAlignItems.center, position: CuePosition.relative,
+      width: 240, minHeight: 40, paddingLeft: 12, paddingRight: 10, paddingTop: 8, paddingBottom: 8, columnGap: 12,
       backgroundColor: { red: 35, green: 48, blue: 68, alpha: 1 },
       color: { red: 241, green: 245, blue: 249, alpha: 1 }, fontSize: 16,
       borderTopLeftRadius: [6, 6], borderTopRightRadius: [6, 6], borderBottomLeftRadius: [6, 6], borderBottomRightRadius: [6, 6],
@@ -178,8 +178,8 @@ export class CueSelectElement extends CueControlElement {
   #revealCandidate = false;
   readonly #rows = new Map<CueElement, number>();
   readonly #labelText = new Text('Select…');
-  readonly #label = createControlPart('cue-select-label', { whiteSpace: CueWhiteSpace.nowrap });
-  readonly #arrow = createControlPart('cue-select-arrow', { position: CuePosition.absolute, right: 10, top: 8 });
+  readonly #label = createControlPart('cue-select-label', { whiteSpace: CueWhiteSpace.nowrap, flexGrow: 1, minWidth: 0 });
+  readonly #arrow = createControlPart('cue-select-arrow', { flexShrink: 0 });
   readonly #popup = createControlPart('cue-select-popup', {
     position: CuePosition.absolute, top: '100%', left: 0, right: 0, zIndex: 1000,
     boxSizing: CueBoxSizing.borderBox, maxHeight: 280,
@@ -235,7 +235,7 @@ export class CueSelectElement extends CueControlElement {
     this.#rows.clear();
     for (const [index, option] of this.options.entries()) {
       const row = createControlPart('cue-select-option', {
-        boxSizing: CueBoxSizing.borderBox, height: 36, flexShrink: 0, paddingLeft: 12, paddingTop: 7, pointerEvents: CuePointerEvents.auto,
+        display: CueDisplay.flex, alignItems: CueAlignItems.center, boxSizing: CueBoxSizing.borderBox, minHeight: 36, flexShrink: 0, paddingLeft: 12, paddingRight: 12, pointerEvents: CuePointerEvents.auto,
         backgroundColor: index === this.#candidate ? { red: 38, green: 86, blue: 137, alpha: 1 } : { red: 22, green: 33, blue: 50, alpha: 1 },
         color: option.disabled ? { red: 100, green: 116, blue: 139, alpha: 1 } : { red: 241, green: 245, blue: 249, alpha: 1 },
       });

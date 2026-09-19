@@ -1,6 +1,8 @@
 import { CustomElementRegistry } from './custom-element-registry.js';
 import { CueImageElement } from './cue-image-element.js';
 import { DivElement } from './div-element.js';
+import { SpanElement } from './span-element.js';
+import { BrElement } from './br-element.js';
 import { cueControlDefinitions } from '@bsgames/cue-control-schema';
 import type { CueElementConstructor } from './custom-element-registry.js';
 import { CueButtonElement } from '../builtin-controls/button/cue-button-element.js';
@@ -13,6 +15,8 @@ import { CueNumberInputElement } from '../builtin-controls/number-input/cue-numb
 export const globalElementRegistry = new CustomElementRegistry();
 
 globalElementRegistry.define('div', DivElement);
+globalElementRegistry.define('span', SpanElement);
+globalElementRegistry.define('br', BrElement);
 globalElementRegistry.define('cue-image', CueImageElement);
 
 const controls: Record<string, CueElementConstructor> = {

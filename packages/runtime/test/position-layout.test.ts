@@ -285,7 +285,7 @@ describe('CSS relative and absolute box positioning', () => {
     const container = element('container');
     const wrapper = element('wrapper');
     const overlay = element('overlay');
-    overlay.insertBefore(new Text('some wrappable text'));
+    overlay.insertBefore(new Text('字'.repeat(10)));
     wrapper.insertBefore(overlay);
     container.insertBefore(wrapper);
     root.insertBefore(container);
@@ -295,10 +295,8 @@ describe('CSS relative and absolute box positioning', () => {
       overlay: { position: CuePosition.absolute },
       wrapper: { height: 40, marginLeft: 70, width: 100 },
     }, undefined, {
-      layout: (_text, _style, availableWidth) => {
-        const width = Math.max(40, Math.min(400, availableWidth ?? 400));
-        return { height: 20 * Math.ceil(400 / width), lines: [], width };
-      },
+      metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     })).toEqual([
       { height: 160, width: 300, x: 0, y: 0 },
       { height: 40, width: 100, x: 70, y: 0 },
@@ -348,7 +346,7 @@ describe('CSS relative and absolute box positioning', () => {
     const container = element('container');
     const wrapper = element('wrapper');
     const overlay = element('overlay');
-    overlay.insertBefore(new Text('text'));
+    overlay.insertBefore(new Text('字'.repeat(contentWidth / 40)));
     wrapper.insertBefore(overlay);
     container.insertBefore(wrapper);
     root.insertBefore(container);
@@ -365,10 +363,8 @@ describe('CSS relative and absolute box positioning', () => {
         width: 100,
       },
     }, undefined, {
-      layout: (_text, _style, availableWidth) => {
-        const width = Math.max(40, Math.min(contentWidth, availableWidth ?? contentWidth));
-        return { height: 20 * Math.ceil(contentWidth / width), lines: [], width };
-      },
+      metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     }).at(-1)).toEqual(expected);
   });
 
@@ -380,7 +376,7 @@ describe('CSS relative and absolute box positioning', () => {
     const root = new CueRootElement();
     const container = element('container');
     const overlay = element('overlay');
-    overlay.insertBefore(new Text('text'));
+    overlay.insertBefore(new Text('字'.repeat(10)));
     container.insertBefore(overlay);
     root.insertBefore(container);
 
@@ -388,10 +384,8 @@ describe('CSS relative and absolute box positioning', () => {
       container: { height: 160, position: CuePosition.relative, width: 300 },
       overlay: { left: 70, position: CuePosition.absolute, top: 0 },
     }, undefined, {
-      layout: (_text, _style, availableWidth) => {
-        const width = Math.max(40, Math.min(400, availableWidth ?? 400));
-        return { height: 20 * Math.ceil(400 / width), lines: [], width };
-      },
+      metrics: () => ({ ascent: 15, descent: 5, xHeight: 8, lineHeight: 20 }),
+      layout: (text) => ({ height: 20, lines: [{ text, width: text.length * 40 }], width: text.length * 40 }),
     }).at(-1)).toEqual({ height: 40, width: 230, x: 70, y: 0 });
   });
 
@@ -454,7 +448,7 @@ function boxes(
   root: CueRootElement,
   declarations: Readonly<Record<string, CueStyleDeclarations>>,
   viewport?: { height: number; width: number },
-  textMeasurer: CueTextMeasurer = { layout: () => ({ height: 0, lines: [], width: 0 }) },
+  textMeasurer: CueTextMeasurer = { metrics: () => ({ ascent: 0, descent: 0, xHeight: 0, lineHeight: 0 }), layout: () => ({ height: 0, lines: [], width: 0 }) },
 ): Array<{ height: number; width: number; x: number; y: number }> {
   const styleSheet: CueStyleSheet = {
     rules: Object.entries(declarations).map(([className, style]) => ({

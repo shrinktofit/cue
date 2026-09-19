@@ -54,6 +54,19 @@ export enum CueDimensionKeyword {
 export enum CueDisplay {
   block = 'block',
   flex = 'flex',
+  inline = 'inline',
+  inlineBlock = 'inline-block',
+}
+
+export enum CueVerticalAlign {
+  baseline = 'baseline',
+  middle = 'middle',
+  top = 'top',
+  bottom = 'bottom',
+  textTop = 'text-top',
+  textBottom = 'text-bottom',
+  sub = 'sub',
+  super = 'super',
 }
 
 export enum CueFlexDirection {
@@ -190,6 +203,7 @@ export enum CueStyleProperty {
   paddingTop = 'paddingTop',
   rowGap = 'rowGap',
   textAlign = 'textAlign',
+  verticalAlign = 'verticalAlign',
   transform = 'transform',
   transformOrigin = 'transformOrigin',
   whiteSpace = 'whiteSpace',
@@ -351,6 +365,7 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.paddingTop]?: CueLengthPercentage;
   [CueStyleProperty.rowGap]?: CueLengthPercentage;
   [CueStyleProperty.textAlign]?: CueTextAlign;
+  [CueStyleProperty.verticalAlign]?: CueVerticalAlign | CueLengthPercentage;
   [CueStyleProperty.transform]?: readonly CueTransformFunction[];
   [CueStyleProperty.transformOrigin]?: readonly [CueLengthPercentage, CueLengthPercentage];
   [CueStyleProperty.whiteSpace]?: CueWhiteSpace;

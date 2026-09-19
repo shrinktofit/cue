@@ -14,6 +14,7 @@ import {
   CueSelectorCombinator,
   CueStyleProperty,
   CueTextAlign,
+  CueVerticalAlign,
   CueWhiteSpace,
   type CueAlignContent,
   type CueAlignItems,
@@ -61,6 +62,7 @@ export interface ComputedCueBoxShadow extends Omit<CueBoxShadow, 'color'> {
 }
 
 export interface ComputedCueElementStyle extends ComputedCueTextStyle {
+  verticalAlign: CueVerticalAlign | CueLengthPercentage;
   pointerEvents: CuePointerEvents;
   position: CuePosition;
   top: CueDimension;
@@ -213,7 +215,34 @@ export function computeCueElementStyle(
   applyDeclarations(declarations, candidates, inlineStyle?.importantDeclarations, true, order + 1, [0, 0, 0], true);
   applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, [0, 0, 0], true);
 
-  const computedStyle: ComputedCueElementStyle = {
+  const computedStyle = createInitialCueElementStyle(inheritedTextStyle);
+  if (element instanceof DivElement) {
+    computedStyle.display = CueDisplay.block;
+  }
+  Object.assign(computedStyle, declarations);
+  computedStyle.cueTextStrokeColor = computedBorderColor(
+    declarations.cueTextStrokeColor ?? inheritedTextStyle.cueTextStrokeColor,
+    computedStyle.color,
+  );
+  computedStyle.borderBottomColor = computedBorderColor(declarations.borderBottomColor, computedStyle.color);
+  computedStyle.borderLeftColor = computedBorderColor(declarations.borderLeftColor, computedStyle.color);
+  computedStyle.borderRightColor = computedBorderColor(declarations.borderRightColor, computedStyle.color);
+  computedStyle.borderTopColor = computedBorderColor(declarations.borderTopColor, computedStyle.color);
+  computedStyle.outlineColor = computedBorderColor(declarations.outlineColor, computedStyle.color);
+  computedStyle.boxShadow = computedStyle.boxShadow.map((shadow) => ({
+    ...shadow,
+    color: computedBorderColor(shadow.color, computedStyle.color),
+  }));
+  return computedStyle;
+}
+
+/** Initial non-inherited values and inherited text for CSS anonymous boxes. */
+export function createInitialCueElementStyle(
+  inheritedTextStyle: ComputedCueTextStyle & { pointerEvents?: CuePointerEvents },
+): ComputedCueElementStyle {
+  return {
+    display: CueDisplay.inline,
+    verticalAlign: CueVerticalAlign.baseline,
     pointerEvents: inheritedTextStyle.pointerEvents ?? CuePointerEvents.auto,
     position: CuePosition.static,
     top: CueDimensionKeyword.auto,
@@ -250,11 +279,6 @@ export function computeCueElementStyle(
     columnGap: 0,
     cueOpacity: 1,
     color: inheritedTextStyle.color,
-    ...(element instanceof DivElement
-      ? {
-        display: CueDisplay.block,
-      }
-      : {}),
     flexBasis: CueDimensionKeyword.auto,
     flexDirection: CueFlexDirection.row,
     flexGrow: 0,
@@ -291,36 +315,6 @@ export function computeCueElementStyle(
     width: CueDimensionKeyword.auto,
     zIndex: 'auto',
   };
-  Object.assign(computedStyle, declarations);
-  computedStyle.cueTextStrokeColor = computedBorderColor(
-    declarations.cueTextStrokeColor ?? inheritedTextStyle.cueTextStrokeColor,
-    computedStyle.color,
-  );
-  computedStyle.borderBottomColor = computedBorderColor(
-    declarations.borderBottomColor,
-    computedStyle.color,
-  );
-  computedStyle.borderLeftColor = computedBorderColor(
-    declarations.borderLeftColor,
-    computedStyle.color,
-  );
-  computedStyle.borderRightColor = computedBorderColor(
-    declarations.borderRightColor,
-    computedStyle.color,
-  );
-  computedStyle.borderTopColor = computedBorderColor(
-    declarations.borderTopColor,
-    computedStyle.color,
-  );
-  computedStyle.outlineColor = computedBorderColor(
-    declarations.outlineColor,
-    computedStyle.color,
-  );
-  computedStyle.boxShadow = computedStyle.boxShadow.map((shadow) => ({
-    ...shadow,
-    color: computedBorderColor(shadow.color, computedStyle.color),
-  }));
-  return computedStyle;
 }
 
 function computedBorderColor(

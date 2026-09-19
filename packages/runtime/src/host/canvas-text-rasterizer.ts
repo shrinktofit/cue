@@ -9,7 +9,9 @@ import type {
 import type { ComputedCueTextStyle } from '../style/compute-cue-element-style.js';
 import {
   layoutCueTextLines,
+  cueTextBaseline,
   type CueTextLayout,
+  type CueFontMetrics,
 } from '../text/layout-cue-text.js';
 import { cueFontRevision } from './load-cue-font.js';
 
@@ -48,6 +50,7 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     if (!context) {
       throw new Error('Cue text rendering requires a Canvas 2D context.');
     }
+    context.fontKerning = 'normal';
     this.#measurementContext = context;
   }
 
@@ -57,6 +60,19 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
 
   get fontRevision(): number {
     return cueFontRevision;
+  }
+
+  metrics(style: ComputedCueTextStyle): CueFontMetrics {
+    const context = this.#measurementContext;
+    context.font = toCanvasFont(style);
+    context.textBaseline = 'alphabetic';
+    const metrics = context.measureText('Mg');
+    return {
+      ascent: metrics.fontBoundingBoxAscent,
+      descent: metrics.fontBoundingBoxDescent,
+      xHeight: context.measureText('x').actualBoundingBoxAscent,
+      lineHeight: usedLineHeight(style),
+    };
   }
 
   layout(
@@ -86,12 +102,8 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     measurementContext.font = toCanvasFont(style);
     measurementContext.textAlign = 'left';
     measurementContext.textBaseline = 'alphabetic';
-    const fontMetrics = measurementContext.measureText('Mg');
     const lineHeight = usedLineHeight(style);
-    const firstBaseline = (lineHeight
-      - fontMetrics.fontBoundingBoxAscent
-      - fontMetrics.fontBoundingBoxDescent) / 2
-      + fontMetrics.fontBoundingBoxAscent;
+    const firstBaseline = cueTextBaseline(this.metrics(style));
     const inkPadding = style.cueTextStrokeWidth / 2 + 1 / pixelScale;
     let left = 0;
     let top = 0;
@@ -134,6 +146,7 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     context.lineJoin = 'round';
     context.font = toCanvasFont(style);
     context.textAlign = 'left';
+    context.fontKerning = 'normal';
     context.textBaseline = 'alphabetic';
     for (const [lineIndex, line] of paintText.lines.entries()) {
       const baseline = firstBaseline + lineIndex * lineHeight;

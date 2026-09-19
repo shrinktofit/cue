@@ -1,6 +1,6 @@
 # Cue Implementation Status
 
-更新日期：2026-09-18
+更新日期：2026-09-19
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
@@ -50,12 +50,12 @@
 | `globalElementRegistry.define/get` | ✅ | 容器、图片、六类内置控件与项目 Custom Element 使用同一路径 |
 | `div` | ✅[^display] | 内建通用容器元素 |
 | `cue-image` | ✅[^cue-image] | 内建 replaced element；公开接口当前只有 `src` |
-| `span` | ❌ | 尚未实现 inline formatting context |
-| `br` | ❌ | 尚未实现 inline formatting context |
+| `span` | ✅[^inline-layout] | 默认 inline；支持嵌套文本与逐行 fragment |
+| `br` | ✅[^inline-layout] | 强制结束当前行，不改写作者文本节点 |
 | `img` | ❌ | 当前不作为 `cue-image` 的 Web 兼容别名 |
 | 纯文本元素的 intrinsic measure | ✅[^text-raster] | 文本宽高参与 Taffy Block/Flex 布局 |
-| 整文本块 TTF 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
-| Inline formatting context | ❌ | 混合文本与子元素、`span`、`br` 和跨 run 排版尚未实现；纯文本 Element 已有独立换行路径 |
+| TTF 文本 run 栅格化与绘制 | ✅[^text-raster] | Web Preview 使用 Canvas 2D 生成独立 RGBA 纹理 |
+| 水平 LTR inline formatting context | ✅[^inline-layout] | line box、匿名 inline / block / flex item、混合文本与 atomic inline |
 | DOM 风格事件派发 | ✅[^input] | Cue pointer / keyboard / focus / value / composition / wheel 事件；捕获、冒泡、取消、once / passive |
 | 基础 attach / detach / move 生命周期 | ✅[^builtin-controls] | 控件焦点、捕获和内部状态清理 |
 | 完整 document 归属与 invalidation 契约 | ❌ | 当前生命周期不代表完整 DOM/document 模型 |
@@ -112,8 +112,9 @@
 
 | CSS 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
-| `display: block` | ✅[^display] | Taffy block layout；不存在 inline formatting context |
+| `display: block` | ✅[^display] | Taffy block layout；内部 inline formatting 由 Cue 负责 |
 | `display: flex` | ✅[^display] | 详见 Flexbox 表 |
+| `display: inline / inline-block` | ✅[^inline-layout] | inline 分行；inline-block 作为原子盒参与一行 |
 | `display: none` | ❌ | 尚未实现 |
 | `width` / `height` | ✅[^lengths] | `px`、`%`、`auto` |
 | `min-width` / `min-height` | ✅[^lengths] | `px`、`%`、`auto`；尚无内容 intrinsic sizing |
@@ -150,7 +151,10 @@
 | `line-height` | ✅[^text-raster] | `normal` 与 `px`；按标准继承 |
 | `text-align` | ✅[^text-align] | `start`、`end`、`left`、`right`、`center`；按标准继承 |
 | `white-space` | ✅[^text-wrap] | `normal`、`nowrap`、`pre`、`pre-wrap`、`pre-line`；标准属性名、值与继承语义 |
-| 自动换行 | ✅[^text-wrap] | 纯文本 Element 按可用 inline size 和 Unicode / CSS Text 换行机会分行 |
+| 自动换行 | ✅[^text-wrap] | 跨裸文本与 span 共享换行机会；元素边界不额外产生断词点 |
+| Line box / strut / 混合字体基线 | ✅[^inline-layout] | 字体 ascent / descent、half-leading 与每行共同基线 |
+| `vertical-align` | ✅[^inline-layout] | baseline、middle、top、bottom、text-top、text-bottom、sub、super、px、% |
+| 匿名 flex item | ✅[^inline-layout] | 连续裸文本参与 flex sizing / alignment；不插入作者树 |
 | 显式 segment break | ✅[^text-wrap] | 在 `pre`、`pre-wrap`、`pre-line` 中保留；在 `normal`、`nowrap` 中折叠 |
 | `white-space: break-spaces` | ❌ | 尚未实现 preserved-space 的逐空格换行与行尾占位语义 |
 | `overflow-wrap` / `word-break` / `line-break` / `hyphens` | ❌ | 当前使用这些属性的标准初始行为，不接受非初始值 |
@@ -158,7 +162,7 @@
 | `font-weight: bolder / lighter`、`font-style` | ❌ | 尚未实现 |
 | `-cue-text-stroke` / `-cue-text-stroke-width` / `-cue-text-stroke-color` | ✅[^text-stroke] | Cue 专有描边，不伪装成标准 text-shadow |
 | `@font-face` / URL 字体加载 | ❌ | 当前通过 Cocos TTFFont asset + `loadCueFont` 加载 |
-| `text-align: justify` / `justify-all` | ❌ | 依赖尚未实现的 inline formatting 与空白分配 |
+| `text-align: justify` / `justify-all` | ❌ | 尚未实现两端空白分配 |
 | 字距与词距 | ❌ | `letter-spacing`、`word-spacing` 尚未实现 |
 | 完整 shaping / bidi / fallback diagnostics | ❌ | 当前委托 Canvas 2D，不声明跨平台一致性 |
 
@@ -314,7 +318,9 @@
 
 [^text-stroke]: 这是 Cue 自有扩展，三个属性均继承。`-cue-text-stroke` 接受非负 px 宽度及支持的 CSS 颜色；省略宽度重置为 0，省略颜色重置为 currentColor。采用 Canvas 的居中圆角 stroke 后 fill；纹理会为笔画/描边外溢扩边，layout advance 与 line-height 不随描边变大。它不是 CSS text-shadow，也不提供外侧-only 描边。
 
-[^display]: Cue 当前只实现 block-level `display: block` 与 `display: flex`。标准 CSS 的初始值 `inline`、`inline-flex`、`none`、list-item、table 等 display 类型尚未支持；block layout 也尚无 inline formatting、float、margin collapsing 等完整浏览器语义。非 `div` 元素若未显式声明已支持的 display，会在布局阶段报错。
+[^display]: CSS 初始 display 为 inline；内建 div 的默认样式为 block，控件使用各自默认样式。已支持 block、flex、inline、inline-block；inline-flex、none、list-item、table、float 与完整 margin collapsing 尚未实现。
+
+[^inline-layout]: 当前实现水平 LTR 子集，详见 [Inline layout](inline-layout.md)。未声明完整 CSS conformance：RTL/bidi、vertical writing、float、ruby、分页、跨 run 连字/shaping、完整 inline fragmentation decoration 以及所有 positioned-inline 百分比/跨行 containing-block 组合仍未覆盖；Flex text baseline 尚未接通 Taffy baseline 回调。normal line-height 与 sub/super 采用当前字体/UA 策略，不保证跨平台像素一致。
 
 [^selector-subset]: 当前支持 type、ID、class、universal、compound/list、descendant/child 及表中七种状态，按标准三元组比较 specificity。未支持 attribute、sibling、其他 pseudo selector、namespace 或 Shadow DOM；这不是完整 CSS。Style IR 保持 version 1，但旧 class-string selector 产物须重新编译，不提供兼容兜底。
 
@@ -328,7 +334,7 @@
 
 [^outline]: Cue 以独立 geometry 在 border box 外绘制 `solid` outline，支持 px 宽度及 px `outline-offset`；outline 不参与布局。`auto`、`dashed`、`dotted` 等其他合法值尚未接入。
 
-[^flex-engine]: Cue 把当前 Style IR 映射到 Taffy 2.0.3，而不是浏览器 layout engine。没有 intrinsic measurement、inline/text layout、writing mode 和 Web Platform conformance 结果，因此只声明表中列出的 box-level 子集。
+[^flex-engine]: Cue 把当前 Style IR 映射到 Taffy 2.0.3；文本与图片通过 intrinsic measurement 参与布局，inline 由 Cue 负责。尚无完整 writing mode / Web Platform conformance 结果，因此只声明表中明确列出的子集。
 
 [^flex-basis]: `flex-basis` 暂只保留 `px`、`%`、`auto`；`content`、intrinsic keywords 和依赖内容测量的标准行为未实现。若 `flex` shorthand 的 basis 超出该子集，当前会忽略整项 shorthand，且尚无 diagnostic。
 
@@ -336,13 +342,13 @@
 
 [^alignment-values]: Cue 保留标准 CSS 名称和值，但目前只接通表中列出的 Box Alignment 子集；`safe` / `unsafe`、self-position 扩展值与完整 fallback 规则尚未实现。
 
-[^baseline]: `baseline` / `first baseline` 能被 parser 接受并映射到 Taffy，但 Cue 没有 glyph、line box 或 custom element baseline 测量，所以当前只对无文本 box 使用 Taffy fallback，不能宣称完整 Web CSS baseline alignment。
+[^baseline]: Inline 已有字体与 line-box baseline，但当前 Taffy JS measure 契约只返回宽高，尚未接通 Flex item 的文本基线回调。Flex 的 baseline / first baseline 仍使用 Taffy fallback，不能宣称完整 Web CSS text baseline alignment。
 
-[^text-raster]: 当前是过渡性的 Web Preview 文本路径：只处理没有 Element 子节点的纯文本 Element，将整块文字用 Canvas 2D 动态栅格化为 RGBA 纹理，再由 Cocos GFX 绘制一个 quad。字体与颜色使用标准 CSS 属性名和继承语义；没有混合 inline formatting context、glyph atlas、SDF 或 Native 支持声明。文本、排版宽度或继承样式变化时会重建该文本块纹理。
+[^text-raster]: 当前是过渡性的 Web Preview 文本路径：inline layout 生成每行文本 run，再用 Canvas 2D 动态栅格化为 RGBA 纹理，由 Cocos GFX 绘制 quad。字体与颜色使用标准 CSS 属性名和继承语义；没有 glyph atlas、SDF 或 Native 支持声明。纹理缓存按绘制槽管理，一个元素可产生多个 run；文本或字体样式变化时重建对应纹理。
 
 [^text-align]: Cue 尚未实现 CSS `direction`，当前使用 Web CSS 的默认 LTR 方向，因此 `start` 等价于 `left`、`end` 等价于 `right`；物理值 `left`、`right` 与方向无关。
 
-[^text-wrap]: Cue 先按 `white-space` 处理 segment break、可折叠空白和 tab，再用 `css-line-break` 的 CSS Text Level 3 tailoring / Unicode UAX #14 换行机会配合 Canvas 实测宽度选择 soft wrap。当前只覆盖纯文本 Element；尚无 `lang` / `line-break` tailoring。保留模式下的 tab 使用 CSS 初始 `tab-size: 8` 的像素停靠近似，`pre-wrap` 的行尾 hanging-space 几何也尚未单独建模，因此这两项不能视为完整浏览器一致性。
+[^text-wrap]: Cue 跨文本 run 处理 segment break 与可折叠空白，再用 css-line-break 的换行机会配合 Canvas 宽度选择 soft wrap。保留 tab 使用初始 tab-size:8 的像素停靠，pre-wrap 的行尾空白不计入对齐宽度；尚无 lang / line-break tailoring、break-spaces 与完整 Unicode conformance。可编辑输入框仍保留独立的 caret/selection 排版路径，需持续同步回归。
 
 [^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时拉伸到 content box。尚无 URL、data URL、`object-fit`、裁剪或 nine-slice 语义。
 

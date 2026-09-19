@@ -12,7 +12,6 @@ import {
   CueOverflow,
   CuePointerEvents,
   CuePosition,
-  CueTextAlign,
   type CueColor,
   type CueDimension,
   type CueLengthPercentage,
@@ -47,17 +46,21 @@ import {
   getCueImageSource,
 } from '../element/cue-image-element.js';
 import { Text } from '../element/text.js';
+import { BrElement } from '../element/br-element.js';
+import { layoutCueInline, type CueInlineBox, type CueInlineItem, type CueInlineLayout } from '../text/layout-cue-inline.js';
 import type { CueHitRegion, CueHitShape } from '../input/cue-hit-region.js';
 import {
   computeCueElementStyle,
+  createInitialCueElementStyle,
   type ComputedCueElementStyle,
   type ComputedCueTextStyle,
   initialCueTextStyle,
 } from '../style/compute-cue-element-style.js';
-import type { CueTextLayout } from '../text/layout-cue-text.js';
+import type { CueFontMetrics, CueTextLayout } from '../text/layout-cue-text.js';
 import {
   createCueElementTransform,
   identityCueAffineTransform,
+  multiplyCueAffineTransforms,
   type CueAffineTransform,
 } from './cue-affine-transform.js';
 
@@ -197,6 +200,7 @@ export type CueBackgroundSourceLookup = (
 
 export interface CueTextMeasurer {
   readonly fontRevision?: number;
+  metrics(style: ComputedCueTextStyle): CueFontMetrics;
   layout(
     text: string,
     style: ComputedCueTextStyle,
@@ -205,6 +209,20 @@ export interface CueTextMeasurer {
 }
 
 interface CueLayoutRecord {
+  tree: TaffyTree;
+  inlineAncestors?: Array<CueInlineBox<CueLayoutRecord>> | undefined;
+  paintOffset?: Point<number>;
+  inlineContainingBox?: CueInlineBox<CueLayoutRecord>;
+  absolutePortals?: CueLayoutRecord[];
+  anonymous?: boolean;
+  inline?: {
+    box: CueInlineBox<CueLayoutRecord>;
+    items: Array<CueInlineItem<CueLayoutRecord>>;
+    layout: (width?: number, height?: number) => CueInlineLayout<CueLayoutRecord>;
+  } | undefined;
+  inlineLayout?: CueInlineLayout<CueLayoutRecord> | undefined;
+  fragment?: { x: number; y: number; width: number; height: number };
+  preparedText?: CuePaintText;
   children: CueLayoutRecord[];
   element: CueElement;
   layoutChildren: bigint[];
@@ -215,13 +233,19 @@ interface CueLayoutRecord {
   staticPositionNode?: bigint;
   style: ComputedCueElementStyle;
   image?: SpriteFrame;
-  text?: string;
 }
 
 interface CueTextLayoutContext {
   kind: CueIntrinsicContentKind.text;
-  style: ComputedCueTextStyle;
-  text: string;
+  layout: (width?: number, height?: number) => CueInlineLayout<CueLayoutRecord>;
+}
+
+interface CueLayoutEnvironment {
+  styleSheets: readonly CueStyleSheet[];
+  imageSourceLookup: CueImageSourceLookup;
+  textMeasurer: CueTextMeasurer;
+  trees: TaffyTree[];
+  absolutePortals: Array<{ record: CueLayoutRecord; parent: CueLayoutRecord; containingBlock: CueLayoutRecord | undefined }>;
 }
 
 interface CueImageLayoutContext {
@@ -280,6 +304,8 @@ const boxSizingByCueValue: Record<CueBoxSizing, BoxSizing> = {
 const displayByCueValue: Record<CueDisplay, Display> = {
   [CueDisplay.block]: Display.Block,
   [CueDisplay.flex]: Display.Flex,
+  [CueDisplay.inline]: Display.Block,
+  [CueDisplay.inlineBlock]: Display.Block,
 };
 const flexDirectionByCueValue: Record<CueFlexDirection, FlexDirection> = {
   [CueFlexDirection.column]: FlexDirection.Column,
@@ -331,6 +357,7 @@ export function createCuePaintList(
   }
 
   const tree = new TaffyTree();
+  const environment: CueLayoutEnvironment = { styleSheets, imageSourceLookup, textMeasurer, trees: [tree], absolutePortals: [] };
   try {
     const rootText = root.children
       .filter((node) => node instanceof Text)
@@ -343,9 +370,8 @@ export function createCuePaintList(
       ? [createLayoutRecord(
         tree,
         node,
-        styleSheets,
         initialCueTextStyle,
-        imageSourceLookup,
+        environment,
       )]
       : []);
     const rootStyle = new Style(viewport === undefined ? {} : { size: viewport });
@@ -361,12 +387,14 @@ export function createCuePaintList(
     const layoutChildren = children.map((child) => child.node);
     const absoluteRecords: CueLayoutRecord[] = [];
     connectLayoutChildren(tree, children, undefined, undefined, layoutChildren, absoluteRecords);
+    const portals = connectAbsolutePortals(tree, environment, layoutChildren, absoluteRecords);
+    const positionedRecords = [...children, ...portals];
     tree.setChildren(rootNode, layoutChildren);
     const availableSpace = viewport ?? {
       height: 'max-content' as const,
       width: 'max-content' as const,
     };
-    const measureFunction = createMeasureFunction(textMeasurer);
+    const measureFunction = createMeasureFunction();
     tree.computeLayoutWithMeasure(
       rootNode,
       availableSpace,
@@ -376,7 +404,7 @@ export function createCuePaintList(
       updateStaticPositionPlaceholders(tree, absoluteRecords);
       tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
     }
-    updateLayoutPositions(tree, children);
+    updateLayoutPositions(tree, positionedRecords);
     for (const record of absoluteRecords) {
       if (
         record.style.width !== 'auto'
@@ -386,7 +414,7 @@ export function createCuePaintList(
       }
       const layout = tree.getLayout(record.node);
       const containingLayout = tree.getLayout(record.layoutParent?.node ?? rootNode);
-      const sizingStyle = createTaffyStyle(record.element, record.style);
+      const sizingStyle = createTaffyStyle(record.style);
       try {
         const containingWidth = containingLayout.width - containingLayout.borderLeft - containingLayout.borderRight;
         const containingHeight = containingLayout.height - containingLayout.borderTop - containingLayout.borderBottom;
@@ -433,7 +461,7 @@ export function createCuePaintList(
         const parentNode = record.layoutParent?.node ?? rootNode;
         tree.removeChild(parentNode, record.node);
         const measurementNode = tree.newWithChildren(measurementContainerStyle, [record.node]);
-        const finalStyle = createTaffyStyle(record.element, record.style);
+        const finalStyle = createTaffyStyle(record.style);
         try {
           tree.computeLayoutWithMeasure(measurementNode, { height: containingHeight, width: availableWidth }, measureFunction);
           const intrinsicLayout = tree.getLayout(record.node);
@@ -462,7 +490,7 @@ export function createCuePaintList(
       tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
       updateStaticPositionPlaceholders(tree, absoluteRecords);
       tree.computeLayoutWithMeasure(rootNode, availableSpace, measureFunction);
-      updateLayoutPositions(tree, children);
+      updateLayoutPositions(tree, positionedRecords);
     }
 
     const paintList: CuePaintList = {
@@ -493,99 +521,200 @@ export function createCuePaintList(
     }
     return paintList;
   } finally {
-    tree.free();
+    for (const layoutTree of environment.trees) {
+      layoutTree.free();
+    }
   }
 }
 
 function createLayoutRecord(
   tree: TaffyTree,
   element: CueElement,
-  styleSheets: readonly CueStyleSheet[],
   inheritedTextStyle: ComputedCueTextStyle,
-  imageSourceLookup: CueImageSourceLookup,
+  environment: CueLayoutEnvironment,
   isFlexItem = false,
+  computedStyle?: ComputedCueElementStyle,
+  containingBlock?: CueLayoutRecord,
 ): CueLayoutRecord {
-  const style = computeCueElementStyle(
-    element,
-    styleSheets,
-    inheritedTextStyle,
-  );
-  if (style.display === undefined && (style.position === CuePosition.absolute || isFlexItem)) {
+  const style = computedStyle ?? computeCueElementStyle(element, environment.styleSheets, inheritedTextStyle);
+  if ((style.display === CueDisplay.inline || style.display === CueDisplay.inlineBlock) && (style.position === CuePosition.absolute || isFlexItem)) {
     style.display = CueDisplay.block;
   }
-  const elementChildren = element.children.filter(
-    (node) => node instanceof CueElement,
-  );
-  const directText = element.children
-    .filter((node) => node instanceof Text)
-    .map((node) => node.data)
-    .join('');
+  const record: CueLayoutRecord = {
+    tree, children: [], element, layoutChildren: [], layoutParent: undefined,
+    node: 0n, parent: undefined, position: { x: 0, y: 0 }, style,
+  };
   if (
     element instanceof CueImageElement
-    && (elementChildren.length > 0 || hasNonCollapsibleText(directText))
+    && element.children.some((child) => child instanceof CueElement || (child instanceof Text && hasNonCollapsibleText(child.data)))
   ) {
     throw new Error('<cue-image> is a replaced element and cannot have children.');
   }
-  if (elementChildren.length > 0 && hasNonCollapsibleText(directText)) {
-    throw new Error(
-      `Mixed text and element children in <${element.tagName}> require an inline formatting context, which is not supported yet.`,
-    );
-  }
-  const children = elementChildren.map((child) => createLayoutRecord(
-    tree,
-    child,
-    styleSheets,
-    style,
-    imageSourceLookup,
-    style.display === CueDisplay.flex,
-  ));
-  if (style.display === CueDisplay.flex) {
-    children.sort((left, right) => left.style.order - right.style.order);
-  }
-  const text = !(element instanceof CueImageElement)
-    && elementChildren.length === 0
-    && directText.length > 0
-    ? directText
-    : undefined;
   const image = element instanceof CueImageElement
-    ? imageForSource(element, imageSourceLookup)
+    ? imageForSource(element, environment.imageSourceLookup)
     : undefined;
-  const taffyStyle = createTaffyStyle(element, style);
-  let node: bigint;
+  if (image) record.image = image;
+  const rootBox: CueInlineBox<CueLayoutRecord> = { value: record, style };
+  const childContainingBlock = style.position !== CuePosition.static || style.transform.length > 0 ? record : containingBlock;
+  let items: Array<CueInlineItem<CueLayoutRecord>> = [];
+  const attachInline = (target: CueLayoutRecord, content: Array<CueInlineItem<CueLayoutRecord>>): void => {
+    target.inline = { box: rootBox, items: content, layout: (width, height) => {
+      const containingHeight = height ?? (typeof style.height === 'number'
+        ? Math.max(typeof style.minHeight === 'number' ? style.minHeight : 0, Math.min(typeof style.maxHeight === 'number' ? style.maxHeight : Infinity, style.height))
+        - (style.boxSizing === CueBoxSizing.borderBox ? pixelLength(style.paddingTop, width ?? 0) + pixelLength(style.paddingBottom, width ?? 0) + borderWidth(style.borderTopStyle, style.borderTopWidth) + borderWidth(style.borderBottomStyle, style.borderBottomWidth) : 0)
+        : undefined);
+      return layoutCueInline(rootBox, content, environment.textMeasurer, width, containingHeight);
+    } };
+  };
+  const flush = (): void => {
+    if (items.length === 0) {
+      return;
+    }
+    const anonymousStyle = createInitialCueElementStyle(style);
+    anonymousStyle.display = CueDisplay.block;
+    const anonymous: CueLayoutRecord = {
+      tree, element, style: anonymousStyle, anonymous: true, node: 0n, children: [], layoutChildren: [],
+      layoutParent: undefined, parent: undefined, position: { x: 0, y: 0 },
+    };
+    attachInline(anonymous, items);
+    const nodeStyle = createTaffyStyle(anonymousStyle);
+    anonymous.node = tree.newLeafWithContext(nodeStyle, { kind: CueIntrinsicContentKind.text, layout: anonymous.inline!.layout } satisfies CueTextLayoutContext);
+    nodeStyle.free();
+    record.children.push(anonymous);
+    items = [];
+  };
+  const collect = (parent: CueElement, parentBox: CueInlineBox<CueLayoutRecord>): void => {
+    for (const child of parent.children) {
+      if (child instanceof Text) {
+        items.push({ kind: 'text', text: child.data, box: parentBox });
+      } else if (child instanceof CueElement) {
+        const childStyle = computeCueElementStyle(child, environment.styleSheets, parentBox.style);
+        if (childStyle.position === CuePosition.absolute || childStyle.display === CueDisplay.block || childStyle.display === CueDisplay.flex) {
+          if (childStyle.position !== CuePosition.absolute) flush();
+          const childTree = childStyle.position === CuePosition.absolute ? childContainingBlock?.tree ?? environment.trees[0]! : tree;
+          const childRecord = createLayoutRecord(childTree, child, parentBox.style, environment, false, childStyle, childContainingBlock);
+          if (childTree !== tree) environment.absolutePortals.push({ record: childRecord, parent: record, containingBlock: childContainingBlock });
+          childRecord.inlineAncestors = [];
+          for (let ancestor = parentBox; ancestor !== rootBox; ancestor = ancestor.parent!) {
+            childRecord.inlineAncestors.unshift(ancestor);
+            if (!childRecord.inlineContainingBox && ancestor.style.position !== CuePosition.static) childRecord.inlineContainingBox = ancestor;
+          }
+          if (childStyle.position === CuePosition.absolute) items.push({ kind: 'out-of-flow', box: { value: childRecord, style: parentBox.style, parent: parentBox } });
+          record.children.push(childRecord);
+        } else {
+          const inlineRecord: CueLayoutRecord = {
+            tree, element: child, style: childStyle, node: 0n, children: [], layoutChildren: [],
+            layoutParent: undefined, parent: record, position: { x: 0, y: 0 },
+          };
+          const box: CueInlineBox<CueLayoutRecord> = { value: inlineRecord, style: childStyle, parent: parentBox };
+          if (child instanceof BrElement) {
+            items.push({ kind: 'break', box });
+          } else if (childStyle.display === CueDisplay.inlineBlock || child instanceof CueImageElement) {
+            const atomicTree = new TaffyTree();
+            environment.trees.push(atomicTree);
+            const atomic = createLayoutRecord(atomicTree, child, parentBox.style, environment, false, childStyle, childContainingBlock);
+            box.value = atomic;
+            const containerStyle = new Style({ alignItems: AlignItems.FlexStart });
+            const container = atomicTree.newWithChildren(containerStyle, [atomic.node]);
+            containerStyle.free();
+            const absolute: CueLayoutRecord[] = [];
+            const children = [atomic.node];
+            connectLayoutChildren(atomicTree, [atomic], undefined, undefined, children, absolute);
+            const portals = connectAbsolutePortals(atomicTree, environment, children, absolute);
+            atomicTree.setChildren(container, children);
+            items.push({ kind: 'atomic', box, measure: (width, height) => {
+              const sizing = new Style({ alignItems: AlignItems.FlexStart, size: { width: width ?? 'auto', height: height ?? 'auto' } });
+              atomicTree.setStyle(container, sizing);
+              sizing.free();
+              atomicTree.computeLayoutWithMeasure(container, { width: width ?? 'max-content', height: 'max-content' }, createMeasureFunction());
+              updateLayoutPositions(atomicTree, [atomic, ...portals]);
+              const layout = atomicTree.getLayout(atomic.node);
+              try {
+                const baseline = lastInlineBaseline(atomic);
+                return {
+                  width: layout.width + layout.marginLeft + layout.marginRight,
+                  height: layout.height + layout.marginTop + layout.marginBottom,
+                  baseline: childStyle.overflowX !== CueOverflow.visible || childStyle.overflowY !== CueOverflow.visible || baseline === undefined
+                    ? layout.height + layout.marginTop + layout.marginBottom
+                    : layout.marginTop + baseline,
+                };
+              } finally {
+                layout.free();
+              }
+            } });
+          } else {
+            items.push({ kind: 'start', box });
+            collect(child, box);
+            items.push({ kind: 'end', box });
+          }
+        }
+      }
+    }
+  };
+  if (!(element instanceof CueImageElement)) {
+    if (style.display === CueDisplay.flex) {
+      for (const child of element.children) {
+        if (child instanceof Text) {
+          items.push({ kind: 'text', box: rootBox, text: child.data });
+        } else if (child instanceof CueElement) {
+          if (items.some((item) => item.kind === 'text' && hasNonCollapsibleText(item.text))) {
+            flush();
+          }
+          items = [];
+          record.children.push(createLayoutRecord(tree, child, style, environment, true, undefined, childContainingBlock));
+        }
+      }
+      if (items.some((item) => item.kind === 'text' && hasNonCollapsibleText(item.text))) {
+        flush();
+      }
+      record.children.sort((left, right) => left.style.order - right.style.order);
+    } else {
+      collect(element, rootBox);
+      if (record.children.length === 0 && items.length > 0 && !environment.absolutePortals.some((portal) => portal.containingBlock === record)) {
+        attachInline(record, items);
+      } else {
+        flush();
+      }
+    }
+  }
+  const taffyStyle = createTaffyStyle(style);
   try {
     if (image) {
-      node = tree.newLeafWithContext(taffyStyle, {
+      record.node = tree.newLeafWithContext(taffyStyle, {
         height: image.rect.height,
         kind: CueIntrinsicContentKind.image,
         width: image.rect.width,
       } satisfies CueImageLayoutContext);
-    } else if (text !== undefined) {
-      node = tree.newLeafWithContext(taffyStyle, {
-        kind: CueIntrinsicContentKind.text,
-        style,
-        text,
-      } satisfies CueTextLayoutContext);
+    } else if (record.inline) {
+      record.node = tree.newLeafWithContext(taffyStyle, { kind: CueIntrinsicContentKind.text, layout: record.inline.layout } satisfies CueTextLayoutContext);
     } else {
-      node = tree.newWithChildren(
+      record.node = tree.newWithChildren(
         taffyStyle,
-        children.map((child) => child.node),
+        record.children.filter((child) => child.tree === tree).map((child) => child.node),
       );
     }
   } finally {
     taffyStyle.free();
   }
-  return {
-    children,
-    element,
-    layoutChildren: children.map((child) => child.node),
-    layoutParent: undefined,
-    node,
-    parent: undefined,
-    position: { x: 0, y: 0 },
-    style,
-    ...(image === undefined ? {} : { image }),
-    ...(text === undefined ? {} : { text }),
-  };
+  record.layoutChildren = record.children.filter((child) => child.tree === tree).map((child) => child.node);
+  return record;
+}
+
+function lastInlineBaseline(record: CueLayoutRecord): number | undefined {
+  const layout = record.tree.getLayout(record.node);
+  try {
+    if (record.inlineLayout && record.inlineLayout.height > 0) {
+      return layout.borderTop + layout.paddingTop + record.inlineLayout.lastBaseline;
+    }
+    const last = [...record.children].reverse().find((child) => child.style.position !== CuePosition.absolute);
+    if (last) {
+      const baseline = lastInlineBaseline(last);
+      return baseline === undefined ? undefined : last.position.y - record.position.y + baseline;
+    }
+    return undefined;
+  } finally {
+    layout.free();
+  }
 }
 
 function connectLayoutChildren(
@@ -597,6 +726,7 @@ function connectLayoutChildren(
   absoluteRecords: CueLayoutRecord[],
 ): void {
   for (const record of children) {
+    if (record.tree !== tree) continue;
     record.parent = parent;
     record.layoutParent = parent;
     if (record.style.position === CuePosition.absolute) {
@@ -643,12 +773,16 @@ function updateLayoutPositions(
   records: readonly CueLayoutRecord[],
 ): void {
   for (const record of records) {
+    if (record.tree !== tree) continue;
     const layout = tree.getLayout(record.node);
     try {
       record.position = {
         x: (record.layoutParent?.position.x ?? 0) + layout.x,
         y: (record.layoutParent?.position.y ?? 0) + layout.y,
       };
+      if (record.inline) {
+        record.inlineLayout = record.inline.layout(Math.max(0, layout.width - layout.paddingLeft - layout.paddingRight - layout.borderLeft - layout.borderRight), record.style.height === 'auto' ? undefined : Math.max(0, layout.height - layout.paddingTop - layout.paddingBottom - layout.borderTop - layout.borderBottom));
+      }
     } finally {
       layout.free();
     }
@@ -742,9 +876,7 @@ function hasNonCollapsibleText(text: string): boolean {
   return /[^ \t\r\n\f]/u.test(text);
 }
 
-function createMeasureFunction(
-  textMeasurer: CueTextMeasurer,
-): MeasureFunction {
+function createMeasureFunction(): MeasureFunction {
   return (
     knownDimensions,
     availableSpace,
@@ -765,16 +897,18 @@ function createMeasureFunction(
         knownDimensions.height,
       );
     }
-    const textLayout = textMeasurer.layout(
-      intrinsicContext.text,
-      intrinsicContext.style,
+    const width = textAvailableWidth(availableSpace.width);
+    const textLayout = intrinsicContext.layout(
       // Taffy passes border-box known dimensions but content-box available space.
       // It applies known dimensions itself after measuring the intrinsic content.
-      textAvailableWidth(availableSpace.width),
+      width,
+      knownDimensions.height,
     );
     return {
       height: textLayout.height,
-      width: textLayout.width,
+      // A shrink-to-fit box uses the available width clamped by its intrinsic
+      // min/max sizes, not the advance of the longest already-wrapped line.
+      width: width === undefined ? textLayout.width : Math.max(intrinsicContext.layout(0).width, Math.min(width, intrinsicContext.layout().width)),
     };
   };
 }
@@ -822,14 +956,8 @@ function textAvailableWidth(
 }
 
 function createTaffyStyle(
-  element: CueElement,
   style: ComputedCueElementStyle,
 ): Style {
-  if (style.display === undefined) {
-    throw new Error(
-      `CSS initial value "display: inline" is not supported for <${element.tagName}> yet. Declare "display: block" or "display: flex".`,
-    );
-  }
   const properties: StylePropertyValues = {
     border: {
       bottom: borderWidth(style.borderBottomStyle, style.borderBottomWidth),
@@ -838,7 +966,7 @@ function createTaffyStyle(
       top: borderWidth(style.borderTopStyle, style.borderTopWidth),
     },
     boxSizing: boxSizingByCueValue[style.boxSizing],
-    display: displayByCueValue[style.display],
+    display: displayByCueValue[style.display ?? CueDisplay.inline],
     flexBasis: toTaffyDimension(style.flexBasis),
     flexDirection: flexDirectionByCueValue[style.flexDirection],
     flexGrow: style.flexGrow,
@@ -933,12 +1061,39 @@ function appendPaintCommands(
   paintingTopLayer = false,
 ): void {
   for (const record of records) {
+    if (record.inlineAncestors?.length) {
+      let inheritedTransform = parentTransform;
+      let inheritedOpacity = parentOpacity;
+      for (const ancestor of record.inlineAncestors) {
+        const offset = inlineRelativeOffset(ancestor);
+        inheritedTransform = multiplyCueAffineTransforms(inheritedTransform, [1, 0, 0, 1, offset.x, offset.y]);
+        inheritedOpacity *= ancestor.style.cueOpacity;
+      }
+      appendPaintCommands(tree, [{ ...record, inlineAncestors: undefined }], textMeasurer, backgroundSourceLookup, inheritedTransform, clipDepth, inheritedOpacity, paintList, hitClips, topLayer, paintingTopLayer);
+      continue;
+    }
+    if (record.tree !== tree) {
+      appendPaintCommands(record.tree, [record], textMeasurer, backgroundSourceLookup, parentTransform, clipDepth, parentOpacity, paintList, hitClips, topLayer, paintingTopLayer);
+      continue;
+    }
+    if (record.preparedText) {
+      if (record.preparedText.style.color.alpha > 0 && parentOpacity > 0) {
+        paintList.commands.push({ kind: CuePaintCommandKind.text, paint: { ...record.preparedText, opacity: parentOpacity, clipDepth, transform: parentTransform } });
+      }
+      continue;
+    }
     if (!paintingTopLayer && cueTopLayerElements.has(record.element)) {
       topLayer.push(() => appendPaintCommands(tree, [record], textMeasurer, backgroundSourceLookup, parentTransform, 0, parentOpacity, paintList, [], topLayer, true));
       continue;
     }
     const opacity = parentOpacity * record.style.cueOpacity;
-    const layout = tree.getLayout(record.node);
+    const layout = record.fragment
+      ? {
+        ...record.fragment,
+        borderLeft: 0, borderRight: 0, borderTop: 0, borderBottom: 0,
+        paddingLeft: 0, paddingRight: 0, paddingTop: 0, paddingBottom: 0,
+      }
+      : tree.getLayout(record.node);
     let x: number;
     let y: number;
     let width: number;
@@ -948,12 +1103,11 @@ function appendPaintCommands(
     let contentWidth: number;
     let contentHeight: number;
     try {
-      const size = layout.size as Size<number>;
-      x = record.position.x;
-      y = record.position.y;
-      width = size.width;
-      height = size.height;
-      setCueElementClientSize(
+      x = record.fragment?.x ?? record.position.x;
+      y = record.fragment?.y ?? record.position.y;
+      width = layout.width;
+      height = layout.height;
+      if (!record.anonymous && !record.fragment) setCueElementClientSize(
         record.element,
         Math.max(0, width - layout.borderLeft - layout.borderRight),
         Math.max(0, height - layout.borderTop - layout.borderBottom),
@@ -976,13 +1130,18 @@ function appendPaintCommands(
         - layout.paddingTop
         - layout.paddingBottom,
       );
-      setCueElementContentBox(record.element, { x: layout.paddingLeft, y: layout.paddingTop, width: contentWidth, height: contentHeight });
+      if (!record.anonymous && !record.fragment) setCueElementContentBox(record.element, { x: layout.paddingLeft, y: layout.paddingTop, width: contentWidth, height: contentHeight });
     } finally {
-      layout.free();
+      if ('free' in layout) layout.free();
+    }
+
+    if (record.anonymous) {
+      appendPaintCommands(tree, inlinePaintRecords(record, contentX, contentY), textMeasurer, backgroundSourceLookup, parentTransform, clipDepth, parentOpacity, paintList, hitClips, topLayer);
+      continue;
     }
 
     const transform = createCueElementTransform(
-      parentTransform,
+      record.paintOffset ? multiplyCueAffineTransforms(parentTransform, [1, 0, 0, 1, record.paintOffset.x, record.paintOffset.y]) : parentTransform,
       record.style.transform,
       record.style.transformOrigin,
       x,
@@ -1052,6 +1211,7 @@ function appendPaintCommands(
       : hitClips;
     if (opacity === 0) {
       // Opacity affects painting, not the CSS pointer target or its descendants.
+      appendPaintCommands(tree, inlinePaintRecords(record, contentX, contentY), textMeasurer, backgroundSourceLookup, transform, contentClipDepth, opacity, paintList, contentHitClips, topLayer);
       appendPaintCommands(
         tree,
         paintOrderedChildren(record.children, record.style.display === CueDisplay.flex),
@@ -1279,39 +1439,7 @@ function appendPaintCommands(
         },
       });
     }
-    if (record.text !== undefined && record.style.color.alpha > 0) {
-      const textLayout = textMeasurer.layout(
-        record.text,
-        record.style,
-        contentWidth,
-      );
-      const paintGeometry = createTextPaintGeometry(
-        textLayout,
-        record.style.textAlign,
-        contentWidth,
-      );
-      if (
-        paintGeometry.width > 0
-        && textLayout.height > 0
-        && paintGeometry.lines.some((line) => line.text.length > 0)
-      ) {
-        paintList.commands.push({
-          kind: CuePaintCommandKind.text,
-          paint: {
-            element: record.element,
-            clipDepth: contentClipDepth,
-            height: textLayout.height,
-            opacity,
-            lines: paintGeometry.lines,
-            style: record.style,
-            transform,
-            width: paintGeometry.width,
-            x: contentX + paintGeometry.x,
-            y: -contentY,
-          },
-        });
-      }
-    }
+    appendPaintCommands(tree, inlinePaintRecords(record, contentX, contentY), textMeasurer, backgroundSourceLookup, transform, contentClipDepth, opacity, paintList, contentHitClips, topLayer);
     appendPaintCommands(
       tree,
       paintOrderedChildren(record.children, record.style.display === CueDisplay.flex),
@@ -1330,6 +1458,130 @@ function appendPaintCommands(
         paint: clipRect,
       });
     }
+  }
+}
+
+function inlinePaintRecords(record: CueLayoutRecord, x: number, y: number): CueLayoutRecord[] {
+  const fragments = record.inlineLayout?.fragments;
+  if (!fragments) {
+    return [];
+  }
+  const output: CueLayoutRecord[] = [];
+  const decorations = new Map<number, Map<CueInlineBox<CueLayoutRecord>, CueLayoutRecord>>();
+  for (const fragment of fragments) {
+    if (fragment.text !== undefined || fragment.atomic || fragment.outOfFlow) continue;
+    let line = decorations.get(fragment.line);
+    if (!line) {
+      line = new Map();
+      decorations.set(fragment.line, line);
+    }
+    const style = { ...fragment.box.style, transform: [], overflowX: CueOverflow.visible, overflowY: CueOverflow.visible, borderLeftWidth: fragment.first ? fragment.box.style.borderLeftWidth : 0, borderRightWidth: fragment.last ? fragment.box.style.borderRightWidth : 0 };
+    line.set(fragment.box, {
+      ...fragment.box.value, style, children: [], inline: undefined, inlineLayout: undefined,
+      paintOffset: inlineRelativeOffset(fragment.box),
+      fragment: { x: x + fragment.x, y: y + fragment.y, width: fragment.width, height: fragment.height },
+    });
+  }
+  const attached = new Set<CueLayoutRecord>();
+  const parentFor = (box: CueInlineBox<CueLayoutRecord> | undefined, line: number): CueLayoutRecord[] => {
+    const parent = box ? decorations.get(line)?.get(box) : undefined;
+    if (!parent || !box) return output;
+    if (!attached.has(parent)) {
+      parentFor(box.parent, line).push(parent);
+      attached.add(parent);
+    }
+    return parent.children;
+  };
+  const attach = (child: CueLayoutRecord, box: CueInlineBox<CueLayoutRecord> | undefined, line: number): void => {
+    parentFor(box, line).push(child);
+  };
+  for (const fragment of fragments) {
+    const value = fragment.box.value;
+    if (fragment.outOfFlow) {
+      const layout = value.tree.getLayout(value.node);
+      try {
+        const containing = fragments.filter((part) => part.box === value.inlineContainingBox && part.text === undefined && !part.atomic && !part.outOfFlow);
+        const first = containing[0];
+        const last = containing.at(-1);
+        const cbX = first ? x + first.x : 0;
+        const cbY = first ? y + first.y : 0;
+        const cbWidth = first && last ? last.x + last.width - first.x : 0;
+        const cbHeight = first && last ? last.y + last.height - first.y : 0;
+        const targetX = value.style.left === 'auto' && value.style.right === 'auto'
+          ? x + fragment.x + layout.marginLeft
+          : first ? cbX + (value.style.left !== 'auto' ? pixelLength(value.style.left, cbWidth) + layout.marginLeft : value.style.right !== 'auto' ? cbWidth - pixelLength(value.style.right, cbWidth) - layout.width - layout.marginRight : 0) : value.position.x;
+        const targetY = value.style.top === 'auto' && value.style.bottom === 'auto'
+          ? y + fragment.y + layout.marginTop
+          : first ? cbY + (value.style.top !== 'auto' ? pixelLength(value.style.top, cbHeight) + layout.marginTop : value.style.bottom !== 'auto' ? cbHeight - pixelLength(value.style.bottom, cbHeight) - layout.height - layout.marginBottom : 0) : value.position.y;
+        shiftLayoutPositions(value, targetX - value.position.x, targetY - value.position.y);
+      } finally {
+        layout.free();
+      }
+    } else if (fragment.atomic) {
+      const layout = value.tree.getLayout(value.node);
+      try {
+        shiftLayoutPositions(value, x + fragment.x + layout.marginLeft - value.position.x, y + fragment.y + layout.marginTop - value.position.y);
+      } finally {
+        layout.free();
+      }
+      attach(value, fragment.box.parent, fragment.line);
+    } else if (fragment.text !== undefined && fragment.width > 0) {
+      attach({
+        ...value, children: [], inline: undefined, inlineLayout: undefined, inlineAncestors: undefined,
+        preparedText: {
+          element: value.element, x: x + fragment.x, y: -(y + fragment.y), width: fragment.width, height: fragment.height,
+          lines: [{ text: fragment.text, x: 0 }], style: fragment.box.style,
+          opacity: 1, clipDepth: 0, transform: identityCueAffineTransform,
+        },
+      }, fragment.box, fragment.line);
+    }
+  }
+  for (const [line, boxes] of decorations) {
+    for (const box of boxes.keys()) parentFor(box, line);
+  }
+  return output;
+}
+
+function shiftLayoutPositions(record: CueLayoutRecord, x: number, y: number): void {
+  record.position.x += x;
+  record.position.y += y;
+  for (const child of record.children) {
+    if (child.tree === record.tree) shiftLayoutPositions(child, x, y);
+  }
+  for (const portal of record.absolutePortals ?? []) shiftLayoutPositions(portal, x, y);
+}
+
+function connectAbsolutePortals(tree: TaffyTree, environment: CueLayoutEnvironment, rootChildren: bigint[], absoluteRecords: CueLayoutRecord[]): CueLayoutRecord[] {
+  const records: CueLayoutRecord[] = [];
+  for (const { record, parent, containingBlock } of environment.absolutePortals) {
+    if (record.tree !== tree) continue;
+    record.parent = parent;
+    record.layoutParent = containingBlock;
+    if (containingBlock) (containingBlock.absolutePortals ??= []).push(record);
+    (containingBlock?.layoutChildren ?? rootChildren).push(record.node);
+    connectLayoutChildren(tree, record.children, record, record, rootChildren, absoluteRecords);
+    tree.setChildren(record.node, record.layoutChildren);
+    if (containingBlock) tree.setChildren(containingBlock.node, containingBlock.layoutChildren);
+    absoluteRecords.push(record);
+    records.push(record);
+  }
+  return records;
+}
+
+function inlineRelativeOffset(box: CueInlineBox<CueLayoutRecord>): Point<number> {
+  if (box.style.position !== CuePosition.relative) return { x: 0, y: 0 };
+  let root = box;
+  while (root.parent) root = root.parent;
+  const layout = root.value.tree.getLayout(root.value.node);
+  try {
+    const width = layout.width - layout.borderLeft - layout.borderRight - layout.paddingLeft - layout.paddingRight;
+    const height = layout.height - layout.borderTop - layout.borderBottom - layout.paddingTop - layout.paddingBottom;
+    return {
+      x: box.style.left !== 'auto' ? pixelLength(box.style.left, width) : box.style.right !== 'auto' ? -pixelLength(box.style.right, width) : 0,
+      y: box.style.top !== 'auto' ? pixelLength(box.style.top, height) : box.style.bottom !== 'auto' ? -pixelLength(box.style.bottom, height) : 0,
+    };
+  } finally {
+    layout.free();
   }
 }
 
@@ -1407,60 +1659,6 @@ function pixelLength(value: CueLengthPercentage, basis: number): number {
   return typeof value === 'number'
     ? value
     : Number.parseFloat(value) * basis / 100;
-}
-
-interface CueTextPaintGeometry {
-  lines: readonly CuePaintTextLine[];
-  width: number;
-  x: number;
-}
-
-function createTextPaintGeometry(
-  textLayout: CueTextLayout,
-  textAlign: CueTextAlign,
-  contentWidth: number,
-): CueTextPaintGeometry {
-  if (textLayout.lines.length === 0) {
-    return {
-      lines: [],
-      width: 0,
-      x: 0,
-    };
-  }
-  const lineOffsets = textLayout.lines.map((line) => textAlignmentOffset(
-    textAlign,
-    contentWidth,
-    line.width,
-  ));
-  const left = Math.min(...lineOffsets);
-  const right = Math.max(...textLayout.lines.map(
-    (line, index) => (lineOffsets[index] ?? 0) + line.width,
-  ));
-  return {
-    lines: textLayout.lines.map((line, index) => ({
-      text: line.text,
-      x: (lineOffsets[index] ?? 0) - left,
-    })),
-    width: Math.max(0, right - left),
-    x: left,
-  };
-}
-
-function textAlignmentOffset(
-  textAlign: CueTextAlign,
-  contentWidth: number,
-  textWidth: number,
-): number {
-  switch (textAlign) {
-  case CueTextAlign.center:
-    return (contentWidth - textWidth) / 2;
-  case CueTextAlign.end:
-  case CueTextAlign.right:
-    return contentWidth - textWidth;
-  case CueTextAlign.left:
-  case CueTextAlign.start:
-    return 0;
-  }
 }
 
 export {};

@@ -1,0 +1,195 @@
+/// inline-layout.cue.js
+
+import component from "./inline-layout.cue.script.js";
+import { render } from "./inline-layout.cue.template.js";
+import styleSheet from "./inline-layout.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/inline-layout.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// inline-layout.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// inline-layout.cue.template.js
+
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", { class: "paragraph" }, [
+    _createTextVNode("Before "),
+    _createElementVNode("span", { class: "emphasis" }, [
+      _createTextVNode("large "),
+      _createElementVNode("span", { class: "raised" }, "raised")
+    ]),
+    _createElementVNode("br"),
+    _createTextVNode("after "),
+    _createElementVNode("span", { class: "badge" }, "42"),
+    _createTextVNode(".")
+  ]))
+}
+
+/// inline-layout.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "display": "block",
+        "fontSize": 16,
+        "lineHeight": 24
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "paragraph"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "display": "inline",
+        "fontSize": 32,
+        "lineHeight": 38,
+        "verticalAlign": "baseline"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "emphasis"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "25%"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "raised"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "display": "inline-block",
+        "width": 40,
+        "height": 30,
+        "verticalAlign": "middle"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "badge"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "top"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "top"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "bottom"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "bottom"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "text-top"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "text-top"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "text-bottom"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "text-bottom"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "sub"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "sub"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": "super"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "super"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "verticalAlign": -5
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "offset"
+          }
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

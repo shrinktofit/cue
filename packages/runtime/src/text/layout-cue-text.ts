@@ -1,6 +1,18 @@
 import { CueWhiteSpace } from '@bsgames/cue-style-schema';
 import { LineBreaker } from 'css-line-break';
 
+export interface CueFontMetrics {
+  ascent: number;
+  descent: number;
+  xHeight: number;
+  lineHeight: number;
+}
+
+/** Place any indivisible font-space leading pixel below the baseline (as Blink does). */
+export function cueTextBaseline(metrics: CueFontMetrics): number {
+  return metrics.ascent + Math.floor((metrics.lineHeight - metrics.ascent - metrics.descent) / 2);
+}
+
 export interface CueTextLineLayout {
   text: string;
   width: number;

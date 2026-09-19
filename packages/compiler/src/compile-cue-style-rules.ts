@@ -20,6 +20,7 @@ import {
   CueSelectorCombinator,
   CueStyleProperty,
   CueTextAlign,
+  CueVerticalAlign,
   CueWhiteSpace,
   type CueSelector,
   type CueSelectorToken,
@@ -489,6 +490,17 @@ export function compileCueStyleDeclarations(
       }
       break;
     }
+    case 'vertical-align': {
+      const value = declaration.value.type === 'keyword'
+        ? Object.values(CueVerticalAlign).find((keyword) => keyword === declaration.value.value)
+        : readLengthPercentage(declaration.value.value);
+      if (value !== undefined) {
+        compiledDeclarations.verticalAlign = value;
+      } else {
+        errors.push(new SyntaxError('Cue vertical-align lengths must use px or percentages.'));
+      }
+      break;
+    }
     case 'transform': {
       const functions = readTransformFunctions(declaration.value);
       if (functions) {
@@ -829,15 +841,16 @@ function readDisplay(display: Display): CueDisplay | undefined {
   if (
     display.type !== 'pair'
     || display.isListItem
-    || display.outside !== 'block'
   ) {
     return undefined;
   }
   switch (display.inside.type) {
   case 'flex':
-    return CueDisplay.flex;
+    return display.outside === 'block' ? CueDisplay.flex : undefined;
   case 'flow':
-    return CueDisplay.block;
+    return display.outside === 'block' ? CueDisplay.block : CueDisplay.inline;
+  case 'flow-root':
+    return display.outside === 'inline' ? CueDisplay.inlineBlock : undefined;
   default:
     return undefined;
   }

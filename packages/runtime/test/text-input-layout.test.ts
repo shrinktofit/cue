@@ -37,6 +37,7 @@ const styleSheets: CueStyleSheet[] = [{
 }];
 
 const textMeasurer: CueTextMeasurer = {
+  metrics: (style) => ({ ascent: style.fontSize * 0.8, descent: style.fontSize * 0.2, xHeight: style.fontSize / 2, lineHeight: style.lineHeight === CueLineHeightKeyword.normal ? style.fontSize * 1.2 : style.lineHeight }),
   layout(text, style, availableWidth) {
     const lines = layoutCueTextLines(text, style.whiteSpace, availableWidth, (line) => line.length * style.fontSize / 2);
     return {

@@ -2,7 +2,7 @@
 
 状态：推进 Phase 0 剩余契约与验证 Gate；本轮六类原生控件已实现，保留用户验收与平台 Gate
 目标运行环境：Cocos Creator / Vortex 3.8
-文档日期：2026-09-18
+文档日期：2026-09-19
 
 ## 1. 项目定位
 
@@ -46,7 +46,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - 六类原生控件、真实 type/state selectors、低来源默认样式和各自 gallery 已交付，契约见 [`builtin-controls.md`](builtin-controls.md)。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/touch 回归已有通过记录；不据此关闭 OS IME、production、Native 或用户验收。
 - `.cue` 仍通过 CLI 预编译，尚未接入 OMS source compiler、依赖图、source map 与 HMR。
 - language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
-- Box/Flex 已有纯文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、inline/baseline 标准语义和 Grid。
+- 本轮水平 LTR inline formatting 已接入 line box、匿名 inline/block/flex item、span/br、inline-block 与 vertical-align，并补 Text Gallery；契约及剩余边界见 [`inline-layout.md`](inline-layout.md)。交付项保留至用户验收。
+- Box/Flex 已有文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、Flex text baseline 回调、完整 inline conformance 和 Grid。
 - Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
 - 本轮 Position / Style API / TTF 描边与 `game-ui-showcase/player-profile` 的交付状态见 implementation-status；后续仍需 production / Native、长期资源释放和视觉回归 Gate。功能计划的完成项待用户确认后再移除。
 

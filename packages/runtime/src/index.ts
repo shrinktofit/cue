@@ -11,6 +11,8 @@ export { CueImageElement } from './element/cue-image-element.js';
 export { CueNode } from './element/cue-node.js';
 export { CueRootElement } from './element/cue-root-element.js';
 export { DivElement } from './element/div-element.js';
+export { SpanElement } from './element/span-element.js';
+export { BrElement } from './element/br-element.js';
 export { globalElementRegistry } from './element/global-element-registry.js';
 export { Text } from './element/text.js';
 export { createCueRenderer } from './vue/create-cue-renderer.js';
@@ -52,6 +54,7 @@ export {
   CuePosition,
   CuePointerEvents,
   CueTextAlign,
+  CueVerticalAlign,
   CueWhiteSpace,
   type CueColor,
   type CueColorValue,

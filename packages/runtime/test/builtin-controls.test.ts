@@ -15,7 +15,10 @@ import { CuePointerEvent } from '../src/input/cue-pointer-event.js';
 
 describe('native control interaction', () => {
   beforeAll(initializeCueLayout);
-  const measurer: CueTextMeasurer = { layout: (text) => ({ width: text.length * 8, height: 16, lines: [{ text, width: text.length * 8 }] }) };
+  const measurer: CueTextMeasurer = {
+    metrics: () => ({ ascent: 12, descent: 4, xHeight: 8, lineHeight: 16 }),
+    layout: (text) => ({ width: text.length * 8, height: 16, lines: [{ text, width: text.length * 8 }] }),
+  };
 
   it.each([CueButtonElement, CueToggleElement, CueSliderElement, CueSelectElement, CueTextInputElement, CueNumberInputElement].map((Control) => ({ name: Control.name, Control })))('lays out $name without author CSS or flex blockification', ({ Control }) => {
     /// @case Each control is mounted in normal block flow after an offset spacer.
