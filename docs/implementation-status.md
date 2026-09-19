@@ -286,14 +286,15 @@
 | `vue-tsc` 的 `.cue` 检查 | ❌ | 尚未实现 |
 | CSS Profile completion / diagnostics | ❌ | 尚未实现 |
 | Custom Element editor metadata | ❌ | 尚未实现 |
-| Flex playground 可视化验收 | ✅ | 独立 examples 仓库以 Cocos UI 控件组合控制一个 live flex layout |
+| Flex playground 可视化验收 | ✅ | 独立 examples 仓库以控制面驱动一个 live flex layout；控制面与舞台同属一个 Cue 文档 |
 | Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
 | Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸与显式拉伸 |
 | Decoration playground 可视化验收 | ✅[^decoration-gallery] | 独立页面组合验收 border、radius、outline、shadow、background、overflow、transform 与 `-cue-opacity` |
 | Position playground | ✅ | 独立页面验证 relative、absolute、四边偏移与定位祖先 |
 | Style API playground | ✅ | 独立页面验证类型化进度/颜色更新、优先级与清除覆盖 |
-| Input playground | ✅[^input] | 独立页面验收点击、hover、传播、捕获、穿透、旋转与裁剪；原生 Cocos UI 控制面 |
-| 六类独立控件 gallery | ✅[^builtin-controls] | 默认/自定义外观、独立值、事件日志和重挂载；导航/控制面仍用 Cocos UI |
+| Input playground | ✅[^input] | 独立页面验收点击、hover、传播、捕获、穿透、旋转与裁剪；控制面同为 Cue |
+| 六类独立控件 gallery | ✅[^builtin-controls] | 默认/自定义外观、独立值、事件日志和重挂载；导航/控制面已自举为 Cue |
+| 控制面自举（单 CueDocument） | ✅ | basic 与 game-ui-showcase 的导航、面板、选项、菜单、滑杆与动作全部是 Cue 元素；Cocos 只保留场景、相机、字体与 EditBox 对照物 |
 | 控件 Chromium keyboard / mouse / text 回归 | ✅[^builtin-controls] | 真实操作与 Cocos EditBox 共存；不替代 OS IME 人工验收 |
 | Toggle / Slider touch Preview 回归 | ✅[^builtin-controls] | 页面启用触摸并断言 pointerType=touch；Toggle 激活与 Slider 越界捕获 |
 | Game UI Showcase | ✅ | 独立 Cocos 项目，case registry + tabs；首个 `player-profile` case |
@@ -366,4 +367,4 @@
 
 [^z-index]: 当前实现同父级 positioned elements 与直接 flex items 的绘制顺序：负整数层级在 normal flow 前；positioned `auto` / `0` 和显式 `z-index: 0` 的 flex item 在 normal flow 后；正整数层级最后绘制，同层保持原有顺序。非 flex 的 static 元素不应用 `z-index`。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
 
-[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，以 Cocos UI 作为控制面，编译产物写入 ignored 目录；它用于人工视觉验收，不等同于像素级 conformance suite。
+[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，控制面与它同属一个 Cue 文档，Cocos 只保留场景、相机与 EditBox 对照物；编译产物写入 ignored 目录；它用于人工视觉验收，不等同于像素级 conformance suite。

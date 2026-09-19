@@ -462,7 +462,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
 
-本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面仍用 Cocos UI；控件不通过 `.cue` 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
+本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面已自举为 `.cue`（单 CueDocument，仅保留场景/相机与 EditBox 对照物）；六类控件本身仍是 TypeScript `CueElement`，不通过 `.ce.cue` 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
 
 后续项目与验收序列：
 
