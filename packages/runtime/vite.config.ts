@@ -12,6 +12,7 @@ const taffyWasmBinaryPath = join(dirname(taffyWasmGluePath), 'taffy_wasm_bg.wasm
 export default defineConfig({
   build: {
     emptyOutDir: false,
+    target: 'es2022',
     lib: {
       entry: {
         'host/index': 'src/host/index.ts',

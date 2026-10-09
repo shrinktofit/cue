@@ -10,7 +10,6 @@ import type { Component as VueComponent } from '@vue/runtime-core';
 import type { ComponentPublicInstance } from '@vue/runtime-core';
 import {
   assetManager,
-  EffectAsset,
   error,
   gfx,
   geometry,
@@ -25,7 +24,9 @@ import {
   view,
   screen,
   type Asset,
+  type EffectAsset,
 } from 'cc';
+import { EDITOR_NOT_IN_PREVIEW } from 'cc/env';
 import { CueElement } from '../element/cue-element.js';
 import { CueImageElement, getCueImageSource } from '../element/cue-image-element.js';
 import { CueRootElement } from '../element/cue-root-element.js';
@@ -38,7 +39,6 @@ import {
 import {
   CuePaintCommandKind,
   CueLayout,
-  initializeCueLayout,
   type CuePaintImage,
   type CuePaintBackground,
   type CuePaintList,
@@ -91,11 +91,7 @@ import {
   releaseCueKeyboardSource,
   type CueKeyboardClient,
 } from './cue-keyboard-source.js';
-
-const cueRoundedRectEffectUuid = 'bf6467ca-3f41-4b99-8e47-2cc57ddd8cc2';
-const cueTextureEffectUuid = '74b6f3ad-ccf0-4ff7-8a19-173225147c3a';
-const cueBackgroundEffectUuid = '03694e23-1b5a-4ccd-bf09-94fc7ad3179b';
-const cueShadowEffectUuid = '9c30a019-03ef-4c31-afc9-e4638e951c29';
+import { cueRenderResources } from './cue-render-resources.js';
 
 interface CueRenderRecord {
   paintKey?: string;
@@ -145,24 +141,9 @@ interface CueBackgroundRenderRecord extends CueRenderRecord {
   readonly texture: Texture2D;
 }
 
-let cueRoundedRectEffect: EffectAsset | Promise<EffectAsset> | undefined;
-let cueTextureEffect: EffectAsset | Promise<EffectAsset> | undefined;
-let cueBackgroundEffect: EffectAsset | Promise<EffectAsset> | undefined;
-let cueShadowEffect: EffectAsset | Promise<EffectAsset> | undefined;
-
 @cycloClass('cue.CueDocument')
 @executeInEditMode
 export class CueDocument extends CycloComponent {
-  static async prepare(): Promise<void> {
-    await Promise.all([
-      initializeCueLayout(),
-      loadCueBackgroundEffect(),
-      loadCueShadowEffect(),
-      loadCueRoundedRectEffect(),
-      loadCueTextureEffect(),
-    ]);
-  }
-
   get rootElement(): CueRootElement {
     return this.#rootElement;
   }
@@ -207,10 +188,16 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onAwake(): void {
-    void this.#prepareRenderResources();
+    if (EDITOR_NOT_IN_PREVIEW) {
+      return;
+    }
+    this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
   }
 
   protected override onEnabled(): void {
+    if (EDITOR_NOT_IN_PREVIEW) {
+      return;
+    }
     this.#syncRenderRecordEnabled();
     this.#removeInputSource = registerCueInputSource({
       priority: () => this.#inputCamera()?.priority ?? 0,
@@ -238,13 +225,7 @@ export class CueDocument extends CycloComponent {
 
   protected override onUpdate(): void {
     const textRasterizer = this.#textRasterizer;
-    if (
-      !this.#backgroundEffect
-      || !this.#shadowEffect
-      || !this.#roundedRectEffect
-      || !this.#textureEffect
-      || !textRasterizer
-    ) {
+    if (EDITOR_NOT_IN_PREVIEW || !textRasterizer) {
       return;
     }
     const sourcesRevision
@@ -350,10 +331,6 @@ export class CueDocument extends CycloComponent {
     }
     this.#imageAssets.clear();
     this.#imageSources.clear();
-    this.#roundedRectEffect = undefined;
-    this.#backgroundEffect = undefined;
-    this.#shadowEffect = undefined;
-    this.#textureEffect = undefined;
     this.#textRasterizer = undefined;
   }
 
@@ -394,12 +371,10 @@ export class CueDocument extends CycloComponent {
   #assetRevision = 0;
   #removeInputSource: (() => void) | undefined;
   readonly #backgroundAssets = new Map<string, Texture2D>();
-  #backgroundEffect: EffectAsset | undefined;
   readonly #backgroundLoads = new Map<string, Promise<void>>();
   readonly #backgroundRenderRecords = new Map<number, CueBackgroundRenderRecord>();
   readonly #backgroundSources = new Set<string>();
   readonly #reportedBackgroundSources = new Set<string>();
-  #shadowEffect: EffectAsset | undefined;
   #shadowRenderRecords: CueShadowRenderRecord[] = [];
   #clipRenderRecords: CueRenderRecord[] = [];
   #acceptImageAssets = true;
@@ -409,9 +384,7 @@ export class CueDocument extends CycloComponent {
   #imageSources = new Set<string>();
   readonly #reportedImageSources = new Set<string>();
   #rectRenderRecords: CueRenderRecord[] = [];
-  #roundedRectEffect: EffectAsset | undefined;
   #styleSheetCollection: CueStyleSheetCollection | undefined;
-  #textureEffect: EffectAsset | undefined;
   #textRasterizer: CanvasTextRasterizer | undefined;
   readonly #textRenderRecords = new Map<number, CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
@@ -493,34 +466,6 @@ export class CueDocument extends CycloComponent {
       y: rect.bottom - projected.y / screen.devicePixelRatio,
       height: caret?.height ?? 20,
     });
-  }
-
-  async #prepareRenderResources(): Promise<void> {
-    try {
-      const [
-        backgroundEffect,
-        roundedRectEffect,
-        shadowEffect,
-        textureEffect,
-      ]
-        = await Promise.all([
-          loadCueBackgroundEffect(),
-          loadCueRoundedRectEffect(),
-          loadCueShadowEffect(),
-          loadCueTextureEffect(),
-          initializeCueLayout(),
-        ]);
-      if (!this.isValid) {
-        return;
-      }
-      this.#roundedRectEffect = roundedRectEffect;
-      this.#backgroundEffect = backgroundEffect;
-      this.#shadowEffect = shadowEffect;
-      this.#textureEffect = textureEffect;
-      this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
-    } catch (cause) {
-      error('Failed to prepare Cue rendering resources.', cause);
-    }
   }
 
   #syncImageAssets(): void {
@@ -839,7 +784,7 @@ export class CueDocument extends CycloComponent {
 
   #createRectRenderRecord(geometry: CueRectGeometry): CueRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
-    const effect = this.#roundedRectEffect;
+    const effect = cueRenderResources?.roundedRectEffect;
     if (!renderScene || !effect) {
       return undefined;
     }
@@ -969,7 +914,7 @@ export class CueDocument extends CycloComponent {
   }
 
   #syncBackgroundRenderRecords(backgrounds: readonly CuePaintBackground[]): void {
-    const effect = this.#backgroundEffect;
+    const effect = cueRenderResources?.backgroundEffect;
     if (!effect) {
       return;
     }
@@ -1162,7 +1107,7 @@ export class CueDocument extends CycloComponent {
     geometry: CueShadowGeometry,
   ): CueShadowRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
-    const effect = this.#shadowEffect;
+    const effect = cueRenderResources?.shadowEffect;
     if (!renderScene || !effect) {
       return undefined;
     }
@@ -1260,7 +1205,7 @@ export class CueDocument extends CycloComponent {
   }
 
   #syncImageRenderRecords(paintImages: readonly CuePaintImage[]): void {
-    const textureEffect = this.#textureEffect;
+    const textureEffect = cueRenderResources?.textureEffect;
     if (!textureEffect) {
       return;
     }
@@ -1395,7 +1340,7 @@ export class CueDocument extends CycloComponent {
 
   #syncTextRenderRecords(paintTexts: readonly CuePaintText[]): void {
     const textRasterizer = this.#textRasterizer;
-    const textureEffect = this.#textureEffect;
+    const textureEffect = cueRenderResources?.textureEffect;
     if (!textRasterizer || !textureEffect) {
       return;
     }
@@ -1740,64 +1685,6 @@ function configureClipWrite(
       stencilZFailOpFront: gfx.StencilOp.KEEP,
     },
   });
-}
-
-function loadCueRoundedRectEffect(): Promise<EffectAsset> {
-  if (cueRoundedRectEffect instanceof EffectAsset) {
-    return Promise.resolve(cueRoundedRectEffect);
-  }
-  if (cueRoundedRectEffect) {
-    return cueRoundedRectEffect;
-  }
-  cueRoundedRectEffect = loadAsset<EffectAsset>(cueRoundedRectEffectUuid).then(
-    (effect) => {
-      cueRoundedRectEffect = effect;
-      return effect;
-    },
-  );
-  return cueRoundedRectEffect;
-}
-
-function loadCueBackgroundEffect(): Promise<EffectAsset> {
-  if (cueBackgroundEffect instanceof EffectAsset) {
-    return Promise.resolve(cueBackgroundEffect);
-  }
-  if (cueBackgroundEffect) {
-    return cueBackgroundEffect;
-  }
-  cueBackgroundEffect = loadAsset<EffectAsset>(cueBackgroundEffectUuid).then((effect) => {
-    cueBackgroundEffect = effect;
-    return effect;
-  });
-  return cueBackgroundEffect;
-}
-
-function loadCueShadowEffect(): Promise<EffectAsset> {
-  if (cueShadowEffect instanceof EffectAsset) {
-    return Promise.resolve(cueShadowEffect);
-  }
-  if (cueShadowEffect) {
-    return cueShadowEffect;
-  }
-  cueShadowEffect = loadAsset<EffectAsset>(cueShadowEffectUuid).then((effect) => {
-    cueShadowEffect = effect;
-    return effect;
-  });
-  return cueShadowEffect;
-}
-
-function loadCueTextureEffect(): Promise<EffectAsset> {
-  if (cueTextureEffect instanceof EffectAsset) {
-    return Promise.resolve(cueTextureEffect);
-  }
-  if (cueTextureEffect) {
-    return cueTextureEffect;
-  }
-  cueTextureEffect = loadAsset<EffectAsset>(cueTextureEffectUuid).then((effect) => {
-    cueTextureEffect = effect;
-    return effect;
-  });
-  return cueTextureEffect;
 }
 
 function isUuidImageSource(source: string): boolean {
