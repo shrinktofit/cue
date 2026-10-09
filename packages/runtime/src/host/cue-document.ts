@@ -224,8 +224,11 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onUpdate(): void {
+    if (EDITOR_NOT_IN_PREVIEW) {
+      return;
+    }
     const textRasterizer = this.#textRasterizer;
-    if (EDITOR_NOT_IN_PREVIEW || !textRasterizer) {
+    if (!textRasterizer) {
       return;
     }
     const sourcesRevision
