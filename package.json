@@ -8,10 +8,17 @@
     "dev": "turbo watch dev",
     "lint": "eslint . --max-warnings=0",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "build:ci": "turbo run build --filter='!@bsgames/oms-plugin-cue'",
+    "test:ci": "turbo run test --filter='!@bsgames/oms-plugin-cue' && pnpm --filter @bsgames/oms-plugin-cue exec vitest run",
+    "build:release": "turbo run build --filter=@bsgames/cue --filter=@bsgames/cue-compiler --filter=@bsgames/cue-control-schema --filter=@bsgames/cue-style-schema --filter=@bsgames/cue-language-service",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm install --lockfile-only",
+    "release": "pnpm build:release && changeset publish"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",
+    "@changesets/cli": "^3.0.3",
     "@shrinktofit/eslint-config": "^0.0.16",
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "^8.65.0",

@@ -1,7 +1,6 @@
 {
   "name": "@bsgames/cue",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "files": [
     "assets",
@@ -33,5 +32,9 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

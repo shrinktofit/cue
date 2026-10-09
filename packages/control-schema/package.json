@@ -1,9 +1,11 @@
 {
   "name": "@bsgames/cue-control-schema",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
-  "files": ["lib", "!lib/**/*.map"],
+  "files": [
+    "lib",
+    "!lib/**/*.map"
+  ],
   "exports": "./lib/index.js",
   "scripts": {
     "build": "tsc -b",
@@ -15,5 +17,9 @@
     "@bsgames/cue-workflow": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

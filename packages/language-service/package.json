@@ -1,7 +1,6 @@
 {
   "name": "@bsgames/cue-language-service",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "files": [
     "lib",
@@ -28,5 +27,9 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
