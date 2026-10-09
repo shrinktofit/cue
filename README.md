@@ -42,9 +42,3 @@ The CLI remains available as a standalone compiler frontend:
 cue compile example.cue
 cue compile example.cue --out-dir=generated
 ```
-
-## CI and npm releases
-
-PR checks run installation, lint, builds, and tests without requiring a live editor.
-See [release instructions](docs/releases.md) for the five public npm packages,
-Changesets, CI exclusions, and the version PR / automatic publishing workflow.

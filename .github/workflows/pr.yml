@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -24,7 +27,15 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Lint
-        run: pnpm lint
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            pnpm lint:staged --diff="$BASE_SHA...$HEAD_SHA"
+          else
+            pnpm lint
+          fi
       - name: Build
         run: pnpm build:ci
       - name: Test

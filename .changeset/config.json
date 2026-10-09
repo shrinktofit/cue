@@ -20,14 +20,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@bsgames/cue-cli",
-    "@bsgames/oms-plugin-cue",
-    "@bsgames/cue-workflow",
-    "cue"
-  ],
-  "privatePackages": {
-    "version": false,
-    "tag": false
-  }
+  "privatePackages": false
 }

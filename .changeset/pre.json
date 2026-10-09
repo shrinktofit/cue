@@ -1,0 +1,16 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@bsgames/cue-cli": "0.0.0",
+    "@bsgames/cue-compiler": "0.0.0",
+    "@bsgames/cue-control-schema": "0.0.0",
+    "cue": "0.0.0",
+    "@bsgames/cue-language-service": "0.0.0",
+    "@bsgames/oms-plugin-cue": "0.0.0",
+    "@bsgames/cue": "0.0.0",
+    "@bsgames/cue-style-schema": "0.0.0",
+    "@bsgames/cue-workflow": "0.0.0"
+  },
+  "changesets": []
+}
