@@ -14,7 +14,8 @@
     "build:release": "turbo run build --filter=@bsgames/cue --filter=@bsgames/cue-compiler --filter=@bsgames/cue-control-schema --filter=@bsgames/cue-style-schema --filter=@bsgames/cue-language-service",
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm install --lockfile-only",
-    "release": "pnpm build:release && changeset publish"
+    "release": "pnpm build:release && changeset publish",
+    "prelint": "pnpm build:release"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",

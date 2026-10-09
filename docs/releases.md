@@ -57,6 +57,9 @@ should only be run when publication is intended.
 
 The PR workflow uses Node.js 24 and the pnpm version pinned in `package.json`.
 It runs a frozen install, `pnpm lint`, `pnpm build:ci`, and `pnpm test:ci`.
+The `prelint` hook builds the five public packages first, providing the
+generated declarations required by type-aware ESLint on a clean checkout.
+Subsequent build steps reuse Turbo outputs.
 
 `build:ci` builds all packages except `@bsgames/oms-plugin-cue`, whose manifest
 currently points to an external Windows-local `@oms/plugin` checkout. The
