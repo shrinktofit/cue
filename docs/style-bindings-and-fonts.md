@@ -59,7 +59,7 @@ element.style.color = { ...element.style.color!, alpha: 0.5 };
 
 `<style>` 和静态 `style="..."` 仅由 compiler 的 native Lightning CSS 解析并生成 IR；静态 inline normal / important 保留 CSS 层叠顺序。`:style` 编译时报错；render function 或动态属性透传产生的 `style` prop 也会在 runtime 报错。没有 runtime CSS parser、样式 WASM 或 `initializeCueStyles()` 初始化入口。
 
-`@bsgames/cue/host` 在模块顶层通过 `await` 准备布局与共享 Effect；导入完成后，`CueDocument` 同步使用这些资源，不需要调用 `CueDocument.prepare()`。初始化失败会使模块导入失败。编辑器非预览模式（`EDITOR_NOT_IN_PREVIEW`）跳过这套资源准备与组件渲染初始化。共享 Effect 由模块保留资源引用，组件销毁只释放自己的渲染对象。运行环境与模块加载器需要支持 top-level await。
+`@bsgames/cue/host` 在模块顶层通过 `await` 准备布局与共享 Effect；导入完成后，`CueDocument` 同步使用这些资源，不需要调用 `CueDocument.prepare()`。初始化失败会使模块导入失败。`CueDocument` 不启用 `executeInEditMode`，由 Cocos 在编辑器非预览模式下跳过组件生命周期。模块导入仍可能发生，因此资源模块通过 `EDITOR_NOT_IN_PREVIEW` 跳过资源准备。共享 Effect 由模块保留资源引用，组件销毁只释放自己的渲染对象。运行环境与模块加载器需要支持 top-level await。
 
 内部仍把百分比编码为已有 Style IR 的紧凑字符串，以复用 layout / paint 契约；该字符串由类型化数值生成，不是对用户 CSS 文本的解析。Lightning AST lowering 回到 compiler 内部，不再保留只有一个消费者的共享 compiler 包。
 

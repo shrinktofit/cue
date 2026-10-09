@@ -1,7 +1,7 @@
 /// <meta "uuid"="a3126a99-13de-4a88-b396-028e96f59e1d"/>
 
 import { CycloComponent } from '@cyclonium/core/framework';
-import { cycloClass, executeInEditMode } from '@cyclonium/core/legacy-decorator';
+import { cycloClass } from '@cyclonium/core/legacy-decorator';
 // Cue intentionally depends on Vue's renderer-only runtime.
 // eslint-disable-next-line vue/prefer-import-from-vue
 import type { Component as VueComponent } from '@vue/runtime-core';
@@ -26,7 +26,6 @@ import {
   type Asset,
   type EffectAsset,
 } from 'cc';
-import { EDITOR_NOT_IN_PREVIEW } from 'cc/env';
 import { CueElement } from '../element/cue-element.js';
 import { CueImageElement, getCueImageSource } from '../element/cue-image-element.js';
 import { CueRootElement } from '../element/cue-root-element.js';
@@ -142,7 +141,6 @@ interface CueBackgroundRenderRecord extends CueRenderRecord {
 }
 
 @cycloClass('cue.CueDocument')
-@executeInEditMode
 export class CueDocument extends CycloComponent {
   get rootElement(): CueRootElement {
     return this.#rootElement;
@@ -188,16 +186,10 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onAwake(): void {
-    if (EDITOR_NOT_IN_PREVIEW) {
-      return;
-    }
     this.#textRasterizer = new CanvasTextRasterizer(() => view.getScaleX());
   }
 
   protected override onEnabled(): void {
-    if (EDITOR_NOT_IN_PREVIEW) {
-      return;
-    }
     this.#syncRenderRecordEnabled();
     this.#removeInputSource = registerCueInputSource({
       priority: () => this.#inputCamera()?.priority ?? 0,
@@ -224,9 +216,6 @@ export class CueDocument extends CycloComponent {
   }
 
   protected override onUpdate(): void {
-    if (EDITOR_NOT_IN_PREVIEW) {
-      return;
-    }
     const textRasterizer = this.#textRasterizer;
     if (!textRasterizer) {
       return;
