@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "changeset": "changeset",
     "build:ci": "node --run build -- --filter='!@bsgames/oms-plugin-cue'",
-    "test:ci": "node --run test"
+    "typecheck:ci": "node --run typecheck -- --filter='!@bsgames/oms-plugin-cue'"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",

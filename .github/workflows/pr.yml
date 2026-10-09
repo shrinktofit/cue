@@ -32,5 +32,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm exec lint-staged --diff="$BASE_SHA...$HEAD_SHA"
+      - name: Typecheck
+        run: node --run typecheck:ci
       - name: Test
-        run: node --run test:ci
+        run: node --run test
