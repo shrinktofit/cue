@@ -2,16 +2,9 @@ import { assetManager, type EffectAsset } from 'cc';
 import { EDITOR_NOT_IN_PREVIEW } from 'cc/env';
 import { initializeCueLayout } from '../render/create-cue-paint-list.js';
 
-interface CueRenderResources {
-  readonly backgroundEffect: EffectAsset;
-  readonly roundedRectEffect: EffectAsset;
-  readonly shadowEffect: EffectAsset;
-  readonly textureEffect: EffectAsset;
-}
-
 export const cueRenderResources = await loadCueRenderResources();
 
-async function loadCueRenderResources(): Promise<CueRenderResources | undefined> {
+async function loadCueRenderResources() {
   if (EDITOR_NOT_IN_PREVIEW) {
     return undefined;
   }
@@ -45,7 +38,7 @@ async function loadCueRenderResources(): Promise<CueRenderResources | undefined>
     roundedRectEffect,
     shadowEffect,
     textureEffect,
-  };
+  } as const;
 }
 
 function loadEffect(uuid: string): Promise<EffectAsset> {
