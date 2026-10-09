@@ -27,23 +27,26 @@ with published versions when packing packages.
 
 ## Versioning and publishing
 
-1. Pushes to `main` run the Release workflow, which creates or updates a release
-   PR using `pnpm version-packages`. It changes package versions, changelogs,
-   and the lockfile. It does not publish to npm.
-2. Review and merge that release PR.
-3. When ready to publish, run the Release workflow manually on `main` and set
-   `publish` to `true`. It installs, lints, builds, and tests before running
-   `pnpm release`. This builds the five public packages and publishes versions
-   that are not already on npm. Changesets also creates GitHub releases.
+1. Pushes to `main` run the Release workflow. After installation, lint, build,
+   and tests, Changesets creates or updates a Version Packages PR using
+   `pnpm version-packages` while pending changesets exist. That PR changes
+   package versions, changelogs, and the lockfile.
+2. Review the Version Packages PR. Merging it consumes the changesets and
+   pushes the versioned packages to `main`.
+3. The same Release workflow then runs `pnpm release`, which builds the five
+   public packages and publishes versions that are not already on npm.
+   Changesets also creates GitHub releases.
 
-Manual runs default to `publish: false` and only maintain the release PR.
-Merging this setup or a version PR never publishes packages automatically.
+This is the standard Changesets release flow: there is no manual publish
+input. The initial changeset remains pending in this setup PR, so merging it
+prepares a Version Packages PR. Publishing starts after that version PR is
+merged. No npm publication is performed while preparing this setup PR.
 
 The repository must allow GitHub Actions to create pull requests (Settings →
 Actions → General). Publishing requires an `NPM_TOKEN` Actions secret with
 permission to publish the five `@bsgames` packages; use an npm token suitable
-for CI publishing under the organization's authentication policy. The version
-job does not need an npm token. Keep tokens out of committed files.
+for CI publishing under the organization's authentication policy. Creating the version
+PR does not require an npm token. Keep tokens out of committed files.
 
 For a local preview, run `pnpm changeset status`, `pnpm build:release`, and
 `pnpm --filter @bsgames/cue pack --pack-destination /tmp/cue-packs`. Packing

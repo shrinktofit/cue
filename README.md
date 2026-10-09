@@ -47,4 +47,4 @@ cue compile example.cue --out-dir=generated
 
 PR checks run installation, lint, builds, and tests without requiring a live editor.
 See [release instructions](docs/releases.md) for the five public npm packages,
-Changesets, CI exclusions, and the explicitly triggered publishing workflow.
+Changesets, CI exclusions, and the version PR / automatic publishing workflow.
