@@ -3,18 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface TestEffect {
   refCount: number;
   addRef(): TestEffect;
+  decRef(): TestEffect;
 }
 
 type CompleteEffect = (error: Error | null, effect?: TestEffect) => void;
 
 const state = vi.hoisted(() => ({
   editorNotInPreview: false,
+  error: vi.fn(),
   initializeLayout: vi.fn(),
   loadAny: vi.fn(),
   requests: new Map<string, CompleteEffect>(),
 }));
 
-vi.mock('cc', () => ({ assetManager: { loadAny: state.loadAny } }));
+vi.mock('cc', () => ({ assetManager: { loadAny: state.loadAny }, error: state.error }));
 vi.mock('cc/env', () => ({
   get EDITOR_NOT_IN_PREVIEW() {
     return state.editorNotInPreview;
@@ -48,6 +50,10 @@ function createEffect(): TestEffect {
       ++this.refCount;
       return this;
     },
+    decRef() {
+      --this.refCount;
+      return this;
+    },
   };
 }
 
@@ -63,7 +69,7 @@ describe('shared rendering resource initialization', () => {
     /// @case
     /// A host is imported while effects and the layout engine are still loading.
     /// @expect
-    /// Import waits for every dependency and retains each effect once for all consumers.
+    /// Each successful effect is retained once; import still waits for every dependency.
     let imported = false;
     const loading = import('../src/host/cue-render-resources.js').then((module) => {
       imported = true;
@@ -83,7 +89,12 @@ describe('shared rendering resource initialization', () => {
     }
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(imported).toBe(false);
-    expect(effects.every(({ effect }) => effect.refCount === 0)).toBe(true);
+    expect(effects.map(({ effect }) => effect.refCount)).toEqual([
+      1,
+      1,
+      1,
+      0,
+    ]);
 
     const last = effects.at(-1)!;
     last.complete(null, last.effect);
@@ -146,47 +157,69 @@ describe('shared rendering resource initialization', () => {
     /// Import succeeds without requesting rendering resources or initializing layout.
     state.editorNotInPreview = true;
     const { cueRenderResources } = await import('../src/host/cue-render-resources.js');
-    expect(cueRenderResources).toBeUndefined();
+    expect(cueRenderResources).toEqual({});
     expect(state.loadAny).not.toHaveBeenCalled();
     expect(state.initializeLayout).not.toHaveBeenCalled();
   });
 
-  it('rejects import with the asset error without retaining partially loaded effects', async () => {
+  it('keeps successful effects usable when another effect fails', async () => {
     /// @case
     /// One shared effect fails while the other dependencies load successfully.
     /// @expect
-    /// The actual error reaches the importer and no ownership references are acquired.
+    /// Import succeeds with the other retained effects, and the failed field is absent.
     const cause = new Error('Effect load failed');
-    const rejected = expect(import('../src/host/cue-render-resources.js')).rejects.toBe(cause);
+    let imported = false;
+    const loading = import('../src/host/cue-render-resources.js').then((module) => {
+      imported = true;
+      return module;
+    });
     await waitForLoads();
     const effects = Array.from(state.requests.values(), () => createEffect());
-    for (const [index, complete] of Array.from(state.requests.values()).entries()) {
-      complete(index === 0 ? cause : null, effects[index]);
+    const requests = Array.from(state.requests.values());
+    requests[0]!(cause);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(imported).toBe(false);
+    for (const [index, complete] of requests.entries()) {
+      if (index > 0) {
+        complete(null, effects[index]);
+      }
     }
     completeLayout();
-    await rejected;
+    const { cueRenderResources } = await loading;
+    expect(cueRenderResources).toEqual({
+      roundedRectEffect: effects[1],
+      shadowEffect: effects[2],
+      textureEffect: effects[3],
+    });
+    expect(cueRenderResources.backgroundEffect).toBeUndefined();
+    expect(state.error).toHaveBeenCalledWith(expect.stringContaining('backgroundEffect'), cause);
     expect(effects.map(({ refCount }) => refCount)).toEqual([
       0,
-      0,
-      0,
-      0,
+      1,
+      1,
+      1,
     ]);
   });
 
-  it('rejects import with the layout error without retaining loaded effects', async () => {
+  it('releases even later effects when the required layout engine fails', async () => {
     /// @case
-    /// Effects load successfully but layout initialization fails.
+    /// Layout fails while some shared effects are still loading.
     /// @expect
-    /// The actual error reaches the importer and effects remain unretained.
+    /// Import waits for outstanding loads, releases their references, and rejects with the error.
     const cause = new Error('Layout initialization failed');
     const rejected = expect(import('../src/host/cue-render-resources.js')).rejects.toBe(cause);
     await waitForLoads();
-    const effects = Array.from(state.requests.values(), (complete) => {
-      const effect = createEffect();
-      complete(null, effect);
-      return effect;
-    });
+    const effects = Array.from(state.requests.values(), () => createEffect());
+    const requests = Array.from(state.requests.values());
+    requests[0]!(null, effects[0]);
     failLayout(cause);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(effects[0]!.refCount).toBe(1);
+    for (const [index, complete] of requests.entries()) {
+      if (index > 0) {
+        complete(null, effects[index]);
+      }
+    }
     await rejected;
     expect(effects.map(({ refCount }) => refCount)).toEqual([
       0,

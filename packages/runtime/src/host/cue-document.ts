@@ -217,9 +217,6 @@ export class CueDocument extends CycloComponent {
 
   protected override onUpdate(): void {
     const textRasterizer = this.#textRasterizer;
-    if (!textRasterizer) {
-      return;
-    }
     const sourcesRevision
       = cueSubtreeRevision(this.#rootElement)
         + ':'
@@ -323,7 +320,7 @@ export class CueDocument extends CycloComponent {
     }
     this.#imageAssets.clear();
     this.#imageSources.clear();
-    this.#textRasterizer = undefined;
+    this.#textRasterizer = undefined!;
   }
 
   readonly #rootElement = new CueRootElement();
@@ -377,7 +374,7 @@ export class CueDocument extends CycloComponent {
   readonly #reportedImageSources = new Set<string>();
   #rectRenderRecords: CueRenderRecord[] = [];
   #styleSheetCollection: CueStyleSheetCollection | undefined;
-  #textRasterizer: CanvasTextRasterizer | undefined;
+  #textRasterizer: CanvasTextRasterizer = undefined!;
   readonly #textRenderRecords = new Map<number, CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
 
@@ -776,7 +773,7 @@ export class CueDocument extends CycloComponent {
 
   #createRectRenderRecord(geometry: CueRectGeometry): CueRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
-    const effect = cueRenderResources?.roundedRectEffect;
+    const effect = cueRenderResources.roundedRectEffect;
     if (!renderScene || !effect) {
       return undefined;
     }
@@ -906,7 +903,7 @@ export class CueDocument extends CycloComponent {
   }
 
   #syncBackgroundRenderRecords(backgrounds: readonly CuePaintBackground[]): void {
-    const effect = cueRenderResources?.backgroundEffect;
+    const effect = cueRenderResources.backgroundEffect;
     if (!effect) {
       return;
     }
@@ -1099,7 +1096,7 @@ export class CueDocument extends CycloComponent {
     geometry: CueShadowGeometry,
   ): CueShadowRenderRecord | undefined {
     const renderScene = this.node.scene?.renderScene;
-    const effect = cueRenderResources?.shadowEffect;
+    const effect = cueRenderResources.shadowEffect;
     if (!renderScene || !effect) {
       return undefined;
     }
@@ -1197,7 +1194,7 @@ export class CueDocument extends CycloComponent {
   }
 
   #syncImageRenderRecords(paintImages: readonly CuePaintImage[]): void {
-    const textureEffect = cueRenderResources?.textureEffect;
+    const textureEffect = cueRenderResources.textureEffect;
     if (!textureEffect) {
       return;
     }
@@ -1332,8 +1329,8 @@ export class CueDocument extends CycloComponent {
 
   #syncTextRenderRecords(paintTexts: readonly CuePaintText[]): void {
     const textRasterizer = this.#textRasterizer;
-    const textureEffect = cueRenderResources?.textureEffect;
-    if (!textRasterizer || !textureEffect) {
+    const textureEffect = cueRenderResources.textureEffect;
+    if (!textureEffect) {
       return;
     }
     for (const [index, paintText] of paintTexts.entries()) {
