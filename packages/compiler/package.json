@@ -1,7 +1,6 @@
 {
   "name": "@bsgames/cue-compiler",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "files": [
     "lib",
@@ -29,5 +28,9 @@
     "@types/node": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
