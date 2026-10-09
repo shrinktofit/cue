@@ -80,6 +80,9 @@ describe('computeCueElementStyle', () => {
       lineHeight: style.lineHeight,
       textAlign: style.textAlign,
       whiteSpace: style.whiteSpace,
+      overflowWrap: style.overflowWrap,
+      wordBreak: style.wordBreak,
+      textFit: style.textFit,
     }).toEqual(initialCueTextStyle);
     expect(style.lineHeight).toBe(CueLineHeightKeyword.normal);
     expect(style.textAlign).toBe(CueTextAlign.start);

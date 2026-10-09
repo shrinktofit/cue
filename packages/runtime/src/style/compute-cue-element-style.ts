@@ -8,6 +8,7 @@ import {
   CueFlexWrap,
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
+  CueObjectFit,
   CueOverflow,
   CuePointerEvents,
   CuePosition,
@@ -16,6 +17,9 @@ import {
   CueTextAlign,
   CueVerticalAlign,
   CueWhiteSpace,
+  CueOverflowWrap,
+  CueWordBreak,
+  CueTextFit,
   type CueAlignContent,
   type CueAlignItems,
   type CueAlignSelf,
@@ -55,6 +59,9 @@ export interface ComputedCueTextStyle {
   lineHeight: CueLineHeight;
   textAlign: CueTextAlign;
   whiteSpace: CueWhiteSpace;
+  overflowWrap: CueOverflowWrap;
+  wordBreak: CueWordBreak;
+  textFit: CueTextFit;
 }
 
 export interface ComputedCueBoxShadow extends Omit<CueBoxShadow, 'color'> {
@@ -110,6 +117,7 @@ export interface ComputedCueElementStyle extends ComputedCueTextStyle {
   maxWidth: CueMaxDimension;
   minHeight: CueDimension;
   minWidth: CueDimension;
+  objectFit: CueObjectFit;
   order: number;
   outlineColor: CueColor;
   outlineOffset: number;
@@ -154,6 +162,9 @@ export const initialCueTextStyle: ComputedCueTextStyle = {
   lineHeight: CueLineHeightKeyword.normal,
   textAlign: CueTextAlign.start,
   whiteSpace: CueWhiteSpace.normal,
+  overflowWrap: CueOverflowWrap.normal,
+  wordBreak: CueWordBreak.normal,
+  textFit: CueTextFit.none,
 };
 
 export function computeCueElementStyle(
@@ -295,6 +306,7 @@ export function createInitialCueElementStyle(
     maxWidth: CueMaxDimensionKeyword.none,
     minHeight: CueDimensionKeyword.auto,
     minWidth: CueDimensionKeyword.auto,
+    objectFit: CueObjectFit.fill,
     lineHeight: inheritedTextStyle.lineHeight,
     order: 0,
     outlineColor: inheritedTextStyle.color,
@@ -312,6 +324,9 @@ export function createInitialCueElementStyle(
     transform: [],
     transformOrigin: ['50%', '50%'],
     whiteSpace: inheritedTextStyle.whiteSpace,
+    overflowWrap: inheritedTextStyle.overflowWrap,
+    wordBreak: inheritedTextStyle.wordBreak,
+    textFit: inheritedTextStyle.textFit,
     width: CueDimensionKeyword.auto,
     zIndex: 'auto',
   };

@@ -114,8 +114,28 @@ export enum CueWhiteSpace {
   preWrap = 'pre-wrap',
 }
 
+export enum CueOverflowWrap {
+  normal = 'normal',
+  anywhere = 'anywhere',
+}
+
+export enum CueWordBreak {
+  normal = 'normal',
+  breakAll = 'break-all',
+}
+
+export enum CueTextFit {
+  none = 'none',
+  shrink = 'shrink',
+}
+
 export enum CueMaxDimensionKeyword {
   none = 'none',
+}
+
+export enum CueObjectFit {
+  contain = 'contain',
+  fill = 'fill',
 }
 
 export enum CueOverflow {
@@ -190,6 +210,7 @@ export enum CueStyleProperty {
   maxWidth = 'maxWidth',
   minHeight = 'minHeight',
   minWidth = 'minWidth',
+  objectFit = 'objectFit',
   order = 'order',
   outlineColor = 'outlineColor',
   outlineOffset = 'outlineOffset',
@@ -207,6 +228,9 @@ export enum CueStyleProperty {
   transform = 'transform',
   transformOrigin = 'transformOrigin',
   whiteSpace = 'whiteSpace',
+  overflowWrap = 'overflowWrap',
+  wordBreak = 'wordBreak',
+  textFit = 'textFit',
   width = 'width',
   zIndex = 'zIndex',
 }
@@ -352,6 +376,7 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.maxWidth]?: CueMaxDimension;
   [CueStyleProperty.minHeight]?: CueDimension;
   [CueStyleProperty.minWidth]?: CueDimension;
+  [CueStyleProperty.objectFit]?: CueObjectFit;
   [CueStyleProperty.order]?: number;
   [CueStyleProperty.outlineColor]?: CueColorValue;
   [CueStyleProperty.outlineOffset]?: number;
@@ -369,6 +394,9 @@ export interface CueStyleDeclarations {
   [CueStyleProperty.transform]?: readonly CueTransformFunction[];
   [CueStyleProperty.transformOrigin]?: readonly [CueLengthPercentage, CueLengthPercentage];
   [CueStyleProperty.whiteSpace]?: CueWhiteSpace;
+  [CueStyleProperty.overflowWrap]?: CueOverflowWrap;
+  [CueStyleProperty.wordBreak]?: CueWordBreak;
+  [CueStyleProperty.textFit]?: CueTextFit;
   [CueStyleProperty.width]?: CueDimension;
   [CueStyleProperty.zIndex]?: number | 'auto';
 }

@@ -13,6 +13,7 @@ import {
   CueJustifyContent,
   CueLineHeightKeyword,
   CueMaxDimensionKeyword,
+  CueObjectFit,
   CueOverflow,
   CuePointerEvents,
   CuePosition,
@@ -22,6 +23,9 @@ import {
   CueTextAlign,
   CueVerticalAlign,
   CueWhiteSpace,
+  CueOverflowWrap,
+  CueWordBreak,
+  CueTextFit,
   type CueSelector,
   type CueSelectorToken,
   type CueBoxShadow,
@@ -523,6 +527,18 @@ export function compileCueStyleDeclarations(
       }
       break;
     }
+    case 'overflow-wrap': {
+      const value = Object.values(CueOverflowWrap).find((value) => value === declaration.value);
+      if (value) compiledDeclarations.overflowWrap = value;
+      else errors.push(new SyntaxError('Cue supports overflow-wrap: normal or anywhere.'));
+      break;
+    }
+    case 'word-break': {
+      const value = Object.values(CueWordBreak).find((value) => value === declaration.value);
+      if (value) compiledDeclarations.wordBreak = value;
+      else errors.push(new SyntaxError('Cue supports word-break: normal or break-all.'));
+      break;
+    }
     case 'white-space': {
       const value = readWhiteSpace(declaration.value);
       if (value !== undefined) {
@@ -589,6 +605,30 @@ export function compileCueStyleDeclarations(
       break;
     }
     case 'custom': {
+      if (declaration.value.name.toLowerCase() === 'object-fit') {
+        const tokens = declaration.value.value.filter((token) => !(
+          token.type === 'token' && token.value.type === 'white-space'
+        ));
+        const token = tokens[0];
+        const keyword = tokens.length === 1 && token?.type === 'token' && token.value.type === 'ident'
+          ? token.value.value.toLowerCase()
+          : undefined;
+        const value = Object.values(CueObjectFit).find((value) => value === keyword);
+        if (value) compiledDeclarations.objectFit = value;
+        else errors.push(new SyntaxError('Cue supports object-fit: fill or contain.'));
+      }
+      if (declaration.value.name.toLowerCase() === 'text-fit') {
+        const tokens = declaration.value.value.filter((token) => !(
+          token.type === 'token' && token.value.type === 'white-space'
+        ));
+        const token = tokens[0];
+        const keyword = tokens.length === 1 && token?.type === 'token' && token.value.type === 'ident'
+          ? token.value.value.toLowerCase()
+          : undefined;
+        const value = Object.values(CueTextFit).find((value) => value === keyword);
+        if (value) compiledDeclarations.textFit = value;
+        else errors.push(new SyntaxError('Cue supports text-fit: none or shrink (CSS Text Level 5 draft, consistent scaling).'));
+      }
       if (declaration.value.name.toLowerCase() === 'pointer-events') {
         const tokens = declaration.value.value.filter((token) => !(
           token.type === 'token' && token.value.type === 'white-space'

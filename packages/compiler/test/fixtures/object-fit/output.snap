@@ -1,0 +1,79 @@
+/// object-fit.cue.js
+
+import component from "./object-fit.cue.script.js";
+import { render } from "./object-fit.cue.template.js";
+import styleSheet from "./object-fit.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/object-fit.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// object-fit.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// object-fit.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("cue-image", {
+    class: "icon",
+    src: "uuid:icon",
+    __cueInlineStyle: {"declarations":{"objectFit":"contain"},"selectors":[[{"type":"class","name":"cue-inline"}]]}
+  }))
+}
+
+/// object-fit.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "width": 120,
+        "height": 120,
+        "objectFit": "contain"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "icon"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "objectFit": "fill"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "reset"
+          }
+        ]
+      ]
+    },
+    {
+      "importantDeclarations": {
+        "objectFit": "contain"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "important"
+          }
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

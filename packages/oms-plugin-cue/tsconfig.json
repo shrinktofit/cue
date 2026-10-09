@@ -1,0 +1,18 @@
+{
+  "extends": "@bsgames/cue-workflow/tsconfig/lib",
+  "include": [
+    "src",
+  ],
+  "references": [
+    {
+      "path": "../compiler",
+    },
+  ],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib",
+    "types": [
+      "node",
+    ],
+  }
+}

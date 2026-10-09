@@ -1,4 +1,4 @@
-import { CueBorderStyle, CueTextAlign, CueVerticalAlign, CueWhiteSpace } from '@bsgames/cue-style-schema';
+import { CueBorderStyle, CueOverflowWrap, CueTextAlign, CueTextFit, CueVerticalAlign, CueWhiteSpace, CueWordBreak } from '@bsgames/cue-style-schema';
 import { LineBreaker } from 'css-line-break';
 import type { CueTextMeasurer } from '../render/create-cue-paint-list.js';
 import type { ComputedCueElementStyle } from '../style/compute-cue-element-style.js';
@@ -37,6 +37,8 @@ export interface CueInlineFragment<Value> {
   width: number;
   height: number;
   text?: string;
+  /** Used font size multiplier; never written back to computed/author styles. */
+  fontScale?: number;
   atomic?: boolean;
   outOfFlow?: boolean;
   first: boolean;
@@ -59,6 +61,9 @@ interface InlineToken<Value> {
   hanging: boolean;
   wrap: boolean;
   breakAfter: boolean;
+  emergencyBreakAfter?: boolean;
+  emptyInlineEdge?: boolean;
+  collapsibleInlineEdge?: boolean;
   size?: CueInlineAtomicSize;
 }
 
@@ -81,15 +86,15 @@ export class CueInlineFormatting<Value> {
     this.#cacheable = !_items.some((item) => item.kind === 'atomic');
   }
 
-  layout(width?: number, height?: number): CueInlineLayout<Value> {
+  layout(width?: number, height?: number, fit = true): CueInlineLayout<Value> {
     // Atomic measurement positions a separate Taffy tree. It must run even if
     // this constraint was seen before but a different one was measured since.
-    if (!this.#cacheable) return layoutCueInline(this._root, this._items, this._measurer, width, height);
-    const key = JSON.stringify([width, height]);
+    if (!this.#cacheable) return layoutCueInline(this._root, this._items, this._measurer, width, height, fit);
+    const key = JSON.stringify([width, height, fit]);
     const cached = this.#layouts.get(key);
     if (cached) return cached;
     this.#tokens ??= normalizeInlineContent(this._items);
-    const result = layoutInlineTokens(this._root, this.#tokens, this._measurer, width);
+    const result = layoutInlineTokens(this._root, this.#tokens, this._measurer, width, fit);
     if (this.#layouts.size >= 16) this.#layouts.delete(this.#layouts.keys().next().value!);
     this.#layouts.set(key, result);
     return result;
@@ -112,9 +117,10 @@ export function layoutCueInline<Value>(
   measurer: CueTextMeasurer,
   availableWidth?: number,
   availableHeight?: number,
+  fit = true,
 ): CueInlineLayout<Value> {
   const tokens = normalizeInlineContent(items, availableWidth, availableHeight);
-  return layoutInlineTokens(root, tokens, measurer, availableWidth);
+  return layoutInlineTokens(root, tokens, measurer, availableWidth, fit);
 }
 
 function layoutInlineTokens<Value>(
@@ -122,16 +128,28 @@ function layoutInlineTokens<Value>(
   tokens: ReadonlyArray<InlineToken<Value>>,
   measurer: CueTextMeasurer,
   availableWidth?: number,
+  fit = true,
 ): CueInlineLayout<Value> {
   const output: CueInlineLayout<Value> = { width: 0, height: 0, firstBaseline: 0, lastBaseline: 0, fragments: [] };
+  let fontScale = 1;
+  const usedStyles = new Map<CueInlineBox<Value>, ComputedCueElementStyle>();
+  const usedStyle = (box: CueInlineBox<Value>): ComputedCueElementStyle => {
+    if (fontScale === 1) return box.style;
+    let style = usedStyles.get(box);
+    if (!style) {
+      style = { ...box.style, fontSize: box.style.fontSize * fontScale };
+      usedStyles.set(box, style);
+    }
+    return style;
+  };
   const widths = new Map<CueInlineBox<Value>, Map<string, number>>();
   const measureWidth = (text: string, box: CueInlineBox<Value>): number => {
-    if (text.length === 0) return 0;
+    if (text.length === 0 || fontScale === 0) return 0;
     let cache = widths.get(box);
     if (!cache) widths.set(box, cache = new Map());
     let width = cache.get(text);
     if (width === undefined) {
-      width = measurer.measureWidth(text, box.style);
+      width = measurer.measureWidth(text, usedStyle(box));
       cache.set(text, width);
     }
     return width;
@@ -140,14 +158,18 @@ function layoutInlineTokens<Value>(
   const metrics = (box: CueInlineBox<Value>): CueFontMetrics => {
     let value = fontMetrics.get(box);
     if (!value) {
-      value = measurer.metrics(box.style);
+      value = fontScale === 0
+        ? { ascent: 0, descent: 0, xHeight: 0, lineHeight: typeof box.style.lineHeight === 'number' ? box.style.lineHeight : 0 }
+        : measurer.metrics(usedStyle(box));
       fontMetrics.set(box, value);
     }
     return value;
   };
   let line: Array<InlineToken<Value>> = [];
   let lastBreak = 0;
+  let lastEmergencyBreak = 0;
   let lineIndex = 0;
+  const lines: Array<{ tokens: Array<InlineToken<Value>>; forced: boolean }> = [];
 
   const positionLine = (input: ReadonlyArray<InlineToken<Value>>): Array<PositionedToken<Value>> => {
     const positioned: Array<PositionedToken<Value>> = [];
@@ -231,7 +253,7 @@ function layoutInlineTokens<Value>(
     probeX += width;
     if (token.collapsible) probeTrailingSpace += width;
     else if (token.kind !== 'start' && token.kind !== 'end') probeTrailingSpace = 0;
-    if (!token.collapsible && !token.hanging && width !== 0) probeEnd = probeX - probeTrailingSpace;
+    if (!token.collapsible && !token.hanging && !token.emptyInlineEdge && width !== 0) probeEnd = probeX - probeTrailingSpace;
     probeBox = token.kind === 'text' ? token.box : undefined;
   };
   const probeLine = (): void => {
@@ -378,7 +400,7 @@ function layoutInlineTokens<Value>(
           previousText.text += part.text;
           previousText.width += part.width;
         } else {
-          previousText = { line: lineIndex, box: token.box, x: offset + part.x, y, width: part.width, height: metrics(token.box).lineHeight, text: part.text, first: true, last: true };
+          previousText = { line: lineIndex, box: token.box, x: offset + part.x, y, width: part.width, height: metrics(token.box).lineHeight, text: part.text, fontScale, first: true, last: true };
           output.fragments.push(previousText);
         }
       }
@@ -414,25 +436,84 @@ function layoutInlineTokens<Value>(
 
   for (const token of tokens) {
     if (token.kind === 'break') {
-      finishLine([...line, token], true);
+      lines.push({ tokens: [...line, token], forced: true });
       line = [];
       lastBreak = 0;
+      lastEmergencyBreak = 0;
       probeLine();
       continue;
     }
     line.push(token);
     probeToken(token);
-    if (availableWidth !== undefined && lastBreak > 0 && lastBreak < line.length && probeEnd > availableWidth) {
-      finishLine(line.slice(0, lastBreak), false);
-      line = line.slice(lastBreak);
+    while (availableWidth !== undefined && probeEnd > availableWidth) {
+      // A collapsible run can still supply its own normal break. Its inline
+      // edges may use an existing normal break, but must not prematurely split
+      // the preceding word via overflow-wrap's emergency opportunities.
+      if (lastBreak === 0 && (token.collapsible || token.collapsibleInlineEdge)) break;
+      const breakAt = lastBreak || lastEmergencyBreak;
+      if (breakAt === 0 || breakAt >= line.length) break;
+      lines.push({ tokens: line.slice(0, breakAt), forced: false });
+      line = line.slice(breakAt);
       lastBreak = 0;
+      lastEmergencyBreak = 0;
       probeLine();
+      for (let index = 0; index < line.length - 1; index++) {
+        if (line[index]!.wrap && line[index]!.breakAfter) lastBreak = index + 1;
+        if (line[index]!.wrap && line[index]!.emergencyBreakAfter) lastEmergencyBreak = index + 1;
+      }
     }
     if (token.breakAfter && token.wrap) {
       lastBreak = line.length;
     }
+    if (token.emergencyBreakAfter && token.wrap) lastEmergencyBreak = line.length;
   }
-  finishLine(line, false);
+  lines.push({ tokens: line, forced: false });
+  // CSS Text 5: wrap at the computed size first, then fit all lines with the
+  // smallest factor. Atomic boxes and inline edges keep their original sizes.
+  if (fit && root.style.textFit === CueTextFit.shrink && availableWidth !== undefined) {
+    let factor = 1;
+    const fittingLines: Array<{ tokens: Array<InlineToken<Value>>; lastContent: number }> = [];
+    for (const { tokens } of lines) {
+      const positioned = positionLine(tokens);
+      let lastContent = positioned.length - 1;
+      while (lastContent >= 0 && (positioned[lastContent]!.token.kind === 'start'
+        || positioned[lastContent]!.token.kind === 'end' || positioned[lastContent]!.token.kind === 'break'
+        || positioned[lastContent]!.token.kind === 'out-of-flow'
+        || (/^[ \t]*$/u.test(positioned[lastContent]!.text) && positioned[lastContent]!.token.kind === 'text'))) lastContent--;
+      let scalable = 0;
+      let fixed = 0;
+      for (const [index, part] of positioned.entries()) {
+        if (part.token.kind === 'text') {
+          if (index <= lastContent) scalable += part.width;
+        } else fixed += part.width;
+      }
+      if (scalable > 0) {
+        fittingLines.push({ tokens, lastContent });
+        factor = Math.min(factor, Math.max(0, (availableWidth - fixed) / scalable));
+      }
+    }
+    // The ratio is based on the original advances; measurement/rasterization
+    // now use the same smaller font, retaining explicit pixel line-height.
+    fontScale = factor;
+    widths.clear();
+    if (fontScale > 0 && fontScale < 1) {
+      // Font hinting/optical sizing can make the ratio estimate overflow. Keep
+      // the largest fitting measured candidate instead of assuming linearity.
+      let lower = 0;
+      let upper = factor;
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const overflows = fittingLines.some(({ tokens, lastContent }) => positionLine(tokens)
+          .reduce((width, part, index) => width + (part.token.kind !== 'text' || index <= lastContent ? part.width : 0), 0) > availableWidth);
+        if (attempt === 0 && !overflows) break;
+        if (overflows) upper = fontScale;
+        else lower = fontScale;
+        fontScale = attempt === 15 ? lower : (lower + upper) / 2;
+        usedStyles.clear();
+        widths.clear();
+      }
+    }
+  }
+  for (const { tokens, forced } of lines) finishLine(tokens, forced);
   return output;
 }
 
@@ -473,20 +554,66 @@ function normalizeInlineContent<Value>(items: ReadonlyArray<CueInlineItem<Value>
     }
   }
   const text = tokens.map((token) => token.text).join('');
-  const breaks = new Set<number>();
-  const breaker = LineBreaker(text, { lineBreak: 'normal', wordBreak: 'normal' });
-  let offset = 0;
-  for (let result = breaker.next(); !result.done; result = breaker.next()) {
-    offset += result.value.slice().length;
-    breaks.add(offset);
+  const contentBoxes = new Set<CueInlineBox<Value>>();
+  const nonCollapsibleBoxes = new Set<CueInlineBox<Value>>();
+  for (const token of tokens) {
+    if (token.kind === 'text' || token.kind === 'atomic' || token.kind === 'break') {
+      for (let box: CueInlineBox<Value> | undefined = token.box; box; box = box.parent) {
+        contentBoxes.add(box);
+        if (!token.collapsible) nonCollapsibleBoxes.add(box);
+      }
+    }
   }
-  offset = 0;
+  for (const token of tokens) {
+    // Empty inline decorations occupy horizontal space but do not themselves
+    // trigger backtracking into preceding text. The next glyph tests that space.
+    token.emptyInlineEdge = (token.kind === 'start' || token.kind === 'end') && !contentBoxes.has(token.box);
+    token.collapsibleInlineEdge = (token.kind === 'start' || token.kind === 'end') && !nonCollapsibleBoxes.has(token.box);
+  }
+  const breaksByMode = new Map<CueWordBreak, Set<number>>();
+  for (const mode of new Set(tokens.map((token) => token.box.style.wordBreak))) {
+    const breaks = new Set<number>();
+    const breaker = LineBreaker(text, { lineBreak: 'normal', wordBreak: mode });
+    let offset = 0;
+    for (let result = breaker.next(); !result.done; result = breaker.next()) {
+      offset += result.value.slice().length;
+      breaks.add(offset);
+    }
+    breaksByMode.set(mode, breaks);
+  }
+  const graphemeEnds = new Set([...graphemes.segment(text)].map((part) => part.index + part.segment.length));
+  const boundaries = new Map<number, { index: number; content: InlineToken<Value> }>();
+  let offset = 0;
+  let previousContent: InlineToken<Value> | undefined;
   for (const [index, token] of tokens.entries()) {
     offset += token.text.length;
-    token.breakAfter = breaks.has(offset) && (token.text.length > 0 || token.kind === 'end');
-    if (tokens[index + 1]?.kind === 'end') {
-      token.breakAfter = false;
+    if (token.text.length > 0) previousContent = token;
+    if (previousContent && graphemeEnds.has(offset) && (token.text.length > 0 || token.kind === 'end')) {
+      // A text boundary may span several end/empty-inline tokens. It remains
+      // one opportunity, at the outer margin edge, not an extra empty line.
+      boundaries.set(offset, { index, content: previousContent });
     }
+  }
+  const nextContent: Array<InlineToken<Value> | undefined> = [];
+  let next: InlineToken<Value> | undefined;
+  for (let index = tokens.length - 1; index >= 0; index--) {
+    nextContent[index] = next;
+    if (tokens[index]!.text.length > 0) next = tokens[index];
+  }
+  for (const [offset, { index, content }] of boundaries) {
+    const token = tokens[index]!;
+    token.breakAfter = breaksByMode.get(content.box.style.wordBreak)!.has(offset);
+    token.emergencyBreakAfter = content.kind === 'text' && content.box.style.overflowWrap === CueOverflowWrap.anywhere;
+    // Disappearing spaces use their own white-space. Character boundaries use
+    // the nearest common ancestor, including the outside of a nowrap span.
+    let owner = content.box;
+    const following = nextContent[index];
+    if (!content.collapsible && following) {
+      const ancestors = new Set<CueInlineBox<Value>>();
+      for (let box: CueInlineBox<Value> | undefined = following.box; box; box = box.parent) ancestors.add(box);
+      while (owner.parent && !ancestors.has(owner)) owner = owner.parent;
+    }
+    token.wrap = owner.style.whiteSpace !== CueWhiteSpace.nowrap && owner.style.whiteSpace !== CueWhiteSpace.pre;
   }
   return tokens;
 }

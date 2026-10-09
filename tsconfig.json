@@ -22,6 +22,9 @@
     {
       "path": "./packages/cli",
     },
+    {
+      "path": "./packages/oms-plugin-cue",
+    },
   ],
   "compilerOptions": {
     "allowJs": true,

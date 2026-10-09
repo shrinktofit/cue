@@ -47,6 +47,23 @@ try {
     const span = (children, style = {}) => ({ tag: 'span', children: Array.isArray(children) ? children : [children], style });
     const cases = [
       { name: 'plain', children: ['Hello world, Cue!'] },
+      ...['anywhere', 'normal'].flatMap(overflowWrap => ['normal', 'break-all'].flatMap(wordBreak => ['normal', 'nowrap', 'pre-wrap'].map(whiteSpace => ({
+        name: 'breaking-' + overflowWrap + '-' + wordBreak + '-' + whiteSpace,
+        children: ['A un', span('break'), 'ableword test'],
+        style: { width: 55, overflowWrap, wordBreak, whiteSpace },
+      })))),
+      { name: 'breaking-cjk', children: ['中文标点（不能跑到行首），LatinText。'], style: { width: 60, wordBreak: 'break-all' } },
+      { name: 'breaking-padded-span', children: ['A ', span('longword', {padding: '2px 4px'}), ' end'], style: {width: 40, overflowWrap: 'anywhere'} },
+      ...[{overflowWrap:'anywhere'}, {wordBreak:'break-all'}].flatMap(style => [
+        { name: 'breaking-nowrap-boundary-' + JSON.stringify(style), children: ['a', span('bcde', {whiteSpace: 'nowrap'}), 'fg'], style: {width: 24, fontFamily: 'monospace', ...style} },
+        ...[8, 16, 24].flatMap(width => [
+          { name: 'breaking-empty-inline-' + width + JSON.stringify(style), children: ['ab', span([], {padding: '0px 4px'}), 'cdef'], style: {width, fontFamily: 'monospace', ...style} },
+          { name: 'breaking-whitespace-inline-' + width + JSON.stringify(style), children: ['ab', span(' ', {padding: '0px 4px'}), 'cdef'], style: {width, fontFamily: 'monospace', ...style} },
+          { name: 'breaking-leading-empty-inline-' + width + JSON.stringify(style), children: [span([], {padding: '0px 4px'}), 'abc'], style: {width, fontFamily: 'monospace', ...style} },
+          { name: 'breaking-trailing-empty-inline-' + width + JSON.stringify(style), children: ['ab', span([], {padding: '0px 4px'})], style: {width, fontFamily: 'monospace', ...style} },
+          { name: 'breaking-nonempty-inline-' + width + JSON.stringify(style), children: [span('ab', {paddingRight: 8}), 'cdef'], style: {width, fontFamily: 'monospace', ...style} },
+        ]),
+      ]),
       {name:'percent-constrained-height',children:['A',span([],{display:'inline-block',width:30,height:'50%'}),'B'],style:{height:100,maxHeight:50}},
       {name:'percent-constrained-anonymous-height',children:['A',span([],{display:'inline-block',width:30,height:'50%'}),'B',{tag:'div',children:['C']}],style:{height:50,minHeight:100}},
       {name:'sub-outofflow-anchor',children:['A',span(['B',span('C',{position:'absolute',left:0,top:0}),'D'],{verticalAlign:'sub'}),'Z'],style:{position:'relative'}},
@@ -117,7 +134,7 @@ try {
       };
       const pair = make({tag: example.tag ?? 'div', style: {width: 180, fontFamily: 'Arial', fontSize: 16, lineHeight: 20, ...example.style}, children: example.children});
       // Font-family is a list in Cue's typed API.
-      pair.cue.style.fontFamily = ['Arial'];
+      pair.cue.style.fontFamily = [example.style?.fontFamily ?? 'Arial'];
       document.body.appendChild(pair.dom);
       const origin = pair.dom.getBoundingClientRect();
       const expected = [];
@@ -143,7 +160,10 @@ try {
         for (const line of item.lines) {
           for (let index = 0; index < line.text.length; index++) {
             if (/\\s/.test(line.text[index])) continue;
-            const prefix = rasterizer.layout(line.text.slice(0, index), {...item.style, whiteSpace: 'pre'}).width;
+            // Include the next glyph when measuring its origin: kerning (e.g.
+            // Te) changes the prefix advance once that glyph is shaped.
+            const prefix = rasterizer.measureWidth(line.text.slice(0, index + 1), item.style)
+              - rasterizer.measureWidth(line.text[index], item.style);
             const [a, b, c, d, e, f] = item.transform;
             const x = item.x + line.x + prefix;
             actual.push({text: line.text[index], x: a * x + c * baseline + e, baseline: b * x + d * baseline + f});
@@ -193,11 +213,40 @@ try {
       CanvasRenderingContext2D.prototype.measureText = originalMeasureText;
     }
     window.cueInlinePerformance = performanceResults;
+    // Chromium 148's experimental text-fit scales fixed line-height and returns
+    // unscaled Range rectangles. Test the draft's fitting invariants with real
+    // Canvas fonts instead of treating that older behavior as a CSS oracle.
+    const fittingResults = [];
+    for (const fontFamily of ['Arial', 'monospace', 'serif']) {
+      for (const width of [0, 24, 40, 80, 300]) {
+        const root = new CueRootElement();
+        const block = new DivElement();
+        Object.assign(block.style, {width, fontFamily: [fontFamily], fontSize: 16, lineHeight: Length.px(24), whiteSpace: 'pre', textFit: 'shrink'});
+        block.insertBefore(new Text('abcdefghij'));
+        block.insertBefore(new BrElement());
+        block.insertBefore(new Text('abc'));
+        root.insertBefore(block);
+        const list = createCuePaintList(root, [], rasterizer, () => undefined, () => undefined);
+        const paints = list.commands.filter(command => command.kind === 'text').map(command => command.paint);
+        const box = list.hitRegions.find(region => region.element === block);
+        const ok = box.height === 48 && block.style.fontSize === 16
+          && (width === 0 ? paints.length === 0 : paints.length === 2
+            && paints.every(paint => paint.width <= width + 0.001 && paint.style.fontSize <= 16)
+            && paints[0].style.fontSize === paints[1].style.fontSize
+            && paints[0].y - paints[1].y === 24);
+        fittingResults.push({fontFamily, width, ok, height: box.height, paints: paints.map(paint => ({fontSize: paint.style.fontSize, width: paint.width}))});
+      }
+    }
+    window.cueFittingResults = fittingResults;
     window.cueInlineResults = results;
   ` });
-  await page.waitForFunction('window.cueInlineResults', { timeout: 30000 });
+  await page.waitForFunction('window.cueInlineResults', undefined, { timeout: 30000 });
   const results = await page.evaluate('window.cueInlineResults');
-  console.log(JSON.stringify(results, undefined, 2));
+  console.log(`${results.length} browser comparisons; ${results.filter((result: { ok: boolean }) => !result.ok).length} failures`);
+  console.log(JSON.stringify(results.filter((result: { ok: boolean }) => !result.ok), undefined, 2));
+  const fittingResults = await page.evaluate('window.cueFittingResults');
+  console.log(`${fittingResults.length} real-font fitting checks`, fittingResults.filter((result: { ok: boolean }) => !result.ok));
+  assert.equal(fittingResults.filter((result: { ok: boolean }) => !result.ok).length, 0);
   assert.deepEqual(errors, []);
   assert.equal(results.filter((result: { ok: boolean }) => !result.ok).length, 0, 'Cue inline layout must match the browser reference');
   const performanceResults = await page.evaluate('window.cueInlinePerformance') as Array<{

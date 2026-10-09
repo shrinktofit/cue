@@ -1,6 +1,6 @@
 # Cue Implementation Status
 
-更新日期：2026-09-19
+更新日期：2026-10-09
 
 本页追踪 Cue 相对产品目标的当前实现状态，依据仓库源码、测试和可运行示例维护，不代替 [`PLANS.md`](PLANS.md) 中的路线与架构决策。
 
@@ -35,7 +35,8 @@
 | CSS preprocessors | ❌ | 尚未实现 |
 | Asset reference / dependency metadata | ❌ | 尚未实现 |
 | HMR metadata 与增量 patch 分类 | ❌ | 尚未实现 |
-| OMS source compiler 接入 | ❌ | examples 仍使用 CLI 预编译 |
+| OMS source compiler 接入 | ✅ | `@bsgames/oms-plugin-cue`；直接 import `.cue`，派生模块不落盘；见 [接入说明](oms-integration.md) |
+| OMS 源文件及图片元数据监听 | ✅ | 源文件 / asset / `.meta` 登记到 OMS；更新、删除失败及重建恢复；非细粒度 HMR |
 
 ## Element 与 Vue Runtime
 
@@ -115,7 +116,7 @@
 | 静态 `style` attribute | ✅[^inline-style] | 编译期 Lightning CSS → IR，保留 normal / important |
 | `CueElement.style` 类型化 API | ✅[^style-api] | px / %、结构化颜色、font-family 名称、longhand enum；修改与移除 |
 | 动态 CSS 字符串 / Vue `:style` | ❌ | 明确不支持；使用类型化 API 或动态 class，不引入 runtime parser |
-| 已支持文本属性的继承 | ✅ | color、font、line-height、text-align、white-space 与 Cue text stroke |
+| 已支持文本属性的继承 | ✅ | color、font、line-height、text-align、white-space、overflow-wrap、word-break、text-fit 与 Cue text stroke |
 | 通用属性继承 / CSS-wide keywords | ❌ | 尚未实现完整 CSS 继承模型 |
 | `initial` / `inherit` / `unset` / `revert` | ❌ | 尚未实现 |
 | Custom properties 与 `var()` | ❌ | 尚未实现 |
@@ -172,7 +173,11 @@
 | 匿名 flex item | ✅[^inline-layout] | 连续裸文本参与 flex sizing / alignment；不插入作者树 |
 | 显式 segment break | ✅[^text-wrap] | 在 `pre`、`pre-wrap`、`pre-line` 中保留；在 `normal`、`nowrap` 中折叠 |
 | `white-space: break-spaces` | ❌ | 尚未实现 preserved-space 的逐空格换行与行尾占位语义 |
-| `overflow-wrap` / `word-break` / `line-break` / `hyphens` | ❌ | 当前使用这些属性的标准初始行为，不接受非初始值 |
+| `overflow-wrap: normal / anywhere` | ✅[^text-wrap] | anywhere 仅在整词无法容纳时紧急断词；影响 min-content；不拆 grapheme cluster |
+| `word-break: normal / break-all` | ✅[^text-wrap] | break-all 允许词内 soft wrap；仍遵守 nowrap / pre 与 Unicode 标点断行约束 |
+| `text-fit: none / shrink` | ✅[^text-fit] | 换行后按同一比例缩小所有行，不修改 computed font-size；inline padding/border/margin 和 atomic inline 不缩放 |
+| `overflow-wrap: break-word`、其余 `word-break`、`line-break` / `hyphens` | ❌ | 未接入额外取值、语言 tailoring 或自动连字符 |
+| `text-fit: grow` / per-line modes / percentage limit | ❌ | 当前只实现默认 consistent 的 shrink 子集 |
 | `font-weight: normal / bold / 1..1000` | ✅[^text-raster] | 测量与绘制使用相同 weight；按标准继承 |
 | `font-weight: bolder / lighter`、`font-style` | ❌ | 尚未实现 |
 | `-cue-text-stroke` / `-cue-text-stroke-width` / `-cue-text-stroke-color` | ✅[^text-stroke] | Cue 专有描边，不伪装成标准 text-shadow |
@@ -261,6 +266,9 @@
 | 整文本块 texture paint | ✅[^text-raster] | 每个纯文本元素一张纹理和一个 quad |
 | Glyph atlas / SDF text | ❌ | 当前阶段明确不引入 |
 | SpriteFrame image paint | ✅[^cue-image] | 每个 `cue-image` 使用 SpriteFrame texture / UV 绘制一个 quad |
+| `object-fit: fill / contain` | ✅[^object-fit] | 默认拉伸；contain 等比完整显示、允许放大；元素布局和命中区域不变 |
+| `object-fit: cover / none / scale-down` | ❌ | compiler 对这些未支持值报错 |
+| `object-position` | ❌ | 尚无作者可设置的属性；图片采用标准初始位置 `50% 50%` |
 | Nine-slice image paint | ❌ | 尚未实现 |
 | Material / texture / clip batch splitting | ✅ | 按有序 paint command 连续拆分 box、shadow、background texture、image、text 与 stencil clip |
 | Partial paint rebuild / dirty propagation | ❌ | 当前每帧重新计算 layout 与上传 vertex buffer |
@@ -295,15 +303,15 @@
 | Cue runtime assets 挂载到 `asset-db` | ✅ | hooks 注册只读 `Cue-Runtime` mount |
 | Extension service lifecycle / commands / UI | ❌ | `main.ts` 当前为空入口 |
 | `.cue` asset importer / dependency graph | ❌ | 尚未实现 |
-| OMS build / preview contribution | ❌ | 尚未实现 |
+| Cue 专用 build / preview contribution | ❌ | 不含上表已接通的 OMS source compiler 插件 |
 | Runtime Inspector | ❌ | 尚未实现 |
 | `.cue` language plugin | ❌ | package 当前只有空导出 |
 | `vue-tsc` 的 `.cue` 检查 | ❌ | 尚未实现 |
 | CSS Profile completion / diagnostics | ❌ | 尚未实现 |
 | Custom Element editor metadata | ❌ | 尚未实现 |
 | Flex playground 可视化验收 | ✅ | 独立 examples 仓库以控制面驱动一个 live flex layout；控制面与舞台同属一个 Cue 文档 |
-| Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收文本样例、`white-space`、宽度、对齐和字体样式 |
-| Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸与显式拉伸 |
+| Text playground 可视化验收 | ✅ | 独立页面以一个 live text box 组合验收样例、`white-space`、`overflow-wrap`、`word-break`、`text-fit`、宽度、对齐和字体样式 |
+| Image playground 可视化验收 | ✅[^cue-image] | 独立页面以一个 live `cue-image` 验收相对路径、`uuid:`、固有尺寸、单轴等比尺寸、动态换图与 fill/contain |
 | Decoration playground 可视化验收 | ✅[^decoration-gallery] | 独立页面组合验收 border、radius、outline、shadow、background、overflow、transform 与 `-cue-opacity` |
 | Position playground | ✅ | 独立页面验证 relative、absolute、四边偏移与定位祖先 |
 | Style API playground | ✅ | 独立页面验证类型化进度/颜色更新、优先级与清除覆盖 |
@@ -366,7 +374,11 @@
 
 [^text-wrap]: Cue 跨文本 run 处理 segment break 与可折叠空白，再用 css-line-break 的换行机会配合 Canvas 宽度选择 soft wrap。保留 tab 使用初始 tab-size:8 的像素停靠，pre-wrap 的行尾空白不计入对齐宽度；尚无 lang / line-break tailoring、break-spaces 与完整 Unicode conformance。可编辑输入框仍保留独立的 caret/selection 排版路径，需持续同步回归。
 
-[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时拉伸到 content box。尚无 URL、data URL、`object-fit`、裁剪或 nine-slice 语义。
+[^text-fit]: 对齐 [CSS Text Level 5 编辑草案](https://drafts.csswg.org/css-text-5/#text-fit)，不是稳定 CSS Recommendation；当前为普通 inline formatting 的 `none / shrink` 子集。先按原字号换行，再以最小缩放因子统一缩小；行尾空白不参与缩字判定，固定 px 行高不缩放，normal 行高按使用字号计算，intrinsic widths 不受影响。真实字体缩小后会重新测宽，避免 hinting 造成残留溢出。不承诺完整 shaping / bidi；可编辑输入框的专用 caret/selection 排版不在此声明内。
+
+[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时默认以 `object-fit: fill` 拉伸到 content box。尚无 URL、data URL、图片自身的裁剪或 nine-slice 语义。
+
+[^object-fit]: 遵循 [CSS Images 3](https://www.w3.org/TR/css-images-3/#the-object-fit) 的 `fill / contain` 子集；不继承，初始值为 `fill`，适配目标为扣除 border/padding 的 content box。contain 使用 SpriteFrame `rect` 比例，仅改变图片 quad 的尺寸与位置，采用标准初始 `object-position: 50% 50%`，不改变背景、布局或命中区域。异步加载、换图、容器尺寸和 typed style 更新后重新适配；这不是 `scale-down`，小图也会放大。
 
 [^background-image]: 对外语法仍是 Web CSS `background-image: url(...)`。当前只接受一层相对路径或 `uuid:` URL；相对路径由 compiler host 规范化为 Cocos `Texture2D` UUID。绘制使用 Web CSS 初始的 `background-repeat: repeat`、`background-position: 0% 0%`、`background-origin: padding-box`、`background-clip: border-box` 和 auto 固有尺寸。显式 repeat / position / size / origin / clip、多层图片、远程 URL 与 nine-slice 尚未实现。
 
@@ -382,4 +394,4 @@
 
 [^z-index]: 当前实现同父级 positioned elements 与直接 flex items 的绘制顺序：负整数层级在 normal flow 前；positioned `auto` / `0` 和显式 `z-index: 0` 的 flex item 在 normal flow 后；正整数层级最后绘制，同层保持原有顺序。非 flex 的 static 元素不应用 `z-index`。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
 
-[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，控制面与它同属一个 Cue 文档，Cocos 只保留场景、相机与 EditBox 对照物；编译产物写入 ignored 目录；它用于人工视觉验收，不等同于像素级 conformance suite。
+[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，控制面与它同属一个 Cue 文档，Cocos 只保留场景、相机与 EditBox 对照物；通过 OMS 插件直接编译 `.cue`；它用于人工视觉验收，不等同于像素级 conformance suite。

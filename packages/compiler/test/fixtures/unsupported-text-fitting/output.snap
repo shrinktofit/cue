@@ -1,0 +1,19 @@
+/// error 1
+
+Cue supports overflow-wrap: normal or anywhere.
+
+/// error 2
+
+Cue supports word-break: normal or break-all.
+
+/// error 3
+
+Cue supports text-fit: none or shrink (CSS Text Level 5 draft, consistent scaling).
+
+/// error 4
+
+Cue supports text-fit: none or shrink (CSS Text Level 5 draft, consistent scaling).
+
+/// error 5
+
+Cue supports text-fit: none or shrink (CSS Text Level 5 draft, consistent scaling).

@@ -9,6 +9,7 @@ import {
   CueFlexWrap,
   CueJustifyContent,
   CueMaxDimensionKeyword,
+  CueObjectFit,
   CueOverflow,
   CuePointerEvents,
   CuePosition,
@@ -226,7 +227,7 @@ interface CueLayoutRecord {
   inline?: {
     box: CueInlineBox<CueLayoutRecord>;
     items: Array<CueInlineItem<CueLayoutRecord>>;
-    layout: (width?: number, height?: number) => CueInlineLayout<CueLayoutRecord>;
+    layout: (width?: number, height?: number, fit?: boolean) => CueInlineLayout<CueLayoutRecord>;
   } | undefined;
   inlineLayout?: CueInlineLayout<CueLayoutRecord> | undefined;
   fragment?: { x: number; y: number; width: number; height: number };
@@ -245,7 +246,7 @@ interface CueLayoutRecord {
 
 interface CueTextLayoutContext {
   kind: CueIntrinsicContentKind.text;
-  layout: (width?: number, height?: number) => CueInlineLayout<CueLayoutRecord>;
+  layout: (width?: number, height?: number, fit?: boolean) => CueInlineLayout<CueLayoutRecord>;
 }
 
 interface CueLayoutEnvironment {
@@ -350,7 +351,7 @@ const paintOnlyProperties = new Set<keyof ComputedCueElementStyle>([
   'borderRightColor', 'borderTopColor', 'borderBottomLeftRadius',
   'borderBottomRightRadius', 'borderTopLeftRadius', 'borderTopRightRadius',
   'boxShadow', 'color', 'cueOpacity', 'cueTextStrokeColor', 'cueTextStrokeWidth',
-  'outlineColor', 'outlineOffset', 'outlineStyle', 'outlineWidth', 'pointerEvents',
+  'objectFit', 'outlineColor', 'outlineOffset', 'outlineStyle', 'outlineWidth', 'pointerEvents',
   'transform', 'transformOrigin', 'zIndex',
 ]);
 
@@ -754,12 +755,12 @@ function createLayoutRecord(
   const attachInline = (target: CueLayoutRecord, content: Array<CueInlineItem<CueLayoutRecord>>): void => {
     const formatting = new CueInlineFormatting(rootBox, content, environment.textMeasurer);
     target.clearInlineCache = () => formatting.clear();
-    target.inline = { box: rootBox, items: content, layout: (width, height) => {
+    target.inline = { box: rootBox, items: content, layout: (width, height, fit) => {
       const containingHeight = height ?? (typeof style.height === 'number'
         ? Math.max(typeof style.minHeight === 'number' ? style.minHeight : 0, Math.min(typeof style.maxHeight === 'number' ? style.maxHeight : Infinity, style.height))
         - (style.boxSizing === CueBoxSizing.borderBox ? pixelLength(style.paddingTop, width ?? 0) + pixelLength(style.paddingBottom, width ?? 0) + borderWidth(style.borderTopStyle, style.borderTopWidth) + borderWidth(style.borderBottomStyle, style.borderBottomWidth) : 0)
         : undefined);
-      return formatting.layout(width, containingHeight);
+      return formatting.layout(width, containingHeight, fit);
     } };
   };
   const flush = (): void => {
@@ -1102,18 +1103,24 @@ function createMeasureFunction(): MeasureFunction {
         knownDimensions.height,
       );
     }
-    const width = textAvailableWidth(availableSpace.width);
+    const minContent = availableSpace.width === 'min-content';
+    // The narrowest break probe determines intrinsic width, not its height:
+    // inline edges can make that width wider than the probe's actual lines.
+    // Measure height at the width we report so Taffy's intrinsic cache remains
+    // valid when a later layout has exactly that width.
+    const width = minContent ? intrinsicContext.layout(0, undefined, false).width : textAvailableWidth(availableSpace.width);
     const textLayout = intrinsicContext.layout(
       // Taffy passes border-box known dimensions but content-box available space.
       // It applies known dimensions itself after measuring the intrinsic content.
       width,
       knownDimensions.height,
+      !minContent,
     );
     return {
       height: textLayout.height,
       // A shrink-to-fit box uses the available width clamped by its intrinsic
       // min/max sizes, not the advance of the longest already-wrapped line.
-      width: width === undefined ? textLayout.width : Math.max(intrinsicContext.layout(0).width, Math.min(width, intrinsicContext.layout().width)),
+      width: minContent ? width! : width === undefined ? textLayout.width : Math.max(intrinsicContext.layout(0, undefined, false).width, Math.min(width, intrinsicContext.layout().width)),
     };
   };
 }
@@ -1629,18 +1636,29 @@ function appendPaintCommands(
       });
     }
     if (record.image && contentWidth > 0 && contentHeight > 0) {
+      let imageWidth = contentWidth;
+      let imageHeight = contentHeight;
+      const { width: naturalWidth, height: naturalHeight } = record.image.rect;
+      // CSS Images: contain sizes the replaced content, not its layout box.
+      // Without a natural aspect ratio the constraint rectangle is used as-is.
+      if (record.style.objectFit === CueObjectFit.contain && naturalWidth > 0 && naturalHeight > 0) {
+        const scale = Math.min(contentWidth / naturalWidth, contentHeight / naturalHeight);
+        imageWidth = naturalWidth * scale;
+        imageHeight = naturalHeight * scale;
+      }
       paintList.commands.push({
         kind: CuePaintCommandKind.image,
         paint: {
           element: record.element,
           clipDepth: contentClipDepth,
-          height: contentHeight,
+          height: imageHeight,
           opacity,
           spriteFrame: record.image,
           transform,
-          width: contentWidth,
-          x: contentX,
-          y: -contentY,
+          width: imageWidth,
+          // The supported profile retains the initial object-position: 50% 50%.
+          x: contentX + (contentWidth - imageWidth) / 2,
+          y: -(contentY + (contentHeight - imageHeight) / 2),
         },
       });
     }
@@ -1735,7 +1753,10 @@ function inlinePaintRecords(record: CueLayoutRecord, x: number, y: number): CueL
         ...value, children: [], inline: undefined, inlineLayout: undefined, inlineAncestors: undefined,
         preparedText: {
           element: value.element, x: x + fragment.x, y: -(y + fragment.y), width: fragment.width, height: fragment.height,
-          lines: [{ text: fragment.text, x: 0 }], style: fragment.box.style,
+          lines: [{ text: fragment.text, x: 0 }],
+          style: fragment.fontScale === undefined || fragment.fontScale === 1
+            ? fragment.box.style
+            : { ...fragment.box.style, fontSize: fragment.box.style.fontSize * fragment.fontScale },
           opacity: 1, clipDepth: 0, transform: identityCueAffineTransform,
         },
       }, fragment.box, fragment.line);

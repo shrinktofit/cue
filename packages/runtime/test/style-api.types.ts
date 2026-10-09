@@ -1,4 +1,4 @@
-import { DivElement, Length, type CueStyle } from '../src/index.js';
+import { CueObjectFit, DivElement, Length, type CueStyle } from '../src/index.js';
 
 /// @case A TypeScript consumer sets and clears API values with exactOptionalPropertyTypes.
 /// @expect Every override accepts undefined; CSS text, percentage-only misuse and line-height multipliers do not.
@@ -9,6 +9,9 @@ export function checkStyleApiTypes(): void {
   element.style.color = undefined;
   element.style.fontSize = undefined;
   element.style.lineHeight = undefined;
+  element.style.objectFit = CueObjectFit.fill;
+  element.style.objectFit = CueObjectFit.contain;
+  element.style.objectFit = undefined;
   const empty: CueStyle = { width: undefined, backgroundColor: undefined };
   Object.assign(element.style, empty);
 
@@ -18,6 +21,8 @@ export function checkStyleApiTypes(): void {
   element.style.fontSize = Length.percent(50);
   // @ts-expect-error Unitless line-height is a CSS multiplier, not a pixel length.
   element.style.lineHeight = 1.5;
+  // @ts-expect-error Unsupported object-fit values are not part of the typed API.
+  element.style.objectFit = 'cover';
   // @ts-expect-error Colors are structured data, not CSS source text.
   element.style.color = '#fff';
   // @ts-expect-error A scale factor is unitless, not a length.

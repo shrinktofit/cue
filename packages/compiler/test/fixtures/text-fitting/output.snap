@@ -1,0 +1,80 @@
+/// text-fitting.cue.js
+
+import component from "./text-fitting.cue.script.js";
+import { render } from "./text-fitting.cue.template.js";
+import styleSheet from "./text-fitting.cue.style.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/text-fitting.cue",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// text-fitting.cue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// text-fitting.cue.template.js
+
+import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock("div", {
+    class: "wrap",
+    __cueInlineStyle: {"declarations":{"overflowWrap":"anywhere","wordBreak":"break-all","textFit":"shrink"},"selectors":[[{"type":"class","name":"cue-inline"}]]}
+  }, "AnUnbreakableLabel"))
+}
+
+/// text-fitting.cue.style.js
+
+const styleSheet = {
+  "rules": [
+    {
+      "declarations": {
+        "overflowWrap": "anywhere",
+        "wordBreak": "break-all",
+        "textFit": "shrink"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "wrap"
+          }
+        ]
+      ]
+    },
+    {
+      "declarations": {
+        "overflowWrap": "normal",
+        "wordBreak": "normal",
+        "textFit": "none"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "reset"
+          }
+        ]
+      ]
+    },
+    {
+      "importantDeclarations": {
+        "textFit": "shrink"
+      },
+      "selectors": [
+        [
+          {
+            "type": "class",
+            "name": "important"
+          }
+        ]
+      ]
+    }
+  ],
+  "version": 1
+};
+
+export default styleSheet;

@@ -1,8 +1,8 @@
 # Cue 开发计划
 
-状态：推进 Phase 0 剩余契约与验证 Gate；本轮六类原生控件已实现，保留用户验收与平台 Gate
+状态：推进 Phase 0 剩余契约与验证 Gate；OMS 直接导入和 examples 迁移已交付，保留用户验收与平台 Gate
 目标运行环境：Cocos Creator / Vortex 3.8
-文档日期：2026-09-19
+文档日期：2026-10-09
 
 ## 1. 项目定位
 
@@ -44,10 +44,12 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 - Pointer Events / 命中 / Vue 事件与 Input Gallery 的边界见 [`input.md`](input.md)。本轮已接通内置控件 focus、Web keyboard、wheel 与文本编辑/composition 桥接；Native、OS IME 人工验收、通用 scrolling / gestures 和长期交互回归仍为 Gate，完成项待用户确认后移除。
 - 六类原生控件、真实 type/state selectors、低来源默认样式和各自 gallery 已交付，契约见 [`builtin-controls.md`](builtin-controls.md)。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/touch 回归已有通过记录；不据此关闭 OS IME、production、Native 或用户验收。
-- `.cue` 仍通过 CLI 预编译，尚未接入 OMS source compiler、依赖图、source map 与 HMR。
+- `.cue` 已通过独立 OMS 插件接入开发/生产脚本构建，examples 不再需要 CLI 预生成 JS；源文件和图片元数据交由 OMS 监听。交付及用户验收 Gate 保留，source map、完整编译依赖和细粒度 HMR 仍未实现，见 [`oms-integration.md`](oms-integration.md)。
 - language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
 - 本轮水平 LTR inline formatting 已接入 line box、匿名 inline/block/flex item、span/br、inline-block 与 vertical-align，并补 Text Gallery；契约及剩余边界见 [`inline-layout.md`](inline-layout.md)。交付项保留至用户验收。
+- 文本断词 `overflow-wrap: anywhere`、`word-break: break-all` 与 CSS Text 5 草案 `text-fit: shrink` 子集已接通，Text Gallery 可组合验收；仍保留完整 shaping/bidi、其余断词/缩字值、可编辑文本缩字和平台验证边界，见 [`inline-layout.md`](inline-layout.md)。
 - Box/Flex 已有文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、Flex text baseline 回调、完整 inline conformance 和 Grid。
+- 图片 `object-fit: fill / contain` 已接通 compiler、typed style 与绘制，Image Gallery 和道具栏用于验收；其余 object-fit 值、可设置的 object-position 及 production / Native 验证仍未实现。保留用户验收 Gate，范围见 [`implementation-status.md`](implementation-status.md)。
 - Flex playground 尚缺 production Web smoke、性能、体积和 Native Gate。
 - 本轮 P0–P2 性能改造已交付：静态文档复用、有界文本缓存、持久 Taffy 树、paint-only 分离与未变绘制记录复用；验证记录和剩余拓扑/生产性能边界见 [`runtime-performance.md`](runtime-performance.md)。保留用户验收 Gate，不据此关闭 production / Native 或长期资源压力测试。
 - 本轮 Position / Style API / TTF 描边与 `game-ui-showcase/player-profile` 的交付状态见 implementation-status；后续仍需 production / Native、长期资源释放和视觉回归 Gate。功能计划的完成项待用户确认后再移除。
@@ -118,6 +120,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - `control-schema`：compiler/runtime 共用的六类内置控件身份与 model 契约；不承载业务行为或 runtime compiler。
 - `compiler`：SFC、template、CSS、asset reference、IR、source map 和 HMR metadata 编译。
 - `cue-cli`：早期开发阶段的 compiler 命令行前端，只调用 compiler 库，不承载独立编译逻辑。
+- `oms-plugin-cue`：使用公开 OMS/Vite 子集 hooks 消费 compiler artifacts，管理内存派生模块及编译依赖登记，不拥有 watcher 或第二套 bundler。
 - `language-service`：`.cue` 的 Volar/Vue/TypeScript/CSS profile 集成。
 - `extension`：Vortex 生命周期、OMS 对接、asset-db/build/preview contributions、开发工具 UI。
 
@@ -181,7 +184,7 @@ current JavaScript artifacts
   -> asset metadata + diagnostics + HMR metadata
 ```
 
-Compiler 继续只返回内存中的多文件 JavaScript artifacts，不负责文件系统写入。CLI 负责落盘；未来 OMS adapter 将相同结果注册为虚拟模块，不能复制编译逻辑。
+Compiler 继续只返回内存中的多文件 JavaScript artifacts，不负责文件系统写入。CLI 负责独立命令的落盘；OMS 插件将相同结果注册为虚拟模块，不复制编译逻辑。
 
 剩余阶段职责：
 
@@ -258,32 +261,30 @@ source locations (development only)
 
 ## 8. oh-my-script 集成规划
 
-### 8.1 已发现的阻断项
+### 8.1 当前交付与剩余 Gate
 
-当前本地 OMS build-core：
+当前 plugin-enabled OMS worktree 已提供公开的 `@oms/plugin`，Cue 仅消费其 Vite 兼容子集：
 
-- 只识别 `.js`、`.mjs`、`.cjs`、`.ts`、`.mts`、`.cts`。
-- `oms.config.*` 当前没有公开 compiler/transform plugin 配置。
+- `oms.config.js` 注册独立 `@bsgames/oms-plugin-cue`，直接导入 `.cue`。
+- facade/script/template/style 通过标准 `resolveId/load` 留在内存；相对导入以原始源码为基准。
+- `addWatchFile` 登记源文件、图片和元数据，OMS 管理重建与整体重载。
 
-因此 `.cue` 不能只靠 Cue extension 自己的配置进入 OMS 开发和生产构建。
+本轮接入及 examples 交付待用户验收。尚未完成 source map、完整类型/样式外部依赖与细粒度 HMR；不因此要求 OMS 首版增加 dev server 或 HMR 接口。
 
 ### 8.2 推荐方案
 
-在 oh-my-script 建立最小、稳定的 source compiler 扩展点，Cue 作为消费者注册：
+继续使用公开的标准 hooks；后续扩展须由具体用例证明必要性，不引入 Cue 专用宿主协议：
 
 ```text
-canLoad(id)
-load/transform(source, id, mode)
-watch dependencies
-generated module ids
-source maps
-HMR invalidation metadata
-production emit metadata
+buildStart
+resolveId / load / transform
+this.resolve / addWatchFile / error / warn / cache
+config / configResolved
 ```
 
 这个接口必须同时服务：
 
-- development Vite runtime。
+- OMS development Rollup 构建及整体重载。
 - production Rollup/SystemJS 构建。
 - default/headless/editor profiles。
 - project domain 与 extension domain。
@@ -296,7 +297,7 @@ production emit metadata
 - 绕回 Cocos 内置脚本系统处理 `.cue`。
 - 修改 `node_modules` 或已安装 OMS extension。
 - Cue 自带第二套项目脚本 watcher、module graph 和 production bundler。
-- 依赖整场景 reload 掩盖 HMR 缺口。
+- 将首版整体重载误报为细粒度 HMR；整体重载是当前用户已确认可接受的开发方式。
 - 长期维护无 source map、无依赖图的 `temp/*.ts` 旁路生成物。
 
 Cue 管理的预编译临时文件只允许用于验证 OMS 扩展点设计，不作为发布架构。
@@ -305,7 +306,7 @@ Cue 管理的预编译临时文件只允许用于验证 OMS 扩展点设计，�
 
 - 项目 `src` 可以直接 import 一个 `.cue` component。
 - `.cue` 可以 import 普通 TS、npm dependency 和允许的 `#oms-peer`。
-- development 修改 template/style/script 能触发正确的增量更新。
+- development 修改 template/style/script 能触发正确的重建及整体重载；细粒度 HMR 独立验收。
 - production Web 输出包含相同语义，不依赖 dev server。
 - headless profile 对不支持的 UI import 给出明确错误或按 ADR 定义排除，不能静默生成空实现。
 - diagnostics 和 stack/source map 能回到 `.cue` 源位置。
@@ -461,7 +462,7 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 独立仓库：`U:\Repos\Bluesquall\cc-extensions\cc-extension-cue-examples`
 
-OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入 ignored generated 目录；该路径只调用 compiler 库，不形成第二套编译实现。
+Examples 通过 OMS 插件直接导入 `.cue`，构建/测试显式断言没有预生成 JS 输入。CLI 只保留为独立工具，不再是 examples 的前置步骤。
 
 本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面已自举为 `.cue`（单 CueDocument，仅保留场景/相机与 EditBox 对照物）；六类控件本身仍是 TypeScript `CueElement`，不通过 `.ce.cue` 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
 
@@ -613,7 +614,7 @@ OMS source compiler 接入完成前，examples 继续通过 `cue compile` 写入
 
 | 风险 | 影响 | 处理 |
 | --- | --- | --- |
-| OMS 当前无 `.cue` compiler extension point | 阻断整个脚本链 | Phase 0 先建立最小公共契约并同时覆盖 dev/prod |
+| OMS 插件 API 尚未发布 | 本地接入依赖指定 worktree | 保留明确 link/junction 及 dev/prod 回归，发布后切换包版本 |
 | Cocos 私有 renderer API 变动 | backend 易碎 | 单一 backend 边界、版本 smoke、禁止泄漏内部类型 |
 | Taffy WASM Native 支持受限 | Native 无法运行 | Web WASM 与 Native C ABI 共用 LayoutBackend，Phase 0 决策 |
 | Compiler/LS CSS 支持列表漂移 | IDE 正确、构建失败或反之 | 单一声明式 CSS Profile 生成多端 metadata |
@@ -648,7 +649,7 @@ Phase 0 前置决策：
 
 ## 17. 下一轮工作建议
 
-近期先不接 OMS。先保留并收敛本轮六控件的用户验收、OS IME 人工检查、production/长期交互回归 Gate；已通过的鼠标、键盘和触摸用例保留为回归依据。随后按当前可视化能力收敛 layout：
+本轮先收敛已授权的 OMS 接入和 examples 迁移验收；六控件的用户验收、OS IME 人工检查、production/长期交互回归 Gate 继续保留。随后按当前可视化能力收敛 layout：
 
 1. 为 Box/Flex 建立数据驱动的几何断言矩阵，并让每个 playground 控件组合都能对应可复现 fixture。
 2. 补齐不依赖文本的 Flexbox 值域与语义，优先处理 unsupported value diagnostics、alignment fallback、`display: none` 和 viewport containing block。
@@ -656,4 +657,4 @@ Phase 0 前置决策：
 4. 完成 Flex Gate：自动几何测试、Web Preview playground、resize 与 production Web smoke 同时通过。
 5. Flex Gate 完成后接入 Taffy Grid，并建立同结构的 Grid status table、fixtures 与 gallery controls。
 
-OMS、HMR 与 language-service 仍是 Phase 0 Gate，但在 layout 验收链稳定前不作为近期实现顺序。
+OMS 接入的剩余 source map / 发布 Gate、HMR 与 language-service 继续独立跟踪，不混入首版直接导入 `.cue` 的必要接口。

@@ -337,6 +337,9 @@ export abstract class CueEditableInputElement extends CueControlElement {
       cueTextStrokeWidth: partStyle.cueTextStrokeWidth,
       textAlign: partStyle.textAlign,
       whiteSpace: CueWhiteSpace.pre,
+      overflowWrap: partStyle.overflowWrap,
+      wordBreak: partStyle.wordBreak,
+      textFit: partStyle.textFit,
     };
     const key = JSON.stringify([this.#editingText, this.#placeholder, this.editingMultiline,
       this.editingPassword, contentBox, style, textStyle, this.focused,

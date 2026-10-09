@@ -8,6 +8,7 @@ Cue is a Vue 3 retained-mode runtime UI system and Cocos Creator / Vortex extens
 - `@bsgames/cue-compiler`: `.cue` SFC, template, style, and metadata compiler.
 - `@bsgames/cue-style-schema`: shared runtime style IR.
 - `@bsgames/cue-cli`: early command-line frontend for the compiler library.
+- `@bsgames/oms-plugin-cue`: direct `.cue` imports for OMS development and production builds.
 - `@bsgames/cue-language-service`: Vue/TypeScript/CSS language tooling for `.cue` files.
 - `cue`: Vortex extension published through exm as `@bsgames/extension-cue`.
 - `@bsgames/cue-workflow`: private shared TypeScript workflow configuration.
@@ -26,7 +27,16 @@ pnpm test
 pnpm lint
 ```
 
-During early development, the CLI can compile one Cue SFC into generated JavaScript modules:
+Examples use the OMS plugin in their `oms.config.js`, without pre-generated Cue JavaScript:
+
+```js
+import { cue } from '@bsgames/oms-plugin-cue';
+
+export default { plugins: [cue()] };
+```
+
+See [OMS integration](docs/oms-integration.md) for current boundaries and verification commands.
+The CLI remains available as a standalone compiler frontend:
 
 ```text
 cue compile example.cue

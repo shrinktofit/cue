@@ -19,12 +19,27 @@ Cue 的文本不再是“元素内容区中的一个固定文本块”。Block/F
 - Button 的裸文本由匿名 flex item 接受 `align-items:center`；Select 的 label/arrow
   也通过真实 Flex 布局居中，不依赖固定文字 Y 偏移。
 
+## 断词与缩字
+
+- `overflow-wrap: normal | anywhere`：anywhere 先使用正常换行点，整词仍放不下时才在 grapheme 边界拆开；这些机会也计入 min-content。
+- `word-break: normal | break-all`：break-all 不优先保留整个单词，允许直接在词中折行；并非无视 Unicode 标点规则的任意切割。
+- 两者均继承，`white-space: nowrap / pre` 仍禁止软换行，组合字符与 emoji 序列不拆开。
+- `text-fit: none | shrink`：按 CSS Text Level 5 草案，先换行再缩字，默认所有行采用同一个最小缩放因子。需要单行标签时使用 `white-space: nowrap; text-fit: shrink`。
+- 缩字不改变作者/computed `font-size` 或 intrinsic widths；固定 px 行高、inline 边距/边框/内边距和图片/inline-block 尺寸保持不变。`line-height: normal` 使用缩小后的字体度量。行尾空白不触发额外缩字；字体 hinting 引起的非线性宽度会经过重测。
+- `.cue` 中由 Lightning CSS 在编译时解析；运行时通过 `element.style.overflowWrap / wordBreak / textFit` 和对应枚举修改，设为 `undefined` 清除覆盖，不加载 CSS parser。
+- 当前不支持 grow、per-line、百分比缩放下限或可编辑输入框的自动缩字，不将草案子集描述为完整 CSS Text 5。
+
 ## 验证
 
 `packages/runtime/test/inline-layout.test.ts` 通过生产 paint-list 入口验证匿名盒与控件行为。
 `packages/runtime/test/verify-inline-layout.ts` 使用共享 Playwright 和真实 Canvas 字体，
-比较同一内容在 Chromium DOM 与 Cue 中的字形位置、baseline 和容器高度；允许 Taffy
-像素取整带来的 0.6px 差异，不把截图肉眼判断当作几何断言。
+比较同一内容在 Chromium DOM 与 Cue 中的字形位置、baseline 和容器高度；允许
+浏览器亚像素量化带来的 0.6px 差异，不把截图肉眼判断当作几何断言。
+另有真实 Canvas 字体的缩字不溢出、固定行高与跨行比例断言。Chromium 148 实验性
+text-fit 会缩放固定行高、Range 返回未缩放矩形，不能用这一旧行为替代当前草案。
+`text-fitting.test.ts` 通过生产绘制入口验证断词优先级、grapheme、固定 atomic/inline edges、
+多行缩放、重设宽度和 retained layout 的样式失效，以及 nowrap/空白/空 span 边界与
+min-content 测量对应行高。
 
 ```powershell
 node packages/runtime/test/verify-inline-layout.ts U:/AgentTools/playwright/node_modules/playwright
@@ -49,4 +64,6 @@ Button/Select 与 TextInput/NumberInput 的真实预览回归独立保留。
 
 规范依据：[CSS 2.2 inline formatting](https://www.w3.org/TR/CSS22/visuren.html#inline-formatting)、
 [line-height / vertical-align](https://www.w3.org/TR/CSS22/visudet.html#line-height)、
-[anonymous flex items](https://www.w3.org/TR/css-flexbox-1/#flex-items)。
+[anonymous flex items](https://www.w3.org/TR/css-flexbox-1/#flex-items)、
+[CSS Text 3 line breaking](https://www.w3.org/TR/css-text-3/#line-breaking)、
+[CSS Text 5 text-fit 草案](https://drafts.csswg.org/css-text-5/#text-fit)。

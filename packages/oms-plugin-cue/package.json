@@ -1,0 +1,28 @@
+{
+  "name": "@bsgames/oms-plugin-cue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "lib",
+    "!lib/**/*.map"
+  ],
+  "exports": "./lib/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bsgames/cue-compiler": "workspace:*",
+    "@oms/plugin": "link:U:/Repos/codex-worktrees/d3b7/cc-extension-oh-my-script/packages/plugin"
+  },
+  "devDependencies": {
+    "@bsgames/cue-workflow": "workspace:*",
+    "@types/node": "catalog:",
+    "rollup": "^4.60.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
