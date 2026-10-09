@@ -35,7 +35,9 @@ export class CueTextInputElement extends CueEditableInputElement {
       throw new TypeError('A password input cannot be multiline.');
     }
     const next = Boolean(value);
-    if (next === this.#multiline) return;
+    if (next === this.#multiline) {
+      return;
+    }
     this.#multiline = next;
     markCueNodeChanged(this);
     this.value = this.#value;
@@ -50,7 +52,9 @@ export class CueTextInputElement extends CueEditableInputElement {
       throw new TypeError('A multiline input cannot be a password input.');
     }
     const next = Boolean(value);
-    if (next === this.#password) return;
+    if (next === this.#password) {
+      return;
+    }
     this.#password = next;
     markCueNodeChanged(this);
   }

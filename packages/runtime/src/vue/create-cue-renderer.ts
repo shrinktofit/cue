@@ -1,10 +1,8 @@
-// eslint-disable-next-line vue/prefer-import-from-vue -- Cue intentionally targets Vue's custom-renderer runtime.
+// Cue intentionally targets Vue's custom-renderer runtime.
+// eslint-disable-next-line vue/prefer-import-from-vue
 import { createRenderer, type Renderer } from '@vue/runtime-core';
 import { Comment } from '../element/comment.js';
-import {
-  patchCueElementProperty,
-  type CueElement,
-} from '../element/cue-element.js';
+import { patchCueElementProperty, type CueElement } from '../element/cue-element.js';
 import type { CueNode } from '../element/cue-node.js';
 import { globalElementRegistry } from '../element/global-element-registry.js';
 import { Text } from '../element/text.js';

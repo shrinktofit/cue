@@ -32,7 +32,9 @@ export abstract class CueNode {
       node.#revision = revision;
       for (let current: CueNode | undefined = node; current; current = current.parent) {
         current.#subtreeRevision = revision;
-        if (structural) current.#structureRevision = revision;
+        if (structural) {
+          current.#structureRevision = revision;
+        }
       }
     };
   }

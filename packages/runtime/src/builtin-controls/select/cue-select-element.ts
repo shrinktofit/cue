@@ -1,6 +1,21 @@
-import { CueAlignItems, CueBoxSizing, CueDimensionKeyword, CueDisplay, CueFlexDirection, CueOverflow, CuePointerEvents, CuePosition, CueWhiteSpace } from '@bsgames/cue-style-schema';
+import {
+  CueAlignItems,
+  CueBoxSizing,
+  CueDimensionKeyword,
+  CueDisplay,
+  CueFlexDirection,
+  CueOverflow,
+  CuePointerEvents,
+  CuePosition,
+  CueWhiteSpace,
+} from '@bsgames/cue-style-schema';
 import { cueTopLayerElements } from '../../render/cue-top-layer.js';
-import { CueElement, getCueElementContentBox, setCueElementDefaultStyle, setCueElementState } from '../../element/cue-element.js';
+import {
+  CueElement,
+  getCueElementContentBox,
+  setCueElementDefaultStyle,
+  setCueElementState,
+} from '../../element/cue-element.js';
 import { Text } from '../../element/text.js';
 import type { CueEvent } from '../../input/cue-event.js';
 import { CueKeyboardEvent } from '../../input/cue-keyboard-event.js';
@@ -16,17 +31,43 @@ export interface CueSelectOption {
   readonly disabled?: boolean;
 }
 
-export let updateCueSelectLayout: (element: CueSelectElement, viewportHeight: number, regions: readonly CueHitRegion[]) => boolean;
+export let updateCueSelectLayout: (
+  element: CueSelectElement,
+  viewportHeight: number,
+  regions: readonly CueHitRegion[],
+) => boolean;
 
 export class CueSelectElement extends CueControlElement {
   constructor() {
     super('cue-select');
     setCueElementDefaultStyle(this, {
-      display: CueDisplay.flex, alignItems: CueAlignItems.center, position: CuePosition.relative,
-      width: 240, minHeight: 40, paddingLeft: 12, paddingRight: 10, paddingTop: 8, paddingBottom: 8, columnGap: 12,
-      backgroundColor: { red: 35, green: 48, blue: 68, alpha: 1 },
-      color: { red: 241, green: 245, blue: 249, alpha: 1 }, fontSize: 16,
-      borderTopLeftRadius: [6, 6], borderTopRightRadius: [6, 6], borderBottomLeftRadius: [6, 6], borderBottomRightRadius: [6, 6],
+      display: CueDisplay.flex,
+      alignItems: CueAlignItems.center,
+      position: CuePosition.relative,
+      width: 240,
+      minHeight: 40,
+      paddingLeft: 12,
+      paddingRight: 10,
+      paddingTop: 8,
+      paddingBottom: 8,
+      columnGap: 12,
+      backgroundColor: {
+        red: 35,
+        green: 48,
+        blue: 68,
+        alpha: 1,
+      },
+      color: {
+        red: 241,
+        green: 245,
+        blue: 249,
+        alpha: 1,
+      },
+      fontSize: 16,
+      borderTopLeftRadius: [6, 6],
+      borderTopRightRadius: [6, 6],
+      borderBottomLeftRadius: [6, 6],
+      borderBottomRightRadius: [6, 6],
     });
     this.#label.insertBefore(this.#labelText);
     this.#arrow.insertBefore(new Text('▾'));
@@ -64,7 +105,11 @@ export class CueSelectElement extends CueControlElement {
     this.#setOpen(value);
   }
 
-  protected override propertyChanged(name: string, previous: unknown, next: unknown): void {
+  protected override propertyChanged(
+    name: string,
+    previous: unknown,
+    next: unknown,
+  ): void {
     super.propertyChanged(name, previous, next);
     if (name === 'options') {
       if (next !== undefined && !Array.isArray(next)) {
@@ -73,7 +118,11 @@ export class CueSelectElement extends CueControlElement {
       const options = (next ?? []) as readonly CueSelectOption[];
       const values = new Set<string>();
       for (const option of options) {
-        if (typeof option.value !== 'string' || typeof option.label !== 'string' || values.has(option.value)) {
+        if (
+          typeof option.value !== 'string'
+          || typeof option.label !== 'string'
+          || values.has(option.value)
+        ) {
           throw new TypeError('Options require unique string values and string labels.');
         }
         values.add(option.value);
@@ -89,7 +138,8 @@ export class CueSelectElement extends CueControlElement {
     if (name === 'disabled' && this.disabled) {
       this.#setOpen(false);
     }
-    this.#labelText.data = this.options.find((option) => option.value === this.value)?.label ?? 'Select…';
+    this.#labelText.data
+      = this.options.find((option) => option.value === this.value)?.label ?? 'Select…';
     if (this.open && (name === 'value' || name === 'options')) {
       this.#candidate = this.#initialCandidate();
       this.#ensureCandidateVisible();
@@ -118,12 +168,20 @@ export class CueSelectElement extends CueControlElement {
       this.#setOpen(!this.open);
     }
     if (event instanceof CueWheelEvent && this.open) {
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.#viewportHeight : 1;
-      this.#scroll = Math.min(Math.max(0, this.#contentHeight - this.#viewportHeight), Math.max(0, this.#scroll + event.deltaY * unit));
+      const unit
+        = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.#viewportHeight : 1;
+      this.#scroll = Math.min(
+        Math.max(0, this.#contentHeight - this.#viewportHeight),
+        Math.max(0, this.#scroll + event.deltaY * unit),
+      );
       this.#list.style.top = -this.#scroll;
       event.preventDefault();
     }
-    if (!(event instanceof CueKeyboardEvent) || event.type !== 'keydown' || event.isComposing) {
+    if (
+      !(event instanceof CueKeyboardEvent)
+      || event.type !== 'keydown'
+      || event.isComposing
+    ) {
       return;
     }
     if (event.key === 'Escape' && this.open) {
@@ -140,12 +198,22 @@ export class CueSelectElement extends CueControlElement {
       }
       event.preventDefault();
     }
-    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    if ([
+      'ArrowDown',
+      'ArrowUp',
+      'Home',
+      'End',
+    ].includes(event.key)) {
       if (!this.open) {
         this.#setOpen(true);
       }
       const backward = event.key === 'ArrowUp' || event.key === 'End';
-      let index = event.key === 'Home' ? -1 : event.key === 'End' ? this.options.length : this.#candidate;
+      let index
+        = event.key === 'Home'
+          ? -1
+          : event.key === 'End'
+            ? this.options.length
+            : this.#candidate;
       while (true) {
         const next = index + (backward ? -1 : 1);
         if (next < 0 || next >= this.options.length) {
@@ -178,22 +246,43 @@ export class CueSelectElement extends CueControlElement {
   #revealCandidate = false;
   readonly #rows = new Map<CueElement, number>();
   readonly #labelText = new Text('Select…');
-  readonly #label = createControlPart('cue-select-label', { whiteSpace: CueWhiteSpace.nowrap, flexGrow: 1, minWidth: 0 });
+  readonly #label = createControlPart('cue-select-label', {
+    whiteSpace: CueWhiteSpace.nowrap,
+    flexGrow: 1,
+    minWidth: 0,
+  });
+
   readonly #arrow = createControlPart('cue-select-arrow', { flexShrink: 0 });
   readonly #popup = createControlPart('cue-select-popup', {
-    position: CuePosition.absolute, top: '100%', left: 0, right: 0, zIndex: 1000,
-    boxSizing: CueBoxSizing.borderBox, maxHeight: 280,
-    overflowX: CueOverflow.hidden, overflowY: CueOverflow.hidden, pointerEvents: CuePointerEvents.auto,
-    backgroundColor: { red: 22, green: 33, blue: 50, alpha: 1 },
+    position: CuePosition.absolute,
+    top: '100%',
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    boxSizing: CueBoxSizing.borderBox,
+    maxHeight: 280,
+    overflowX: CueOverflow.hidden,
+    overflowY: CueOverflow.hidden,
+    pointerEvents: CuePointerEvents.auto,
+    backgroundColor: {
+      red: 22,
+      green: 33,
+      blue: 50,
+      alpha: 1,
+    },
   });
 
   readonly #list = createControlPart('cue-select-options', {
-    position: CuePosition.relative, display: CueDisplay.flex, flexDirection: CueFlexDirection.column,
+    position: CuePosition.relative,
+    display: CueDisplay.flex,
+    flexDirection: CueFlexDirection.column,
     pointerEvents: CuePointerEvents.auto,
   });
 
   #initialCandidate(): number {
-    const index = this.options.findIndex((option) => option.value === this.value && !option.disabled);
+    const index = this.options.findIndex(
+      (option) => option.value === this.value && !option.disabled,
+    );
     return index >= 0 ? index : this.options.findIndex((option) => !option.disabled);
   }
 
@@ -235,9 +324,41 @@ export class CueSelectElement extends CueControlElement {
     this.#rows.clear();
     for (const [index, option] of this.options.entries()) {
       const row = createControlPart('cue-select-option', {
-        display: CueDisplay.flex, alignItems: CueAlignItems.center, boxSizing: CueBoxSizing.borderBox, minHeight: 36, flexShrink: 0, paddingLeft: 12, paddingRight: 12, pointerEvents: CuePointerEvents.auto,
-        backgroundColor: index === this.#candidate ? { red: 38, green: 86, blue: 137, alpha: 1 } : { red: 22, green: 33, blue: 50, alpha: 1 },
-        color: option.disabled ? { red: 100, green: 116, blue: 139, alpha: 1 } : { red: 241, green: 245, blue: 249, alpha: 1 },
+        display: CueDisplay.flex,
+        alignItems: CueAlignItems.center,
+        boxSizing: CueBoxSizing.borderBox,
+        minHeight: 36,
+        flexShrink: 0,
+        paddingLeft: 12,
+        paddingRight: 12,
+        pointerEvents: CuePointerEvents.auto,
+        backgroundColor:
+          index === this.#candidate
+            ? {
+              red: 38,
+              green: 86,
+              blue: 137,
+              alpha: 1,
+            }
+            : {
+              red: 22,
+              green: 33,
+              blue: 50,
+              alpha: 1,
+            },
+        color: option.disabled
+          ? {
+            red: 100,
+            green: 116,
+            blue: 139,
+            alpha: 1,
+          }
+          : {
+            red: 241,
+            green: 245,
+            blue: 249,
+            alpha: 1,
+          },
       });
       setCueElementState(row, 'checked', option.value === this.value);
       setCueElementState(row, 'disabled', !!option.disabled);
@@ -272,12 +393,17 @@ export class CueSelectElement extends CueControlElement {
       }
       // Padding/borders cannot be compressed to zero by CSS height. If neither
       // side can contain them, use the viewport and allow overlap with the host.
-      const height = Math.max(0, Math.min(desired, overlapHost ? viewportHeight : sideSpace));
+      const height = Math.max(
+        0,
+        Math.min(desired, overlapHost ? viewportHeight : sideSpace),
+      );
       element.#contentHeight = list.height;
       element.#viewportHeight = Math.max(0, Math.min(height - chrome, contentBox.height));
       let scroll = element.#scroll;
       if (element.#revealCandidate) {
-        const row = regions.find((region) => element.#rows.get(region.element) === element.#candidate);
+        const row = regions.find(
+          (region) => element.#rows.get(region.element) === element.#candidate,
+        );
         if (row) {
           const rowTop = row.y - list.y;
           scroll = Math.max(0, Math.min(scroll, rowTop));
@@ -285,13 +411,28 @@ export class CueSelectElement extends CueControlElement {
           element.#revealCandidate = false;
         }
       }
-      scroll = Math.min(Math.max(0, scroll), Math.max(0, list.height - element.#viewportHeight));
+      scroll = Math.min(
+        Math.max(0, scroll),
+        Math.max(0, list.height - element.#viewportHeight),
+      );
       const top = overlapHost
-        ? Math.max(-above, Math.min(upward ? -height : element.clientHeight, element.clientHeight + below - height))
-        : upward ? CueDimensionKeyword.auto : element.clientHeight;
-      const bottom = !overlapHost && upward ? element.clientHeight : CueDimensionKeyword.auto;
-      const changed = element.#popup.style.top !== top || element.#popup.style.bottom !== bottom
-        || element.#popup.style.height !== height || element.#scroll !== scroll;
+        ? Math.max(
+          -above,
+          Math.min(
+            upward ? -height : element.clientHeight,
+            element.clientHeight + below - height,
+          ),
+        )
+        : upward
+          ? CueDimensionKeyword.auto
+          : element.clientHeight;
+      const bottom
+        = !overlapHost && upward ? element.clientHeight : CueDimensionKeyword.auto;
+      const changed
+        = element.#popup.style.top !== top
+          || element.#popup.style.bottom !== bottom
+          || element.#popup.style.height !== height
+          || element.#scroll !== scroll;
       element.#popup.style.top = top;
       element.#popup.style.bottom = bottom;
       element.#popup.style.height = height;

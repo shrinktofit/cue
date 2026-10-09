@@ -1,5 +1,13 @@
-import { CueAlignItems, CueDisplay, CueJustifyContent, CueTextAlign } from '@bsgames/cue-style-schema';
-import { setCueElementDefaultStyle, setCueElementState } from '../../element/cue-element.js';
+import {
+  CueAlignItems,
+  CueDisplay,
+  CueJustifyContent,
+  CueTextAlign,
+} from '@bsgames/cue-style-schema';
+import {
+  setCueElementDefaultStyle,
+  setCueElementState,
+} from '../../element/cue-element.js';
 import type { CueEvent } from '../../input/cue-event.js';
 import { CueKeyboardEvent } from '../../input/cue-keyboard-event.js';
 import { CuePointerEvent } from '../../input/cue-pointer-event.js';
@@ -9,11 +17,31 @@ export class CueButtonElement extends CueControlElement {
   constructor() {
     super('cue-button');
     setCueElementDefaultStyle(this, {
-      display: CueDisplay.flex, alignItems: CueAlignItems.center, justifyContent: CueJustifyContent.center,
-      minWidth: 96, minHeight: 40, paddingLeft: 16, paddingRight: 16,
-      backgroundColor: { red: 38, green: 99, blue: 210, alpha: 1 },
-      color: { red: 255, green: 255, blue: 255, alpha: 1 }, fontSize: 16, textAlign: CueTextAlign.center,
-      borderTopLeftRadius: [6, 6], borderTopRightRadius: [6, 6], borderBottomLeftRadius: [6, 6], borderBottomRightRadius: [6, 6],
+      display: CueDisplay.flex,
+      alignItems: CueAlignItems.center,
+      justifyContent: CueJustifyContent.center,
+      minWidth: 96,
+      minHeight: 40,
+      paddingLeft: 16,
+      paddingRight: 16,
+      backgroundColor: {
+        red: 38,
+        green: 99,
+        blue: 210,
+        alpha: 1,
+      },
+      color: {
+        red: 255,
+        green: 255,
+        blue: 255,
+        alpha: 1,
+      },
+      fontSize: 16,
+      textAlign: CueTextAlign.center,
+      borderTopLeftRadius: [6, 6],
+      borderTopRightRadius: [6, 6],
+      borderBottomLeftRadius: [6, 6],
+      borderBottomRightRadius: [6, 6],
     });
   }
 

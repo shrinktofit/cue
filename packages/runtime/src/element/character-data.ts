@@ -11,7 +11,9 @@ export abstract class CharacterData extends CueNode {
   }
 
   set data(value: string) {
-    if (this.#data === value) return;
+    if (this.#data === value) {
+      return;
+    }
     const structural = /[^ \t\r\n\f]/u.test(this.#data) !== /[^ \t\r\n\f]/u.test(value);
     this.#data = value;
     markCueNodeChanged(this, structural);

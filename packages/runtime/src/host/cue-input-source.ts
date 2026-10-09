@@ -33,7 +33,16 @@ const clients = new Set<CueInputClient>();
 const pointerClients = new Map<number, CueInputClient>();
 const nativeDispatches: NativePointerDispatch[] = [];
 const latestPointerDispatches = new Map<number, NativePointerDispatch>();
-const nativeEventNames = ['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'wheel'] as const;
+const nativeEventNames = [
+  'mousedown',
+  'mousemove',
+  'mouseup',
+  'touchstart',
+  'touchmove',
+  'touchend',
+  'touchcancel',
+  'wheel',
+] as const;
 let dispatchersRegistered = false;
 let primaryTouchId: number | undefined;
 let mouseButtons = 0;
@@ -60,7 +69,10 @@ export function registerCueInputSource(client: CueInputClient): () => void {
   }
   if (clients.size === 0) {
     for (const name of nativeEventNames) {
-      window.addEventListener(name, markNativePointerDispatch, { capture: true, passive: true });
+      window.addEventListener(name, markNativePointerDispatch, {
+        capture: true,
+        passive: true,
+      });
     }
     window.addEventListener('blur', cancelCueInput);
   }
@@ -98,8 +110,11 @@ function markNativePointerDispatch(event: MouseEvent | TouchEvent): void {
     }
     mouseButtons = event.buttons;
   }
-  if ('changedTouches' in event && event.type === 'touchstart'
-    && event.touches.length === event.changedTouches.length) {
+  if (
+    'changedTouches' in event
+    && event.type === 'touchstart'
+    && event.touches.length === event.changedTouches.length
+  ) {
     primaryTouchId = event.changedTouches[0]?.identifier;
   }
   const dispatch: NativePointerDispatch = {
@@ -130,26 +145,35 @@ function markNativePointerDispatch(event: MouseEvent | TouchEvent): void {
     if (index >= 0) {
       nativeDispatches.splice(index, 1);
     }
-    if (!dispatch.sawCocosInput && event.type === 'mousemove' && !('changedTouches' in event)
-      && latestPointerDispatches.get(1) === dispatch && pointerClients.has(1)) {
+    if (
+      !dispatch.sawCocosInput
+      && event.type === 'mousemove'
+      && !('changedTouches' in event)
+      && latestPointerDispatches.get(1) === dispatch
+      && pointerClients.has(1)
+    ) {
       // Cocos listens for mousemove on GameCanvas only. Continue explicit Cue
       // capture outside the canvas using pal/input/web/mouse-input.ts coordinates.
       const canvas = document.getElementById('GameCanvas')!;
       const rect = canvas.getBoundingClientRect();
       const dpr = screen.devicePixelRatio;
       try {
-        dispatchCueSample({
-          type: 'pointermove',
-          pointerId: 1,
-          pointerType: 'mouse',
-          isPrimary: true,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          screenX: (event.clientX - rect.x) * dpr,
-          screenY: (rect.y + rect.height - event.clientY) * dpr,
-          button: -1,
-          buttons: event.buttons,
-        }, true, dispatch);
+        dispatchCueSample(
+          {
+            type: 'pointermove',
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            screenX: (event.clientX - rect.x) * dpr,
+            screenY: (rect.y + rect.height - event.clientY) * dpr,
+            button: -1,
+            buttons: event.buttons,
+          },
+          true,
+          dispatch,
+        );
       } catch (error) {
         cancelCueInput();
         throw error;
@@ -211,11 +235,17 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
   }
   const native = dispatch.event;
   if (native.type === 'wheel' && native instanceof WheelEvent) {
-    if (capturedOnly || !(event instanceof EventMouse) || event.type !== Input.EventType.MOUSE_WHEEL) {
+    if (
+      capturedOnly
+      || !(event instanceof EventMouse)
+      || event.type !== Input.EventType.MOUSE_WHEEL
+    ) {
       return true;
     }
     const location = event.getLocation();
-    for (const client of [...clients].sort((left, right) => right.priority() - left.priority())) {
+    for (const client of [...clients].sort(
+      (left, right) => right.priority() - left.priority(),
+    )) {
       if (client.wheel?.({ screenX: location.x, screenY: location.y }, native)) {
         if (native.cancelable) {
           native.preventDefault();
@@ -232,11 +262,12 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
       return true;
     }
     const type = dispatch.mouseType;
-    const matchingType = native.type === 'mousedown'
-      ? [Input.EventType.MOUSE_DOWN, Input.EventType.TOUCH_START]
-      : native.type === 'mouseup'
-        ? [Input.EventType.MOUSE_UP, Input.EventType.TOUCH_END]
-        : [Input.EventType.MOUSE_MOVE, Input.EventType.TOUCH_MOVE];
+    const matchingType
+      = native.type === 'mousedown'
+        ? [Input.EventType.MOUSE_DOWN, Input.EventType.TOUCH_START]
+        : native.type === 'mouseup'
+          ? [Input.EventType.MOUSE_UP, Input.EventType.TOUCH_END]
+          : [Input.EventType.MOUSE_MOVE, Input.EventType.TOUCH_MOVE];
     if (!matchingType.includes(event.type as Input.EventType)) {
       return true;
     }
@@ -264,27 +295,38 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
       screenY: location.y,
       button: native.type === 'mousemove' ? -1 : native.button,
       buttons: native.buttons,
-      ctrlKey: native.ctrlKey, shiftKey: native.shiftKey, altKey: native.altKey, metaKey: native.metaKey,
+      ctrlKey: native.ctrlKey,
+      shiftKey: native.shiftKey,
+      altKey: native.altKey,
+      metaKey: native.metaKey,
     };
   } else {
     if (!(event instanceof EventTouch)) {
       return true;
     }
-    const type = native.type === 'touchstart'
-      ? 'pointerdown'
-      : native.type === 'touchmove'
-        ? 'pointermove'
-        : native.type === 'touchend' ? 'pointerup' : 'pointercancel';
-    const matchingType = type === 'pointerdown'
-      ? Input.EventType.TOUCH_START
-      : type === 'pointermove'
-        ? Input.EventType.TOUCH_MOVE
-        : type === 'pointerup' ? Input.EventType.TOUCH_END : Input.EventType.TOUCH_CANCEL;
+    const type
+      = native.type === 'touchstart'
+        ? 'pointerdown'
+        : native.type === 'touchmove'
+          ? 'pointermove'
+          : native.type === 'touchend'
+            ? 'pointerup'
+            : 'pointercancel';
+    const matchingType
+      = type === 'pointerdown'
+        ? Input.EventType.TOUCH_START
+        : type === 'pointermove'
+          ? Input.EventType.TOUCH_MOVE
+          : type === 'pointerup'
+            ? Input.EventType.TOUCH_END
+            : Input.EventType.TOUCH_CANCEL;
     if (event.type !== matchingType) {
       return true;
     }
     const identifier = event.getID();
-    const touch = Array.from(native.changedTouches).find((candidate) => candidate.identifier === identifier);
+    const touch = Array.from(native.changedTouches).find(
+      (candidate) => candidate.identifier === identifier,
+    );
     if (!touch) {
       return true;
     }
@@ -300,7 +342,10 @@ function dispatchCueInput(event: Event, capturedOnly: boolean): boolean {
       screenY: location.y,
       button: type === 'pointermove' ? -1 : 0,
       buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
-      ctrlKey: native.ctrlKey, shiftKey: native.shiftKey, altKey: native.altKey, metaKey: native.metaKey,
+      ctrlKey: native.ctrlKey,
+      shiftKey: native.shiftKey,
+      altKey: native.altKey,
+      metaKey: native.metaKey,
     };
   }
   dispatch.sawCocosInput = true;
@@ -321,7 +366,9 @@ function dispatchCueSample(
   if (capturedOnly && owner) {
     dispatch.pendingUpdates.set(sample.pointerId, owner);
   }
-  const orderedClients = [...clients].sort((left, right) => right.priority() - left.priority());
+  const orderedClients = [...clients].sort(
+    (left, right) => right.priority() - left.priority(),
+  );
   for (const client of orderedClients) {
     if (!clients.has(client)) {
       continue;
@@ -329,7 +376,10 @@ function dispatchCueSample(
     const handled = client.handle(sample, capturedOnly);
     if (owner === client && (!capturedOnly || handled)) {
       dispatch.pendingUpdates.delete(sample.pointerId);
-      if (terminal && (sample.pointerType === 'touch' || sample.type === 'pointercancel')) {
+      if (
+        terminal
+        && (sample.pointerType === 'touch' || sample.type === 'pointercancel')
+      ) {
         pointerClients.delete(sample.pointerId);
       }
     }
@@ -344,7 +394,10 @@ function dispatchCueSample(
         dispatch.pendingUpdates.delete(sample.pointerId);
         owner.cancelPointer(sample.pointerId);
       }
-      if (clients.has(client) && (!terminal || (sample.pointerType === 'mouse' && sample.type !== 'pointercancel'))) {
+      if (
+        clients.has(client)
+        && (!terminal || (sample.pointerType === 'mouse' && sample.type !== 'pointercancel'))
+      ) {
         pointerClients.set(sample.pointerId, client);
       }
       return false;

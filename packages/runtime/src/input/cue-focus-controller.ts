@@ -1,4 +1,8 @@
-import { CueElement, setCueElementConnected, setCueElementState } from '../element/cue-element.js';
+import {
+  CueElement,
+  setCueElementConnected,
+  setCueElementState,
+} from '../element/cue-element.js';
 import { CueControlElement } from '../builtin-controls/cue-control-element.js';
 import { CueFocusEvent } from './cue-focus-event.js';
 import { CueKeyboardEvent, type CueKeyboardEventInit } from './cue-keyboard-event.js';
@@ -23,7 +27,10 @@ export function refreshCueControlFocus(element: CueControlElement): void {
 }
 
 export class CueFocusController {
-  constructor(readonly root: CueElement, readonly onChange?: (active: CueControlElement | undefined) => void) {
+  constructor(
+    readonly root: CueElement,
+    readonly onChange?: (active: CueControlElement | undefined) => void,
+  ) {
     controllers.set(root, this);
     setCueElementConnected(root, true);
   }
@@ -83,7 +90,12 @@ export class CueFocusController {
     }
     const event = new CueKeyboardEvent(type, init);
     active.dispatchEvent(event);
-    if (type === 'keydown' && event.key === 'Tab' && !event.isComposing && !event.defaultPrevented) {
+    if (
+      type === 'keydown'
+      && event.key === 'Tab'
+      && !event.isComposing
+      && !event.defaultPrevented
+    ) {
       this.move(event.shiftKey);
       event.preventDefault();
     }
@@ -93,7 +105,11 @@ export class CueFocusController {
   move(backward = false): void {
     const candidates: CueControlElement[] = [];
     const visit = (element: CueElement): void => {
-      if (element instanceof CueControlElement && !element.disabled && element.tabIndex >= 0) {
+      if (
+        element instanceof CueControlElement
+        && !element.disabled
+        && element.tabIndex >= 0
+      ) {
         candidates.push(element);
       }
       for (const child of element.children) {
@@ -103,9 +119,15 @@ export class CueFocusController {
       }
     };
     visit(this.root);
-    candidates.sort((left, right) => (left.tabIndex || Infinity) - (right.tabIndex || Infinity));
+    candidates.sort(
+      (left, right) => (left.tabIndex || Infinity) - (right.tabIndex || Infinity),
+    );
     const current = this.#active ? candidates.indexOf(this.#active) : -1;
-    const index = backward ? (current <= 0 ? candidates.length - 1 : current - 1) : (current + 1) % candidates.length;
+    const index = backward
+      ? current <= 0
+        ? candidates.length - 1
+        : current - 1
+      : (current + 1) % candidates.length;
     this.focus(candidates[index]);
   }
 
@@ -120,7 +142,11 @@ export class CueFocusController {
   #focusPath: CueElement[] = [];
 
   #contains(element: CueElement): boolean {
-    for (let current: CueElement | undefined = element; current; current = current.parent) {
+    for (
+      let current: CueElement | undefined = element;
+      current;
+      current = current.parent
+    ) {
       if (current === this.root) {
         return true;
       }
@@ -137,7 +163,11 @@ export class CueFocusController {
       this.#focusPath = [];
       return;
     }
-    for (let current: CueElement | undefined = element; current; current = current.parent) {
+    for (
+      let current: CueElement | undefined = element;
+      current;
+      current = current.parent
+    ) {
       setCueElementState(current, 'focus-within', true);
       this.#focusPath.push(current);
     }

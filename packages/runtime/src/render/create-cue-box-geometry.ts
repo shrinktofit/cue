@@ -95,7 +95,12 @@ function appendRect(
   rect: CuePaintRect,
 ): void {
   const outer = normalizeRadii(rect.radii, rect.width, rect.height);
-  const [top, right, bottom, left] = rect.borderWidths;
+  const [
+    top,
+    right,
+    bottom,
+    left,
+  ] = rect.borderWidths;
   const innerWidth = Math.max(0, rect.width - left - right);
   const innerHeight = Math.max(0, rect.height - top - bottom);
   const inner = normalizeRadii([
@@ -226,7 +231,12 @@ function appendBorderSegment(
   const color = compositeColor(
     rect.borderWidths[side] > 0
       ? rect.borderColors[side]
-      : { alpha: 0, blue: 0, green: 0, red: 0 },
+      : {
+        alpha: 0,
+        blue: 0,
+        green: 0,
+        red: 0,
+      },
     rect.color,
   );
   if (color.alpha <= 0) {
@@ -243,7 +253,12 @@ function appendBorderSegment(
 function compositeColor(foreground: CueColor, background: CueColor): CueColor {
   const alpha = foreground.alpha + background.alpha * (1 - foreground.alpha);
   if (alpha <= 0) {
-    return { alpha: 0, blue: 0, green: 0, red: 0 };
+    return {
+      alpha: 0,
+      blue: 0,
+      green: 0,
+      red: 0,
+    };
   }
   return {
     alpha,
@@ -299,7 +314,12 @@ function cornerPath(
     [radii[3][0], height - radii[3][1]],
     [radii[0][0], radii[0][1]],
   ] as const;
-  const cornerRadii = [radii[1], radii[2], radii[3], radii[0]];
+  const cornerRadii = [
+    radii[1],
+    radii[2],
+    radii[3],
+    radii[0],
+  ];
   for (let corner = 0; corner < 4; corner += 1) {
     const center = centers[corner]!;
     const radius = cornerRadii[corner]!;

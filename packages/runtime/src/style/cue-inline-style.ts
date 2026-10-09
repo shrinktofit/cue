@@ -14,7 +14,9 @@ function encodeStyleValue(value: unknown): unknown {
     return value.map(encodeStyleValue);
   }
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, encodeStyleValue(item)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, encodeStyleValue(item)]),
+    );
   }
   return value;
 }

@@ -18,14 +18,29 @@ describe('Typed element style API', () => {
     /// @case Assign caller-owned color and transform objects, then mutate those objects.
     /// @expect Only a subsequent style property assignment updates the element.
     const element = new DivElement();
-    const color = { red: 255, green: 0, blue: 0, alpha: 1 };
-    const transform = { type: 'translate' as const, x: 10, y: 20 };
+    const color = {
+      red: 255,
+      green: 0,
+      blue: 0,
+      alpha: 1,
+    };
+    const transform = {
+      type: 'translate' as const,
+      x: 10,
+      y: 20,
+    };
     element.style.color = color;
     element.style.transform = [transform];
     color.red = 64;
     transform.x = 90;
     expect(computeCueElementStyle(element, []).color.red).toBe(255);
-    expect(computeCueElementStyle(element, []).transform).toEqual([{ type: 'translate', x: 10, y: 20 }]);
+    expect(computeCueElementStyle(element, []).transform).toEqual([
+      {
+        type: 'translate',
+        x: 10,
+        y: 20,
+      },
+    ]);
     element.style.color = color;
     expect(computeCueElementStyle(element, []).color.red).toBe(64);
   });
@@ -36,14 +51,25 @@ describe('Typed element style API', () => {
     const element = new DivElement();
     element.style.width = 40;
     element.style.height = Length.px(30);
-    element.style.backgroundColor = { red: 255, green: 0, blue: 0, alpha: 1 };
+    element.style.backgroundColor = {
+      red: 255,
+      green: 0,
+      blue: 0,
+      alpha: 1,
+    };
     expect(computeCueElementStyle(element, [])).toMatchObject({ width: 40, height: 30 });
     element.style.width = Length.percent(75);
     expect(computeCueElementStyle(element, []).width).toBe('75%');
     element.style.width = undefined;
     expect(computeCueElementStyle(element, [])).toMatchObject({
-      width: 'auto', height: 30,
-      backgroundColor: { red: 255, green: 0, blue: 0, alpha: 1 },
+      width: 'auto',
+      height: 30,
+      backgroundColor: {
+        red: 255,
+        green: 0,
+        blue: 0,
+        alpha: 1,
+      },
     });
     expect(computeCueElementStyle(new DivElement(), []).height).toBe('auto');
   });
@@ -57,11 +83,13 @@ describe('Typed element style API', () => {
     const element = root.children[0] as CueElement;
     const sheet: CueStyleSheet = {
       version: 1,
-      rules: [{
-        selectors: [[{ type: 'class', name: 'card' }, { type: 'class', name: 'strong' }]],
-        declarations: { width: 10 },
-        importantDeclarations: { height: 30 },
-      }],
+      rules: [
+        {
+          selectors: [[{ type: 'class', name: 'card' }, { type: 'class', name: 'strong' }]],
+          declarations: { width: 10 },
+          importantDeclarations: { height: 30 },
+        },
+      ],
     };
     element.style.width = 40;
     element.style.height = 70;
@@ -79,10 +107,25 @@ describe('Typed element style API', () => {
     element.style.fontSize = 24;
     element.style.lineHeight = Length.px(32);
     element.style.borderTopLeftRadius = [Length.percent(50), Length.px(8)];
-    element.style.transform = [{ type: 'translate', x: Length.percent(25), y: 10 }];
+    element.style.transform = [
+      {
+        type: 'translate',
+        x: Length.percent(25),
+        y: 10,
+      },
+    ];
     expect(computeCueElementStyle(element, [])).toMatchObject({
-      fontFamily: ['a;b: "font"'], fontSize: 24, lineHeight: 32,
-      borderTopLeftRadius: ['50%', 8], transform: [{ type: 'translate', x: '25%', y: 10 }],
+      fontFamily: ['a;b: "font"'],
+      fontSize: 24,
+      lineHeight: 32,
+      borderTopLeftRadius: ['50%', 8],
+      transform: [
+        {
+          type: 'translate',
+          x: '25%',
+          y: 10,
+        },
+      ],
     });
   });
 

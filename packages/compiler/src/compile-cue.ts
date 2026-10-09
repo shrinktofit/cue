@@ -21,30 +21,25 @@ import {
   type SFCParseResult,
   type SFCTemplateCompileResults,
 } from '@vue/compiler-sfc';
-import {
-  ModuleKind,
-  ScriptTarget,
-  transpileModule,
-} from 'typescript';
-import {
-  compileCueInlineStyle,
-  compileCueStyle,
-} from './compile-cue-style.js';
+import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
+import { compileCueInlineStyle, compileCueStyle } from './compile-cue-style.js';
 
 export const cueFileExtension = '.cue';
 export const cueRuntimeModuleName = '@bsgames/cue';
 
 export type CompileCueError
-  = SFCParseResult['errors'][number]
+  = | SFCParseResult['errors'][number]
     | SFCTemplateCompileResults['errors'][number];
 
-export type CanonicalizeCueImageSourceResult = {
-  ok: true;
-  source: string;
-} | {
-  ok: false;
-  error: CompileCueError;
-};
+export type CanonicalizeCueImageSourceResult
+  = | {
+    ok: true;
+    source: string;
+  }
+  | {
+    ok: false;
+    error: CompileCueError;
+  };
 
 export type CueImageSourceCanonicalizer = (
   source: string,
@@ -65,24 +60,25 @@ export interface CompileCueFile {
   fileName: string;
 }
 
-export type CompileCueResult = {
-  ok: true;
-  entryFileName: string;
-  files: CompileCueFile[];
-} | {
-  ok: false;
-  errors: CompileCueError[];
-};
+export type CompileCueResult
+  = | {
+    ok: true;
+    entryFileName: string;
+    files: CompileCueFile[];
+  }
+  | {
+    ok: false;
+    errors: CompileCueError[];
+  };
 
 export function compileCue(source: string, options: CompileCueOptions): CompileCueResult {
   const configuredCustomElements = new Set(options.customElements);
   const configuredIsCustomElement = options.templateCompilerOptions?.isCustomElement;
-  const isCustomElement = (tagName: string): boolean => (
+  const isCustomElement = (tagName: string): boolean =>
     tagName === 'cue-image'
     || Object.hasOwn(cueControlDefinitions, tagName)
     || configuredCustomElements.has(tagName)
-    || configuredIsCustomElement?.(tagName) === true
-  );
+    || configuredIsCustomElement?.(tagName) === true;
   const parsed = parse(source, {
     filename: options.filename,
     templateParseOptions: {
@@ -141,15 +137,16 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     runtimeModuleName: cueRuntimeModuleName,
     whitespace: 'preserve' as const,
   };
-  const script = descriptor.script || descriptor.scriptSetup
-    ? compileScript(descriptor, {
-      id,
-      genDefaultAs: '__sfc__',
-      templateOptions: {
-        compilerOptions: templateCompilerOptions,
-      },
-    })
-    : undefined;
+  const script
+    = descriptor.script || descriptor.scriptSetup
+      ? compileScript(descriptor, {
+        id,
+        genDefaultAs: '__sfc__',
+        templateOptions: {
+          compilerOptions: templateCompilerOptions,
+        },
+      })
+      : undefined;
   const template = descriptor.template
     ? compileTemplate({
       ...(templateAst ? { ast: templateAst } : {}),
@@ -171,33 +168,33 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   if (template && (template.errors.length > 0 || imageSourceErrors.length > 0)) {
     return {
       ok: false,
-      errors: [
-        ...template.errors,
-        ...imageSourceErrors,
-      ],
+      errors: [...template.errors, ...imageSourceErrors],
     };
   }
 
   const normalizedFilename = options.filename.replaceAll('\\', '/');
-  const sourceFileName = normalizedFilename.slice(normalizedFilename.lastIndexOf('/') + 1);
+  const sourceFileName = normalizedFilename.slice(
+    normalizedFilename.lastIndexOf('/') + 1,
+  );
   const entryFileName = `${sourceFileName}.js`;
   const scriptFileName = `${sourceFileName}.script.js`;
   const templateFileName = `${sourceFileName}.template.js`;
   const styleFileName = `${sourceFileName}.style.js`;
-  const scriptCode = transpileModule([
-    script?.content ?? 'const __sfc__ = {};',
-    'export default __sfc__;',
-    '',
-  ].join('\n'), {
-    compilerOptions: {
-      module: ModuleKind.ESNext,
-      target: ScriptTarget.ESNext,
+  const scriptCode = transpileModule(
+    [
+      script?.content ?? 'const __sfc__ = {};',
+      'export default __sfc__;',
+      '',
+    ].join('\n'),
+    {
+      compilerOptions: {
+        module: ModuleKind.ESNext,
+        target: ScriptTarget.ESNext,
+      },
+      fileName: `${sourceFileName}.script.ts`,
     },
-    fileName: `${sourceFileName}.script.ts`,
-  }).outputText;
-  const componentProperties = [
-    `  __file: ${JSON.stringify(options.filename)},`,
-  ];
+  ).outputText;
+  const componentProperties = [`  __file: ${JSON.stringify(options.filename)},`];
   if (template) {
     componentProperties.push('  render,');
   }
@@ -208,14 +205,10 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const entryCode = [
     `import component from ${JSON.stringify(`./${scriptFileName}`)};`,
     ...(template
-      ? [
-        `import { render } from ${JSON.stringify(`./${templateFileName}`)};`,
-      ]
+      ? [`import { render } from ${JSON.stringify(`./${templateFileName}`)};`]
       : []),
     ...(descriptor.styles.length > 0
-      ? [
-        `import styleSheet from ${JSON.stringify(`./${styleFileName}`)};`,
-      ]
+      ? [`import styleSheet from ${JSON.stringify(`./${styleFileName}`)};`]
       : []),
     '',
     'export default Object.assign(component, {',
@@ -237,38 +230,78 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
         fileName: scriptFileName,
       },
       ...(template
-        ? [{
-          code: template.code,
-          fileName: templateFileName,
-        }]
+        ? [
+          {
+            code: template.code,
+            fileName: templateFileName,
+          },
+        ]
         : []),
       ...(descriptor.styles.length > 0 && compiledStyle.styleSheet
-        ? [{
-          code: [
-            `const styleSheet = ${JSON.stringify(compiledStyle.styleSheet, undefined, 2)};`,
-            '',
-            'export default styleSheet;',
-            '',
-          ].join('\n'),
-          fileName: styleFileName,
-        }]
+        ? [
+          {
+            code: [
+              `const styleSheet = ${JSON.stringify(compiledStyle.styleSheet, undefined, 2)};`,
+              '',
+              'export default styleSheet;',
+              '',
+            ].join('\n'),
+            fileName: styleFileName,
+          },
+        ]
         : []),
     ],
   };
 }
 
 const supportedNativeEvents = new Set([
-  'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
-  'pointerover', 'pointerout', 'pointerenter', 'pointerleave',
-  'gotpointercapture', 'lostpointercapture', 'click',
-  'keydown', 'keyup', 'focus', 'blur', 'focusin', 'focusout',
-  'beforeinput', 'input', 'change',
-  'compositionstart', 'compositionupdate', 'compositionend', 'wheel',
+  'pointerdown',
+  'pointermove',
+  'pointerup',
+  'pointercancel',
+  'pointerover',
+  'pointerout',
+  'pointerenter',
+  'pointerleave',
+  'gotpointercapture',
+  'lostpointercapture',
+  'click',
+  'keydown',
+  'keyup',
+  'focus',
+  'blur',
+  'focusin',
+  'focusout',
+  'beforeinput',
+  'input',
+  'change',
+  'compositionstart',
+  'compositionupdate',
+  'compositionend',
+  'wheel',
 ]);
 const supportedEventModifiers = new Set([
-  'stop', 'prevent', 'self', 'once', 'capture', 'passive',
-  'ctrl', 'shift', 'alt', 'meta', 'exact',
-  'enter', 'tab', 'delete', 'esc', 'space', 'up', 'down', 'left', 'right', 'middle',
+  'stop',
+  'prevent',
+  'self',
+  'once',
+  'capture',
+  'passive',
+  'ctrl',
+  'shift',
+  'alt',
+  'meta',
+  'exact',
+  'enter',
+  'tab',
+  'delete',
+  'esc',
+  'space',
+  'up',
+  'down',
+  'left',
+  'right',
+  'middle',
 ]);
 
 const transformCueModel: DirectiveTransform = (directive, node, context) => {
@@ -280,7 +313,10 @@ const transformCueModel: DirectiveTransform = (directive, node, context) => {
   if (!model) {
     throw new Error(`Missing validated native model contract for <${node.tag}>.`);
   }
-  const transformed = transformModel(directive, node, { ...context, cacheHandlers: false });
+  const transformed = transformModel(directive, node, {
+    ...context,
+    cacheHandlers: false,
+  });
   const [value, update] = transformed.props;
   if (!value || !update) {
     return transformed;
@@ -294,7 +330,8 @@ const transformCueModel: DirectiveTransform = (directive, node, context) => {
         key: createSimpleExpression(lazy ? 'onChange' : 'onInput', true),
         value: createCompoundExpression([
           lazy ? '$event => (' : '$event => !$event.isComposing && (',
-          // With handler caching disabled, Vue's core model transform returns its assignment expression.
+          // With handler caching disabled, Vue's core model transform returns its assignment
+          // expression.
           update.value as CompoundExpressionNode,
           ')($event.value)',
         ]),
@@ -311,13 +348,21 @@ function compileTemplateProperties(
   if (node.type === NodeTypes.ELEMENT) {
     for (let index = 0; index < node.props.length; ++index) {
       const property = node.props[index]!;
-      if (node.tagType === ElementTypes.ELEMENT && property.type === NodeTypes.DIRECTIVE && property.name === 'model') {
-        const model = Object.hasOwn(cueControlDefinitions, node.tag) ? cueControlDefinitions[node.tag]?.model : undefined;
+      if (
+        node.tagType === ElementTypes.ELEMENT
+        && property.type === NodeTypes.DIRECTIVE
+        && property.name === 'model'
+      ) {
+        const model = Object.hasOwn(cueControlDefinitions, node.tag)
+          ? cueControlDefinitions[node.tag]?.model
+          : undefined;
         let message: string | undefined;
         if (!model) {
           message = `Cue native element <${node.tag}> does not support v-model.`;
         } else if (property.arg) {
-          message = 'Cue native control v-model does not support arguments; bind its value without an argument.';
+          message
+            = ('Cue native control v-model does not support arguments; bind '
+              + 'its value without an argument.');
         } else if (property.modifiers.some((modifier) => modifier.content !== 'lazy')) {
           message = 'Cue native control v-model supports only the .lazy modifier.';
         }
@@ -327,65 +372,129 @@ function compileTemplateProperties(
       }
       if (property.type === NodeTypes.DIRECTIVE && property.name === 'on') {
         if (node.tagType === ElementTypes.ELEMENT) {
-          if (property.arg?.type !== NodeTypes.SIMPLE_EXPRESSION || !property.arg.isStatic) {
-            errors.push(Object.assign(new SyntaxError(
-              'Cue native event bindings require a static event name; dynamic v-on arguments and v-on objects are not supported.',
-            ), { loc: property.loc }));
+          if (
+            property.arg?.type !== NodeTypes.SIMPLE_EXPRESSION
+            || !property.arg.isStatic
+          ) {
+            errors.push(
+              Object.assign(
+                new SyntaxError(
+                  ('Cue native event bindings require a static event name; '
+                    + 'dynamic v-on arguments and v-on objects are not supported.'),
+                ),
+                { loc: property.loc },
+              ),
+            );
           } else if (!supportedNativeEvents.has(property.arg.content)) {
-            errors.push(Object.assign(new SyntaxError(
-              `Unsupported Cue native event "${property.arg.content}". Supported events: ${[...supportedNativeEvents].join(', ')}.`,
-            ), { loc: property.loc }));
+            errors.push(
+              Object.assign(
+                new SyntaxError(
+                  `Unsupported Cue native event "${property.arg.content}". Supported events: ${[...supportedNativeEvents].join(', ')}.`,
+                ),
+                { loc: property.loc },
+              ),
+            );
           }
         }
         for (const modifier of property.modifiers) {
           if (!supportedEventModifiers.has(modifier.content)) {
-            errors.push(Object.assign(new SyntaxError(
-              `Unsupported Cue event modifier ".${modifier.content}". Supported modifiers: stop, prevent, self, once, capture, passive.`,
-            ), { loc: modifier.loc }));
+            errors.push(
+              Object.assign(
+                new SyntaxError(
+                  `Unsupported Cue event modifier ".${modifier.content}". Supported modifiers: stop, prevent, self, once, capture, passive.`,
+                ),
+                { loc: modifier.loc },
+              ),
+            );
           }
-          if (node.tagType === ElementTypes.ELEMENT && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION && property.arg.isStatic) {
-            if (['enter', 'tab', 'delete', 'esc', 'space', 'up', 'down'].includes(modifier.content)
-              && property.arg.content !== 'keydown' && property.arg.content !== 'keyup') {
-              errors.push(Object.assign(new SyntaxError(
-                `Cue key modifier ".${modifier.content}" requires keydown or keyup.`,
-              ), { loc: modifier.loc }));
+          if (
+            node.tagType === ElementTypes.ELEMENT
+            && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+            && property.arg.isStatic
+          ) {
+            if (
+              [
+                'enter',
+                'tab',
+                'delete',
+                'esc',
+                'space',
+                'up',
+                'down',
+              ].includes(
+                modifier.content,
+              )
+              && property.arg.content !== 'keydown'
+              && property.arg.content !== 'keyup'
+            ) {
+              errors.push(
+                Object.assign(
+                  new SyntaxError(
+                    `Cue key modifier ".${modifier.content}" requires keydown or keyup.`,
+                  ),
+                  { loc: modifier.loc },
+                ),
+              );
             }
-            if (property.arg.content === 'click' && (modifier.content === 'right' || modifier.content === 'middle')) {
-              errors.push(Object.assign(new SyntaxError(
-                `Cue click.${modifier.content} is unsupported; use pointerdown.${modifier.content} or pointerup.${modifier.content}.`,
-              ), { loc: modifier.loc }));
+            if (
+              property.arg.content === 'click'
+              && (modifier.content === 'right' || modifier.content === 'middle')
+            ) {
+              errors.push(
+                Object.assign(
+                  new SyntaxError(
+                    `Cue click.${modifier.content} is unsupported; use pointerdown.${modifier.content} or pointerup.${modifier.content}.`,
+                  ),
+                  { loc: modifier.loc },
+                ),
+              );
             }
           }
         }
-        if (property.modifiers.some((modifier) => modifier.content === 'passive')
-          && property.modifiers.some((modifier) => modifier.content === 'prevent')) {
-          errors.push(Object.assign(new SyntaxError(
-            'Cue event modifiers .passive and .prevent cannot be combined.',
-          ), { loc: property.loc }));
+        if (
+          property.modifiers.some((modifier) => modifier.content === 'passive')
+          && property.modifiers.some((modifier) => modifier.content === 'prevent')
+        ) {
+          errors.push(
+            Object.assign(
+              new SyntaxError(
+                'Cue event modifiers .passive and .prevent cannot be combined.',
+              ),
+              { loc: property.loc },
+            ),
+          );
         }
       }
-      const name = property.type === NodeTypes.ATTRIBUTE
-        ? property.name
-        : property.name === 'bind'
-          && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION
-          && property.arg.isStatic
-          ? property.arg.content
-          : undefined;
+      const name
+        = property.type === NodeTypes.ATTRIBUTE
+          ? property.name
+          : property.name === 'bind'
+            && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+            && property.arg.isStatic
+            ? property.arg.content
+            : undefined;
       if (name === '__cueInlineStyle') {
-        errors.push(Object.assign(
-          new SyntaxError('__cueInlineStyle is reserved for Cue compiler output.'),
-          { loc: property.loc },
-        ));
+        errors.push(
+          Object.assign(
+            new SyntaxError('__cueInlineStyle is reserved for Cue compiler output.'),
+            { loc: property.loc },
+          ),
+        );
         continue;
       }
       if (name !== 'style') {
         continue;
       }
       if (property.type === NodeTypes.DIRECTIVE) {
-        errors.push(Object.assign(
-          new SyntaxError('Dynamic :style bindings are not supported. Update the element\'s typed CueElement.style properties instead.'),
-          { loc: property.loc },
-        ));
+        errors.push(
+          Object.assign(
+            new SyntaxError(
+              ('Dynamic :style bindings are not supported. Update the '
+                + 'element\'s typed CueElement.style properties instead.'),
+            ),
+            { loc: property.loc },
+          ),
+        );
         continue;
       }
       const result = compileCueInlineStyle(
@@ -393,7 +502,9 @@ function compileTemplateProperties(
         options.filename,
         options.canonicalizeBackgroundImageSource,
       );
-      errors.push(...result.errors.map((error) => Object.assign(error, { loc: property.loc })));
+      errors.push(
+        ...result.errors.map((error) => Object.assign(error, { loc: property.loc })),
+      );
       if (!result.rule) {
         node.props.splice(index, 1);
         --index;
@@ -434,10 +545,8 @@ function createCueImageSourceTransform(
       return;
     }
     const sourceAttribute = node.props.find(
-      (property): property is AttributeNode => (
-        property.type === NodeTypes.ATTRIBUTE
-        && property.name === 'src'
-      ),
+      (property): property is AttributeNode =>
+        property.type === NodeTypes.ATTRIBUTE && property.name === 'src',
     );
     if (!sourceAttribute?.value) {
       return;
@@ -447,16 +556,20 @@ function createCueImageSourceTransform(
       return;
     }
     if (!source.startsWith('./') && !source.startsWith('../')) {
-      errors.push(new SyntaxError(
-        '<cue-image> src must be a relative path or use the "uuid:" scheme.',
-      ));
+      errors.push(
+        new SyntaxError(
+          '<cue-image> src must be a relative path or use the "uuid:" scheme.',
+        ),
+      );
       return;
     }
     const canonicalizeImageSource = options.canonicalizeImageSource;
     if (!canonicalizeImageSource) {
-      errors.push(new SyntaxError(
-        `Cannot compile relative <cue-image> src ${JSON.stringify(source)} without a compiler-host image source canonicalizer.`,
-      ));
+      errors.push(
+        new SyntaxError(
+          `Cannot compile relative <cue-image> src ${JSON.stringify(source)} without a compiler-host image source canonicalizer.`,
+        ),
+      );
       return;
     }
     const result = canonicalizeImageSource(source, options.filename);
@@ -465,9 +578,11 @@ function createCueImageSourceTransform(
       return;
     }
     if (!isUuidSource(result.source)) {
-      errors.push(new SyntaxError(
-        `The compiler host returned an invalid <cue-image> source ${JSON.stringify(result.source)}; expected a non-empty "uuid:" source.`,
-      ));
+      errors.push(
+        new SyntaxError(
+          `The compiler host returned an invalid <cue-image> source ${JSON.stringify(result.source)}; expected a non-empty "uuid:" source.`,
+        ),
+      );
       return;
     }
     sourceAttribute.value.content = result.source;
@@ -475,7 +590,9 @@ function createCueImageSourceTransform(
 }
 
 function isUuidSource(source: string): boolean {
-  return source.startsWith('uuid:')
+  return (
+    source.startsWith('uuid:')
     && source.length > 'uuid:'.length
-    && !/\s/u.test(source.slice('uuid:'.length));
+    && !/\s/u.test(source.slice('uuid:'.length))
+  );
 }

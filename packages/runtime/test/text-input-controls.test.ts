@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CueTextInputElement } from '../src/builtin-controls/text-input/cue-text-input-element.js';
-import { CueNumberInputElement } from '../src/builtin-controls/number-input/cue-number-input-element.js';
+import {
+  CueNumberInputElement,
+} from '../src/builtin-controls/number-input/cue-number-input-element.js';
 import { CueKeyboardEvent } from '../src/input/cue-keyboard-event.js';
 import { CueInputEvent, CueChangeEvent } from '../src/input/cue-value-event.js';
 describe('Text input control values and selection', () => {
@@ -25,7 +27,8 @@ describe('Text input control values and selection', () => {
   });
   it('does not position a public selection inside emoji or combining graphemes', () => {
     /// @case
-    /// An application sets selection ranges through a surrogate pair, ZWJ emoji and combining accent.
+    /// An application sets selection ranges through a surrogate pair, ZWJ emoji and combining
+    /// accent.
     /// @expect
     /// Every endpoint lands on a full grapheme boundary, and out-of-range offsets are clamped.
     const input = new CueTextInputElement();
@@ -33,7 +36,15 @@ describe('Text input control values and selection', () => {
     input.setSelectionRange(2, 4);
     expect([input.selectionStart, input.selectionEnd]).toEqual([3, 5]);
     input.setSelectionRange(8, 13, 'backward');
-    expect([input.selectionStart, input.selectionEnd, input.selectionDirection]).toEqual([5, 16, 'backward']);
+    expect([
+      input.selectionStart,
+      input.selectionEnd,
+      input.selectionDirection,
+    ]).toEqual([
+      5,
+      16,
+      'backward',
+    ]);
     input.setSelectionRange(-10, 999);
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
     input.value = 'new';
@@ -65,7 +76,8 @@ describe('Number input value, range and keyboard contract', () => {
     /// @case
     /// Application code assigns undefined, zero and invalid numeric values.
     /// @expect
-    /// Empty is undefined, zero remains zero, NaN/Infinity never enter the model, and assignment is silent.
+    /// Empty is undefined, zero remains zero, NaN/Infinity never enter the model, and assignment
+    /// is silent.
     const input = new CueNumberInputElement();
     const events: string[] = [];
     input.addEventListener('input', () => events.push('input'));
@@ -90,10 +102,7 @@ describe('Number input value, range and keyboard contract', () => {
     /// @expect
     /// Values stay exact at the declared precision and an unchanged boundary emits nothing.
     const input = new CueNumberInputElement();
-    const events: Array<[
-      string,
-      unknown,
-    ]> = [];
+    const events: Array<[string, unknown]> = [];
     input.addEventListener('input', (event) => {
       if (event instanceof CueInputEvent) {
         events.push(['input', event.value]);
@@ -113,7 +122,10 @@ describe('Number input value, range and keyboard contract', () => {
     input.stepUp();
     expect(input.value).toBe(0.3);
     expect(events).toEqual([
-      ['input', 0.2], ['change', 0.2], ['input', 0.3], ['change', 0.3],
+      ['input', 0.2],
+      ['change', 0.2],
+      ['input', 0.3],
+      ['change', 0.3],
     ]);
     input.stepDown(10);
     expect(input.value).toBe(0);

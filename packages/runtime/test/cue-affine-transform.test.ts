@@ -10,12 +10,21 @@ describe('createCueElementTransform', () => {
     /// @case
     /// A 100×50 element translates by 50% and then scales by 2 around its top-left corner.
     /// @expect
-    /// The later scale does not multiply the earlier translation, and percentages use the element box.
+    /// The later scale does not multiply the earlier translation, and percentages use the element
+    /// box.
     const transform = createCueElementTransform(
       identityCueAffineTransform,
       [
-        { type: 'translate', x: '50%', y: '20%' },
-        { type: 'scale', x: 2, y: 2 },
+        {
+          type: 'translate',
+          x: '50%',
+          y: '20%',
+        },
+        {
+          type: 'scale',
+          x: 2,
+          y: 2,
+        },
       ],
       [0, 0],
       10,
@@ -33,7 +42,13 @@ describe('createCueElementTransform', () => {
     /// The child point is rotated locally, then moved by the parent transform.
     const parent = createCueElementTransform(
       identityCueAffineTransform,
-      [{ type: 'translate', x: 20, y: 0 }],
+      [
+        {
+          type: 'translate',
+          x: 20,
+          y: 0,
+        },
+      ],
       ['50%', '50%'],
       0,
       0,

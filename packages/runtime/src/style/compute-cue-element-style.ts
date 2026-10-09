@@ -148,16 +148,19 @@ const cueStyleProperties = Object.values(CueStyleProperty);
 export const initialCueTextStyle: ComputedCueTextStyle = {
   fontWeight: 400,
   cueTextStrokeWidth: 0,
-  cueTextStrokeColor: { alpha: 1, blue: 0, green: 0, red: 0 },
+  cueTextStrokeColor: {
+    alpha: 1,
+    blue: 0,
+    green: 0,
+    red: 0,
+  },
   color: {
     alpha: 1,
     blue: 0,
     green: 0,
     red: 0,
   },
-  fontFamily: [
-    'sans-serif',
-  ],
+  fontFamily: ['sans-serif'],
   fontSize: 16,
   lineHeight: CueLineHeightKeyword.normal,
   textAlign: CueTextAlign.start,
@@ -170,7 +173,9 @@ export const initialCueTextStyle: ComputedCueTextStyle = {
 export function computeCueElementStyle(
   element: CueElement,
   styleSheets: readonly CueStyleSheet[],
-  inheritedTextStyle: ComputedCueTextStyle & { pointerEvents?: CuePointerEvents } = initialCueTextStyle,
+  inheritedTextStyle: ComputedCueTextStyle & {
+    pointerEvents?: CuePointerEvents;
+  } = initialCueTextStyle,
 ): ComputedCueElementStyle {
   const candidates = new Map<CueStyleProperty, DeclarationCandidate>();
   // Builtin defaults are a lower origin than every author declaration, even *.
@@ -183,7 +188,11 @@ export function computeCueElementStyle(
       let specificity: CueSpecificity | undefined;
       for (const selector of rule.selectors) {
         if (matchesCueSelector(element, selector)) {
-          const selectorSpecificity: [number, number, number] = [0, 0, 0];
+          const selectorSpecificity: [number, number, number] = [
+            0,
+            0,
+            0,
+          ];
           for (const token of selector) {
             if (token.type === 'id') {
               selectorSpecificity[0]++;
@@ -193,7 +202,10 @@ export function computeCueElementStyle(
               selectorSpecificity[2]++;
             }
           }
-          if (specificity === undefined || compareSpecificity(selectorSpecificity, specificity) > 0) {
+          if (
+            specificity === undefined
+            || compareSpecificity(selectorSpecificity, specificity) > 0
+          ) {
             specificity = selectorSpecificity;
           }
         }
@@ -221,10 +233,48 @@ export function computeCueElementStyle(
   }
 
   // Private compiler output, never CSS source text.
-  const inlineStyle = getCueElementProperties(element).get('__cueInlineStyle') as CueStyleRule | undefined;
-  applyDeclarations(declarations, candidates, inlineStyle?.declarations, false, order + 1, [0, 0, 0], true);
-  applyDeclarations(declarations, candidates, inlineStyle?.importantDeclarations, true, order + 1, [0, 0, 0], true);
-  applyDeclarations(declarations, candidates, encodeCueStyle(element.style), false, order + 2, [0, 0, 0], true);
+  const inlineStyle = getCueElementProperties(element).get('__cueInlineStyle') as
+    | CueStyleRule
+    | undefined;
+  applyDeclarations(
+    declarations,
+    candidates,
+    inlineStyle?.declarations,
+    false,
+    order + 1,
+    [
+      0,
+      0,
+      0,
+    ],
+    true,
+  );
+  applyDeclarations(
+    declarations,
+    candidates,
+    inlineStyle?.importantDeclarations,
+    true,
+    order + 1,
+    [
+      0,
+      0,
+      0,
+    ],
+    true,
+  );
+  applyDeclarations(
+    declarations,
+    candidates,
+    encodeCueStyle(element.style),
+    false,
+    order + 2,
+    [
+      0,
+      0,
+      0,
+    ],
+    true,
+  );
 
   const computedStyle = createInitialCueElementStyle(inheritedTextStyle);
   if (element instanceof DivElement) {
@@ -235,11 +285,26 @@ export function computeCueElementStyle(
     declarations.cueTextStrokeColor ?? inheritedTextStyle.cueTextStrokeColor,
     computedStyle.color,
   );
-  computedStyle.borderBottomColor = computedBorderColor(declarations.borderBottomColor, computedStyle.color);
-  computedStyle.borderLeftColor = computedBorderColor(declarations.borderLeftColor, computedStyle.color);
-  computedStyle.borderRightColor = computedBorderColor(declarations.borderRightColor, computedStyle.color);
-  computedStyle.borderTopColor = computedBorderColor(declarations.borderTopColor, computedStyle.color);
-  computedStyle.outlineColor = computedBorderColor(declarations.outlineColor, computedStyle.color);
+  computedStyle.borderBottomColor = computedBorderColor(
+    declarations.borderBottomColor,
+    computedStyle.color,
+  );
+  computedStyle.borderLeftColor = computedBorderColor(
+    declarations.borderLeftColor,
+    computedStyle.color,
+  );
+  computedStyle.borderRightColor = computedBorderColor(
+    declarations.borderRightColor,
+    computedStyle.color,
+  );
+  computedStyle.borderTopColor = computedBorderColor(
+    declarations.borderTopColor,
+    computedStyle.color,
+  );
+  computedStyle.outlineColor = computedBorderColor(
+    declarations.outlineColor,
+    computedStyle.color,
+  );
   computedStyle.boxShadow = computedStyle.boxShadow.map((shadow) => ({
     ...shadow,
     color: computedBorderColor(shadow.color, computedStyle.color),
@@ -404,7 +469,11 @@ function appendClassNames(classNames: Set<string>, value: unknown): void {
   }
 }
 
-function matchesCueSelector(element: CueElement, selector: CueSelector, end = selector.length - 1): boolean {
+function matchesCueSelector(
+  element: CueElement,
+  selector: CueSelector,
+  end = selector.length - 1,
+): boolean {
   const properties = getCueElementProperties(element);
   const classNames = readClassNames(properties.get('class'));
   for (let index = end; index >= 0; index--) {
@@ -446,7 +515,10 @@ function matchesCueSelector(element: CueElement, selector: CueSelector, end = se
       return false;
     }
     default:
-      throw new TypeError('Invalid Cue stylesheet selector token; recompile the stylesheet with the current compiler.');
+      throw new TypeError(
+        ('Invalid Cue stylesheet selector token; recompile the '
+          + 'stylesheet with the current compiler.'),
+      );
     }
   }
   return true;
@@ -466,7 +538,10 @@ function hasHigherPriority(
   if (candidate.inline !== previous.inline) {
     return candidate.inline;
   }
-  const specificityOrder = compareSpecificity(candidate.specificity, previous.specificity);
+  const specificityOrder = compareSpecificity(
+    candidate.specificity,
+    previous.specificity,
+  );
   if (specificityOrder !== 0) {
     return specificityOrder > 0;
   }

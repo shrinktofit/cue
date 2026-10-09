@@ -14,14 +14,29 @@ export enum CueSliderOrientation {
   vertical = 'vertical',
 }
 
-const stepKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+const stepKeys = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+]);
 
-export let updateCueSliderLayout: (element: CueSliderElement, regions: readonly CueHitRegion[]) => boolean;
+export let updateCueSliderLayout: (
+  element: CueSliderElement,
+  regions: readonly CueHitRegion[],
+) => boolean;
 
 export class CueSliderElement extends CueControlElement {
   constructor() {
     super('cue-slider');
-    setCueElementDefaultStyle(this, { display: CueDisplay.block, position: CuePosition.relative, width: 240, height: 32 });
+    setCueElementDefaultStyle(this, {
+      display: CueDisplay.block,
+      position: CuePosition.relative,
+      width: 240,
+      height: 32,
+    });
     this.insertBefore(this.#track);
     this.insertBefore(this.#fill);
     this.insertBefore(this.#thumb);
@@ -72,14 +87,26 @@ export class CueSliderElement extends CueControlElement {
     this.setProperty('orientation', value);
   }
 
-  protected override propertyChanged(name: string, previous: unknown, next: unknown): void {
+  protected override propertyChanged(
+    name: string,
+    previous: unknown,
+    next: unknown,
+  ): void {
     if (name === 'disabled' && this.disabled) {
       this.#finish(false);
     }
     super.propertyChanged(name, previous, next);
     if (name === 'orientation') {
-      this.#orientation = next === CueSliderOrientation.vertical ? CueSliderOrientation.vertical : CueSliderOrientation.horizontal;
-    } else if (['min', 'max', 'step', 'value'].includes(name)) {
+      this.#orientation
+        = next === CueSliderOrientation.vertical
+          ? CueSliderOrientation.vertical
+          : CueSliderOrientation.horizontal;
+    } else if ([
+      'min',
+      'max',
+      'step',
+      'value',
+    ].includes(name)) {
       const number = next === undefined || next === null ? undefined : Number(next);
       if (number !== undefined && !Number.isFinite(number)) {
         throw new TypeError(name + ' must be finite.');
@@ -96,7 +123,7 @@ export class CueSliderElement extends CueControlElement {
         }
         this.#step = number ?? 1;
       }
-      this.#value = this.#snap(name === 'value' ? number ?? this.min : this.value);
+      this.#value = this.#snap(name === 'value' ? (number ?? this.min) : this.value);
     }
     this.#paint();
   }
@@ -109,14 +136,23 @@ export class CueSliderElement extends CueControlElement {
     if (this.disabled) {
       return;
     }
-    if (event instanceof CueKeyboardEvent && !event.isComposing && stepKeys.has(event.key)) {
+    if (
+      event instanceof CueKeyboardEvent
+      && !event.isComposing
+      && stepKeys.has(event.key)
+    ) {
       if (event.type === 'keydown') {
         this.#startValue ??= this.value;
-        this.#edit(event.key === 'Home'
-          ? this.min
-          : event.key === 'End'
-            ? this.max
-            : this.value + (event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -this.step : this.step));
+        this.#edit(
+          event.key === 'Home'
+            ? this.min
+            : event.key === 'End'
+              ? this.max
+              : this.value
+                + (event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+                  ? -this.step
+                  : this.step),
+        );
       } else if (event.type === 'keyup') {
         this.#finish(true);
       }
@@ -125,7 +161,11 @@ export class CueSliderElement extends CueControlElement {
     if (!(event instanceof CuePointerEvent)) {
       return;
     }
-    if (event.type === 'pointerdown' && event.button === 0 && this.#pointer === undefined) {
+    if (
+      event.type === 'pointerdown'
+      && event.button === 0
+      && this.#pointer === undefined
+    ) {
       this.#pointer = event.pointerId;
       this.#startValue = this.value;
       this.setPointerCapture(event.pointerId);
@@ -159,11 +199,37 @@ export class CueSliderElement extends CueControlElement {
   #layoutKey = '';
   #thumbWidth = 20;
   #thumbHeight = 20;
-  readonly #track = createControlPart('cue-slider-track', { backgroundColor: { red: 71, green: 85, blue: 105, alpha: 1 } });
-  readonly #fill = createControlPart('cue-slider-fill', { backgroundColor: { red: 56, green: 189, blue: 248, alpha: 1 } });
+  readonly #track = createControlPart('cue-slider-track', {
+    backgroundColor: {
+      red: 71,
+      green: 85,
+      blue: 105,
+      alpha: 1,
+    },
+  });
+
+  readonly #fill = createControlPart('cue-slider-fill', {
+    backgroundColor: {
+      red: 56,
+      green: 189,
+      blue: 248,
+      alpha: 1,
+    },
+  });
+
   readonly #thumb = createControlPart('cue-slider-thumb', {
-    width: 20, height: 20, backgroundColor: { red: 255, green: 255, blue: 255, alpha: 1 },
-    borderTopLeftRadius: [10, 10], borderTopRightRadius: [10, 10], borderBottomLeftRadius: [10, 10], borderBottomRightRadius: [10, 10],
+    width: 20,
+    height: 20,
+    backgroundColor: {
+      red: 255,
+      green: 255,
+      blue: 255,
+      alpha: 1,
+    },
+    borderTopLeftRadius: [10, 10],
+    borderTopRightRadius: [10, 10],
+    borderBottomLeftRadius: [10, 10],
+    borderBottomRightRadius: [10, 10],
   });
 
   #snap(value: number): number {
@@ -186,7 +252,14 @@ export class CueSliderElement extends CueControlElement {
     const size = vertical ? this.clientHeight : this.clientWidth;
     const position = vertical ? size - event.offsetY : event.offsetX;
     const thumbSize = vertical ? this.#thumbHeight : this.#thumbWidth;
-    this.#edit(this.min + Math.max(0, Math.min(1, (position - thumbSize / 2) / Math.max(1, size - thumbSize))) * Math.max(0, this.max - this.min));
+    this.#edit(
+      this.min
+      + Math.max(
+        0,
+        Math.min(1, (position - thumbSize / 2) / Math.max(1, size - thumbSize)),
+      )
+      * Math.max(0, this.max - this.min),
+    );
   }
 
   #finish(commit: boolean): void {
@@ -203,7 +276,16 @@ export class CueSliderElement extends CueControlElement {
   }
 
   #paint(): boolean {
-    const key = JSON.stringify([this.orientation, this.min, this.max, this.value, this.clientWidth, this.clientHeight, this.#thumbWidth, this.#thumbHeight]);
+    const key = JSON.stringify([
+      this.orientation,
+      this.min,
+      this.max,
+      this.value,
+      this.clientWidth,
+      this.clientHeight,
+      this.#thumbWidth,
+      this.#thumbHeight,
+    ]);
     if (key === this.#layoutKey) {
       return false;
     }
@@ -211,20 +293,80 @@ export class CueSliderElement extends CueControlElement {
     const vertical = this.orientation === CueSliderOrientation.vertical;
     const halfWidth = this.#thumbWidth / 2;
     const halfHeight = this.#thumbHeight / 2;
-    const ratio = this.max > this.min ? (this.value - this.min) / (this.max - this.min) : 0;
-    for (const part of [this.#track, this.#fill, this.#thumb]) {
+    const ratio
+      = this.max > this.min ? (this.value - this.min) / (this.max - this.min) : 0;
+    for (const part of [
+      this.#track,
+      this.#fill,
+      this.#thumb,
+    ]) {
       part.style.position = CuePosition.absolute;
       part.style.pointerEvents = CuePointerEvents.none;
     }
-    Object.assign(this.#track.style, vertical
-      ? { top: halfHeight, bottom: halfHeight, left: Length.percent(50), right: undefined, width: 6, height: undefined, marginLeft: -3, marginTop: 0 }
-      : { top: Length.percent(50), bottom: undefined, left: halfWidth, right: halfWidth, width: undefined, height: 6, marginLeft: 0, marginTop: -3 });
-    Object.assign(this.#fill.style, vertical
-      ? { top: undefined, bottom: halfHeight, left: Length.percent(50), width: 6, height: Math.max(0, this.clientHeight - this.#thumbHeight) * ratio, marginLeft: -3, marginTop: 0 }
-      : { top: Length.percent(50), bottom: undefined, left: halfWidth, width: Math.max(0, this.clientWidth - this.#thumbWidth) * ratio, height: 6, marginLeft: 0, marginTop: -3 });
-    Object.assign(this.#thumb.style, vertical
-      ? { top: undefined, bottom: Math.max(0, this.clientHeight - this.#thumbHeight) * ratio, left: Length.percent(50), marginLeft: -halfWidth, marginTop: 0 }
-      : { top: Length.percent(50), bottom: undefined, left: Math.max(0, this.clientWidth - this.#thumbWidth) * ratio, marginLeft: 0, marginTop: -halfHeight });
+    Object.assign(
+      this.#track.style,
+      vertical
+        ? {
+          top: halfHeight,
+          bottom: halfHeight,
+          left: Length.percent(50),
+          right: undefined,
+          width: 6,
+          height: undefined,
+          marginLeft: -3,
+          marginTop: 0,
+        }
+        : {
+          top: Length.percent(50),
+          bottom: undefined,
+          left: halfWidth,
+          right: halfWidth,
+          width: undefined,
+          height: 6,
+          marginLeft: 0,
+          marginTop: -3,
+        },
+    );
+    Object.assign(
+      this.#fill.style,
+      vertical
+        ? {
+          top: undefined,
+          bottom: halfHeight,
+          left: Length.percent(50),
+          width: 6,
+          height: Math.max(0, this.clientHeight - this.#thumbHeight) * ratio,
+          marginLeft: -3,
+          marginTop: 0,
+        }
+        : {
+          top: Length.percent(50),
+          bottom: undefined,
+          left: halfWidth,
+          width: Math.max(0, this.clientWidth - this.#thumbWidth) * ratio,
+          height: 6,
+          marginLeft: 0,
+          marginTop: -3,
+        },
+    );
+    Object.assign(
+      this.#thumb.style,
+      vertical
+        ? {
+          top: undefined,
+          bottom: Math.max(0, this.clientHeight - this.#thumbHeight) * ratio,
+          left: Length.percent(50),
+          marginLeft: -halfWidth,
+          marginTop: 0,
+        }
+        : {
+          top: Length.percent(50),
+          bottom: undefined,
+          left: Math.max(0, this.clientWidth - this.#thumbWidth) * ratio,
+          marginLeft: 0,
+          marginTop: -halfHeight,
+        },
+    );
     return true;
   }
 

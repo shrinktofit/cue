@@ -40,8 +40,13 @@ function handleKey(event: KeyboardEvent): void {
     return;
   }
   const target = event.target;
-  if (target instanceof HTMLElement && (target.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
-    && !client.ownsTarget(target)) {
+  if (
+    target instanceof HTMLElement
+    && (target.isContentEditable
+      || target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement)
+    && !client.ownsTarget(target)
+  ) {
     activateCueKeyboardSource(undefined);
     return;
   }
@@ -54,8 +59,14 @@ function handleKey(event: KeyboardEvent): void {
 }
 
 function handleFocus(event: FocusEvent): void {
-  if (owner && !owner.ownsTarget(event.target) && event.target instanceof HTMLElement
-    && (event.target.isContentEditable || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) {
+  if (
+    owner
+    && !owner.ownsTarget(event.target)
+    && event.target instanceof HTMLElement
+    && (event.target.isContentEditable
+      || event.target instanceof HTMLInputElement
+      || event.target instanceof HTMLTextAreaElement)
+  ) {
     activateCueKeyboardSource(undefined);
   }
 }

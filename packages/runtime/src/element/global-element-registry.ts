@@ -10,7 +10,9 @@ import { CueToggleElement } from '../builtin-controls/toggle/cue-toggle-element.
 import { CueSliderElement } from '../builtin-controls/slider/cue-slider-element.js';
 import { CueSelectElement } from '../builtin-controls/select/cue-select-element.js';
 import { CueTextInputElement } from '../builtin-controls/text-input/cue-text-input-element.js';
-import { CueNumberInputElement } from '../builtin-controls/number-input/cue-number-input-element.js';
+import {
+  CueNumberInputElement,
+} from '../builtin-controls/number-input/cue-number-input-element.js';
 
 export const globalElementRegistry = new CustomElementRegistry();
 

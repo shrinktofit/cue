@@ -35,7 +35,10 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
         return source;
       }
       if (importer?.startsWith(modulePrefix)) {
-        const [filename] = JSON.parse(importer.slice(modulePrefix.length)) as [string, string];
+        const [filename] = JSON.parse(importer.slice(modulePrefix.length)) as [
+          string,
+          string,
+        ];
         const { importerAttributes, ...forwardedOptions } = resolveOptions;
         return await this.resolve(source, filename, {
           ...forwardedOptions,
@@ -44,7 +47,9 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
       }
       if (importer?.endsWith('.cue')) {
         const component = compileComponent(this, importer, options);
-        const file = component.files.find((candidate) => source === `./${candidate.fileName}`);
+        const file = component.files.find(
+          (candidate) => source === `./${candidate.fileName}`,
+        );
         if (file) {
           return modulePrefix + JSON.stringify([importer, file.fileName]);
         }
@@ -53,7 +58,10 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
     },
     load(id) {
       if (id.startsWith(modulePrefix)) {
-        const [filename, fileName] = JSON.parse(id.slice(modulePrefix.length)) as [string, string];
+        const [filename, fileName] = JSON.parse(id.slice(modulePrefix.length)) as [
+          string,
+          string,
+        ];
         const component = compileComponent(this, filename, options);
         const file = component.files.find((candidate) => candidate.fileName === fileName);
         if (!file) {
@@ -65,18 +73,29 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
         return undefined;
       }
       const component = compileComponent(this, id, options);
-      return { code: component.files.find((file) => file.fileName === component.entryFileName)!.code, map: null };
+      return {
+        code: component.files.find((file) => file.fileName === component.entryFileName)!
+          .code,
+        map: null,
+      };
     },
   };
 }
 
-function compileComponent(context: OmsPluginContext, filename: string, options: CuePluginOptions): CompiledComponent {
+function compileComponent(
+  context: OmsPluginContext,
+  filename: string,
+  options: CuePluginOptions,
+): CompiledComponent {
   const components: Record<string, CompiledComponent> = context.cache.get(cacheKey);
   let component = components[filename];
   if (!component) {
     const dependencies = new Set([filename]);
     context.addWatchFile(filename);
-    const canonicalize = (source: string, importer: 'sprite-frame' | 'texture'): CanonicalizeCueImageSourceResult => {
+    const canonicalize = (
+      source: string,
+      importer: 'sprite-frame' | 'texture',
+    ): CanonicalizeCueImageSourceResult => {
       const assetPath = resolve(dirname(filename), source);
       const metaPath = `${assetPath}.meta`;
       for (const dependency of [assetPath, metaPath]) {
@@ -87,11 +106,19 @@ function compileComponent(context: OmsPluginContext, filename: string, options: 
       const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as {
         subMetas?: Record<string, { importer?: string; uuid?: string }>;
       };
-      const assets = Object.values(meta.subMetas ?? {}).filter((asset) => (
-        asset.importer === importer && typeof asset.uuid === 'string' && asset.uuid.length > 0
-      ));
+      const assets = Object.values(meta.subMetas ?? {}).filter(
+        (asset) =>
+          asset.importer === importer
+          && typeof asset.uuid === 'string'
+          && asset.uuid.length > 0,
+      );
       if (assets.length !== 1) {
-        return { ok: false, error: new SyntaxError(`Expected exactly one ${importer} subasset in ${metaPath}, found ${assets.length}.`) };
+        return {
+          ok: false,
+          error: new SyntaxError(
+            `Expected exactly one ${importer} subasset in ${metaPath}, found ${assets.length}.`,
+          ),
+        };
       }
       return { ok: true, source: `uuid:${assets[0]!.uuid}` };
     };
@@ -103,14 +130,31 @@ function compileComponent(context: OmsPluginContext, filename: string, options: 
     });
     if (!result.ok) {
       const first = result.errors[0];
-      const location = first && typeof first !== 'string' && 'loc' in first ? first.loc?.start : undefined;
+      const location
+        = first && typeof first !== 'string' && 'loc' in first
+          ? first.loc?.start
+          : undefined;
       return context.error({
-        message: result.errors.map((error) => typeof error === 'string' ? error : error.message).join('\n'),
+        message: result.errors
+          .map((error) => (typeof error === 'string' ? error : error.message))
+          .join('\n'),
         id: filename,
-        ...(location ? { loc: { file: filename, line: location.line, column: location.column - 1 } } : {}),
+        ...(location
+          ? {
+            loc: {
+              file: filename,
+              line: location.line,
+              column: location.column - 1,
+            },
+          }
+          : {}),
       });
     }
-    component = { entryFileName: result.entryFileName, files: result.files, dependencies: [...dependencies] };
+    component = {
+      entryFileName: result.entryFileName,
+      files: result.files,
+      dependencies: [...dependencies],
+    };
     components[filename] = component;
     context.cache.set(cacheKey, components);
   }

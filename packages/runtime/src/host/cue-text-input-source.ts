@@ -1,6 +1,13 @@
 import type { CueElement } from '../element/cue-element.js';
 import { CueBeforeInputEvent, CueCompositionEvent } from '../input/cue-editing-event.js';
-import { applyCueTextInputEdit, commitCueTextInputEdit, CueEditableInputElement, readCueTextInputState, setCueTextInputComposing, type CueTextInputState } from '../builtin-controls/text-input/cue-editable-input-element.js';
+import {
+  applyCueTextInputEdit,
+  commitCueTextInputEdit,
+  CueEditableInputElement,
+  readCueTextInputState,
+  setCueTextInputComposing,
+  type CueTextInputState,
+} from '../builtin-controls/text-input/cue-editable-input-element.js';
 export interface CueTextInputAnchor {
   x: number;
   y: number;
@@ -12,9 +19,10 @@ export class CueTextInputSource {
   }
 
   sync(activeElement: CueElement | undefined, anchor?: CueTextInputAnchor): void {
-    const element = activeElement instanceof CueEditableInputElement && !activeElement.disabled
-      ? activeElement
-      : undefined;
+    const element
+      = activeElement instanceof CueEditableInputElement && !activeElement.disabled
+        ? activeElement
+        : undefined;
     const state = element ? readCueTextInputState(element) : undefined;
     if (element !== this.#element || state?.multiline !== this.#multiline) {
       this.#releaseEditor();
@@ -59,9 +67,14 @@ export class CueTextInputSource {
   #abort: AbortController | undefined;
   #multiline: boolean | undefined;
   #lastPublished: string | undefined;
-  #syncedSelection: Pick<CueTextInputState, 'selectionStart' | 'selectionEnd' | 'selectionDirection'> | undefined;
+  #syncedSelection:
+    | Pick<CueTextInputState, 'selectionStart' | 'selectionEnd' | 'selectionDirection'>
+    | undefined;
+
   #attachEditor(element: CueEditableInputElement, multiline: boolean): void {
-    const editor = multiline ? this.ownerDocument.createElement('textarea') : this.ownerDocument.createElement('input');
+    const editor = multiline
+      ? this.ownerDocument.createElement('textarea')
+      : this.ownerDocument.createElement('input');
     this.#element = element;
     this.#editor = editor;
     this.#multiline = multiline;
@@ -74,9 +87,20 @@ export class CueTextInputSource {
     editor.autocapitalize = 'off';
     editor.spellcheck = false;
     Object.assign(editor.style, {
-      position: 'fixed', left: '0', top: '0', width: '1px', height: '20px',
-      opacity: '0', padding: '0', border: '0', margin: '0', pointerEvents: 'none',
-      fontSize: '16px', resize: 'none', overflow: 'hidden', zIndex: '-1',
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '1px',
+      height: '20px',
+      opacity: '0',
+      padding: '0',
+      border: '0',
+      margin: '0',
+      pointerEvents: 'none',
+      fontSize: '16px',
+      resize: 'none',
+      overflow: 'hidden',
+      zIndex: '-1',
     });
     const state = readCueTextInputState(element);
     if (editor instanceof this.ownerDocument.defaultView!.HTMLInputElement) {
@@ -85,43 +109,90 @@ export class CueTextInputSource {
     editor.value = state.text;
     editor.readOnly = state.readOnly;
     editor.inputMode = state.inputMode;
-    editor.setSelectionRange(state.selectionStart, state.selectionEnd, state.selectionDirection);
+    editor.setSelectionRange(
+      state.selectionStart,
+      state.selectionEnd,
+      state.selectionDirection,
+    );
     this.#syncedSelection = state;
-    editor.addEventListener('beforeinput', (event) => {
-      const input = event as InputEvent;
-      if (!element.dispatchEvent(new CueBeforeInputEvent(input.inputType, input.data ?? undefined, input.isComposing, input.cancelable))) {
-        event.preventDefault();
-      }
-    }, options);
-    editor.addEventListener('input', (event) => {
-      const input = event as InputEvent;
-      this.#publishEdit(input.isComposing || readCueTextInputState(element).composing);
-    }, options);
-    editor.addEventListener('compositionstart', (event) => {
-      setCueTextInputComposing(element, true);
-      element.dispatchEvent(new CueCompositionEvent('compositionstart', (event as CompositionEvent).data));
-    }, options);
-    editor.addEventListener('compositionupdate', (event) => {
-      element.dispatchEvent(new CueCompositionEvent('compositionupdate', (event as CompositionEvent).data));
-    }, options);
-    editor.addEventListener('compositionend', (event) => {
-      this.#publishEdit(false);
-      setCueTextInputComposing(element, false);
-      element.dispatchEvent(new CueCompositionEvent('compositionend', (event as CompositionEvent).data));
-    }, options);
-    editor.addEventListener('select', () => this.#copySelection(), options);
-    this.ownerDocument.addEventListener('selectionchange', () => this.#copySelection(), options);
-    editor.addEventListener('change', () => commitCueTextInputEdit(element), options);
-    editor.addEventListener('blur', () => {
-      if (this.#element === element) {
-        if (readCueTextInputState(element).composing) {
-          this.#publishEdit(false);
-          setCueTextInputComposing(element, false);
+    editor.addEventListener(
+      'beforeinput',
+      (event) => {
+        const input = event as InputEvent;
+        if (
+          !element.dispatchEvent(
+            new CueBeforeInputEvent(
+              input.inputType,
+              input.data ?? undefined,
+              input.isComposing,
+              input.cancelable,
+            ),
+          )
+        ) {
+          event.preventDefault();
         }
-        commitCueTextInputEdit(element);
-        element.blur();
-      }
-    }, options);
+      },
+      options,
+    );
+    editor.addEventListener(
+      'input',
+      (event) => {
+        const input = event as InputEvent;
+        this.#publishEdit(input.isComposing || readCueTextInputState(element).composing);
+      },
+      options,
+    );
+    editor.addEventListener(
+      'compositionstart',
+      (event) => {
+        setCueTextInputComposing(element, true);
+        element.dispatchEvent(
+          new CueCompositionEvent('compositionstart', (event as CompositionEvent).data),
+        );
+      },
+      options,
+    );
+    editor.addEventListener(
+      'compositionupdate',
+      (event) => {
+        element.dispatchEvent(
+          new CueCompositionEvent('compositionupdate', (event as CompositionEvent).data),
+        );
+      },
+      options,
+    );
+    editor.addEventListener(
+      'compositionend',
+      (event) => {
+        this.#publishEdit(false);
+        setCueTextInputComposing(element, false);
+        element.dispatchEvent(
+          new CueCompositionEvent('compositionend', (event as CompositionEvent).data),
+        );
+      },
+      options,
+    );
+    editor.addEventListener('select', () => this.#copySelection(), options);
+    this.ownerDocument.addEventListener(
+      'selectionchange',
+      () => this.#copySelection(),
+      options,
+    );
+    editor.addEventListener('change', () => commitCueTextInputEdit(element), options);
+    editor.addEventListener(
+      'blur',
+      () => {
+        if (this.#element === element) {
+          if (readCueTextInputState(element).composing) {
+            this.#publishEdit(false);
+            setCueTextInputComposing(element, false);
+          }
+          commitCueTextInputEdit(element);
+          element.blur();
+        }
+      },
+      options,
+    );
     this.ownerDocument.body.append(editor);
     editor.focus({ preventScroll: true });
   }
@@ -138,14 +209,25 @@ export class CueTextInputSource {
       return;
     }
     this.#lastPublished = signature;
-    applyCueTextInputEdit(element, editor.value, editor.selectionStart ?? 0, editor.selectionEnd ?? 0, composing, editor.selectionDirection ?? 'none');
+    applyCueTextInputEdit(
+      element,
+      editor.value,
+      editor.selectionStart ?? 0,
+      editor.selectionEnd ?? 0,
+      composing,
+      editor.selectionDirection ?? 'none',
+    );
   }
 
   #copySelection(): void {
     const editor = this.#editor;
     const element = this.#element;
-    if (!editor || !element || this.ownerDocument.activeElement !== editor
-      || readCueTextInputState(element).composing) {
+    if (
+      !editor
+      || !element
+      || this.ownerDocument.activeElement !== editor
+      || readCueTextInputState(element).composing
+    ) {
       return;
     }
     const state = readCueTextInputState(element);
@@ -156,19 +238,40 @@ export class CueTextInputSource {
     this.#syncSelection(element, editor, state);
   }
 
-  #syncSelection(element: CueEditableInputElement, editor: HTMLInputElement | HTMLTextAreaElement, state: CueTextInputState, valueChanged = false): void {
+  #syncSelection(
+    element: CueEditableInputElement,
+    editor: HTMLInputElement | HTMLTextAreaElement,
+    state: CueTextInputState,
+    valueChanged = false,
+  ): void {
     const previous = this.#syncedSelection;
     // An explicit Cue selection (pointer, API or visual-line navigation) wins
     // over queued DOM selectionchange. Otherwise retain browser-native movement
     // even when keyup or a render frame arrives before selectionchange.
-    if (!valueChanged && state.selectionStart === previous?.selectionStart
-      && state.selectionEnd === previous.selectionEnd && state.selectionDirection === previous.selectionDirection) {
-      element.setSelectionRange(editor.selectionStart ?? 0, editor.selectionEnd ?? 0, editor.selectionDirection ?? 'none');
+    if (
+      !valueChanged
+      && state.selectionStart === previous?.selectionStart
+      && state.selectionEnd === previous.selectionEnd
+      && state.selectionDirection === previous.selectionDirection
+    ) {
+      element.setSelectionRange(
+        editor.selectionStart ?? 0,
+        editor.selectionEnd ?? 0,
+        editor.selectionDirection ?? 'none',
+      );
       state = readCueTextInputState(element);
     }
-    if (editor.selectionStart !== state.selectionStart || editor.selectionEnd !== state.selectionEnd
-      || (state.selectionStart !== state.selectionEnd && editor.selectionDirection !== state.selectionDirection)) {
-      editor.setSelectionRange(state.selectionStart, state.selectionEnd, state.selectionDirection);
+    if (
+      editor.selectionStart !== state.selectionStart
+      || editor.selectionEnd !== state.selectionEnd
+      || (state.selectionStart !== state.selectionEnd
+        && editor.selectionDirection !== state.selectionDirection)
+    ) {
+      editor.setSelectionRange(
+        state.selectionStart,
+        state.selectionEnd,
+        state.selectionDirection,
+      );
     }
     this.#syncedSelection = state;
   }

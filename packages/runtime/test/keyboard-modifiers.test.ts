@@ -19,16 +19,29 @@ describe('Cue event modifier guards', () => {
     withKeys(handle, ['esc'])(new CueKeyboardEvent('keydown', { key: 'Escape' }));
     withKeys(handle, ['delete'])(new CueKeyboardEvent('keydown', { key: 'Backspace' }));
     withKeys(handle, ['delete'])(new CueKeyboardEvent('keydown', { key: 'Delete' }));
-    expect(calls).toEqual(['Enter', 'Escape', 'Backspace', 'Delete']);
+    expect(calls).toEqual([
+      'Enter',
+      'Escape',
+      'Backspace',
+      'Delete',
+    ]);
   });
 
   it('requires declared system modifiers and rejects extra modifiers with exact', () => {
     /// @case A Ctrl+Enter binding has exact and prevent guards.
     /// @expect Only Ctrl without additional system modifiers runs and prevents the event.
     const calls: string[] = [];
-    const handle = withKeys(withModifiers((event: CueKeyboardEvent) => calls.push(event.key), ['ctrl', 'exact', 'prevent']), ['enter']);
+    const handle = withKeys(withModifiers((event: CueKeyboardEvent) => calls.push(event.key), [
+      'ctrl',
+      'exact',
+      'prevent',
+    ]), ['enter']);
     const accepted = new CueKeyboardEvent('keydown', { key: 'Enter', ctrlKey: true });
-    const extra = new CueKeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, altKey: true });
+    const extra = new CueKeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      altKey: true,
+    });
     handle(new CueKeyboardEvent('keydown', { key: 'Enter' }));
     handle(extra);
     handle(accepted);
