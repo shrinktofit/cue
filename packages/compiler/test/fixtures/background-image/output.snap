@@ -6,6 +6,7 @@ import styleSheet from "./background-image.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/background-image.cc.vue",
+  __name: "background-image",
   render,
   __cueStyleSheets: [styleSheet],
 });

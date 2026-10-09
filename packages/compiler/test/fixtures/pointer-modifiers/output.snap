@@ -5,6 +5,7 @@ import { render } from "./pointer-modifiers.cc.vue.template.js";
 
 export default Object.assign(component, {
   __file: "pointer-modifiers.cc.vue",
+  __name: "pointer-modifiers",
   render,
 });
 

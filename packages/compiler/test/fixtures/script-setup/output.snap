@@ -5,6 +5,7 @@ import { render } from "./greeting.cc.vue.template.js";
 
 export default Object.assign(component, {
   __file: "greeting.cc.vue",
+  __name: "greeting",
   render,
 });
 

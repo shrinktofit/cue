@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -40,6 +40,36 @@ afterEach(async () => {
 });
 
 describe('compiled Cue runtime integration', () => {
+  it.each([
+    [
+      'recursive-component',
+      [
+        '2',
+        '1',
+        '0',
+      ],
+    ],
+    [
+      'named-recursive-component',
+      [
+        '2',
+        '1',
+        '0',
+      ],
+    ],
+    ['imported-component-priority', ['imported']],
+  ])('preserves component identity in %s', async (fixtureName, expectedText) => {
+    /// @case
+    /// tree-node.cc.vue uses filename recursion, an explicit name, or a same-named import.
+    /// @expect
+    /// Recursion mounts every level, explicit names remain usable,
+    /// and imports win over self-reference.
+    const integrationModule = (await executeCompiledFixture(fixtureName)) as {
+      runComponentIdentity(): string[];
+    };
+    expect(integrationModule.runComponentIdentity()).toEqual(expectedText);
+  });
+
   it('executes generated modules through the Cue renderer', async () => {
     /// @case
     /// A real Cue SFC uses script setup state, a local Vue component, a Custom Element,
@@ -180,11 +210,11 @@ async function executeCompiledFixture(fixtureName: string): Promise<unknown> {
   const [
     source,
     optionsSource,
-    runnerSource,
+    fixtureFiles,
   ] = await Promise.all([
     readFile(join(fixtureDirectory, 'code.vue'), 'utf8'),
     readFile(join(fixtureDirectory, 'opts.json'), 'utf8'),
-    readFile(join(fixtureDirectory, 'runner.ts'), 'utf8'),
+    readdir(fixtureDirectory),
   ]);
   const result = compileCue(source, JSON.parse(optionsSource) as CompileCueOptions);
 
@@ -197,7 +227,9 @@ async function executeCompiledFixture(fixtureName: string): Promise<unknown> {
     ...result.files.map(({ code, fileName }) =>
       writeFile(join(temporaryDirectory, fileName), code, 'utf8'),
     ),
-    writeFile(join(temporaryDirectory, 'runner.ts'), runnerSource, 'utf8'),
+    ...fixtureFiles.filter((filename) => filename.endsWith('.ts')).map((filename) =>
+      copyFile(join(fixtureDirectory, filename), join(temporaryDirectory, filename)),
+    ),
   ]);
 
   const bundleDirectory = join(temporaryDirectory, 'bundle');

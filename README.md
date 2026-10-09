@@ -8,6 +8,10 @@ Cue components use `*.cc.vue`: standard Vue tooling recognizes the `.vue` suffix
 file associations or extension registration. The CLI and OMS Cue plugin match the full `.cc.vue`
 suffix, not ordinary `.vue` files. Runtime imports remain `@bsgames/cue`.
 
+Filename-based component names exclude the full suffix: `tree-node.cc.vue` can refer to itself
+as `<TreeNode>` or `<tree-node>`. Explicit component names retain Vue's normal precedence,
+and same-named imports take precedence over implicit self-reference.
+
 - `@bsgames/cue`: project runtime and Vue custom renderer.
 - `@bsgames/cue-compiler`: `.cc.vue` SFC, template, style, and metadata compiler.
 - `@bsgames/cue-style-schema`: shared runtime style IR.

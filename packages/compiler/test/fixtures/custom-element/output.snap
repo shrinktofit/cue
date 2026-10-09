@@ -5,6 +5,7 @@ import { render } from "./custom-element.cc.vue.template.js";
 
 export default Object.assign(component, {
   __file: "custom-element.cc.vue",
+  __name: "custom-element",
   render,
 });
 

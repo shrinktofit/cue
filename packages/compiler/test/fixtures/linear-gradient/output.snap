@@ -6,6 +6,7 @@ import styleSheet from "./linear-gradient.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/linear-gradient.cc.vue",
+  __name: "linear-gradient",
   render,
   __cueStyleSheets: [styleSheet],
 });

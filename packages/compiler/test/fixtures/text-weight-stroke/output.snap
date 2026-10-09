@@ -6,6 +6,7 @@ import styleSheet from "./text-weight-stroke.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/text-weight-stroke.cc.vue",
+  __name: "text-weight-stroke",
   render,
   __cueStyleSheets: [styleSheet],
 });

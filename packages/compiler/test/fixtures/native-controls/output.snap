@@ -6,6 +6,7 @@ import styleSheet from "./native-controls.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "native-controls.cc.vue",
+  __name: "native-controls",
   render,
   __cueStyleSheets: [styleSheet],
 });

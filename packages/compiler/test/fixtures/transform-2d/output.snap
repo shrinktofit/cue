@@ -6,6 +6,7 @@ import styleSheet from "./transform-2d.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/transform-2d.cc.vue",
+  __name: "transform-2d",
   render,
   __cueStyleSheets: [styleSheet],
 });

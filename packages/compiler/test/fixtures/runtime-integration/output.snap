@@ -5,6 +5,7 @@ import { render } from "./runtime-integration.cc.vue.template.js";
 
 export default Object.assign(component, {
   __file: "runtime-integration.cc.vue",
+  __name: "runtime-integration",
   render,
 });
 

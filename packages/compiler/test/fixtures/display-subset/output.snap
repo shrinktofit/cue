@@ -6,6 +6,7 @@ import styleSheet from "./display-subset.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "display-subset.cc.vue",
+  __name: "display-subset",
   render,
   __cueStyleSheets: [styleSheet],
 });

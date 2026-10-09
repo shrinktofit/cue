@@ -6,6 +6,7 @@ import styleSheet from "./inline-layout.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/project/ui/inline-layout.cc.vue",
+  __name: "inline-layout",
   render,
   __cueStyleSheets: [styleSheet],
 });

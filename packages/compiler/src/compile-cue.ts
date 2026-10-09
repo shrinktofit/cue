@@ -120,9 +120,16 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     };
   }
 
+  const normalizedFilename = options.filename.replaceAll('\\', '/');
+  const sourceFileName = normalizedFilename.slice(
+    normalizedFilename.lastIndexOf('/') + 1,
+  );
+  const inferredName = sourceFileName.endsWith(cueFileExtension)
+    ? sourceFileName.slice(0, -cueFileExtension.length)
+    : undefined;
   const id = options.id ?? options.filename;
   const imageSourceErrors: CompileCueError[] = [];
-  const templateCompilerOptions = {
+  const templateCompilerOptions: CompilerOptions = {
     ...options.templateCompilerOptions,
     hoistStatic: false,
     isCustomElement,
@@ -131,6 +138,17 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
       model: transformCueModel,
     },
     nodeTransforms: [
+      (node, context) => {
+        // Vue removes only .vue when inferring selfName. Remove the remaining .cc
+        // without changing the real filename used for imports and diagnostics.
+        if (
+          node.type === NodeTypes.ROOT
+          && inferredName !== undefined
+          && context.selfName?.endsWith('.cc')
+        ) {
+          context.selfName = context.selfName.slice(0, -'.cc'.length);
+        }
+      },
       createCueImageSourceTransform(options, imageSourceErrors),
       ...(options.templateCompilerOptions?.nodeTransforms ?? []),
     ],
@@ -172,10 +190,6 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     };
   }
 
-  const normalizedFilename = options.filename.replaceAll('\\', '/');
-  const sourceFileName = normalizedFilename.slice(
-    normalizedFilename.lastIndexOf('/') + 1,
-  );
   const entryFileName = `${sourceFileName}.js`;
   const scriptFileName = `${sourceFileName}.script.js`;
   const templateFileName = `${sourceFileName}.template.js`;
@@ -195,6 +209,11 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     },
   ).outputText;
   const componentProperties = [`  __file: ${JSON.stringify(options.filename)},`];
+  if (inferredName !== undefined) {
+    // Keep the runtime's inferred name in sync with template self-reference.
+    // Vue still gives an explicitly declared component.name precedence over __name.
+    componentProperties.push(`  __name: ${JSON.stringify(inferredName)},`);
+  }
   if (template) {
     componentProperties.push('  render,');
   }

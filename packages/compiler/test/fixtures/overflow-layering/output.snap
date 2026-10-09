@@ -6,6 +6,7 @@ import styleSheet from "./overflow-layering.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/overflow-layering.cc.vue",
+  __name: "overflow-layering",
   render,
   __cueStyleSheets: [styleSheet],
 });

@@ -5,6 +5,7 @@ import { render } from "./component-custom-events.cc.vue.template.js";
 
 export default Object.assign(component, {
   __file: "component-custom-events.cc.vue",
+  __name: "component-custom-events",
   render,
 });
 

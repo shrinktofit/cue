@@ -6,6 +6,7 @@ import styleSheet from "./styled-rectangle.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "styled-rectangle.cc.vue",
+  __name: "styled-rectangle",
   render,
   __cueStyleSheets: [styleSheet],
 });

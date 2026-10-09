@@ -6,6 +6,7 @@ import styleSheet from "./box-flex.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "box-flex.cc.vue",
+  __name: "box-flex",
   render,
   __cueStyleSheets: [styleSheet],
 });

@@ -6,6 +6,7 @@ import styleSheet from "./position-inset.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/position-inset.cc.vue",
+  __name: "position-inset",
   render,
   __cueStyleSheets: [styleSheet],
 });

@@ -6,6 +6,7 @@ import styleSheet from "./text-fitting.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/project/ui/text-fitting.cc.vue",
+  __name: "text-fitting",
   render,
   __cueStyleSheets: [styleSheet],
 });

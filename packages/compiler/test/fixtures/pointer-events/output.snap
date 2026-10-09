@@ -6,6 +6,7 @@ import styleSheet from "./pointer-events.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/pointer-events.cc.vue",
+  __name: "pointer-events",
   render,
   __cueStyleSheets: [styleSheet],
 });

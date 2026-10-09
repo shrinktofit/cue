@@ -1,0 +1,52 @@
+/// tree-node.cc.vue.js
+
+import component from "./tree-node.cc.vue.script.js";
+import { render } from "./tree-node.cc.vue.template.js";
+
+export default Object.assign(component, {
+  __file: "C:\\project\\ui\\tree-node.cc.vue",
+  __name: "tree-node",
+  render,
+});
+
+/// tree-node.cc.vue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    ...{ name: 'NamedBranch' },
+    __name: 'tree-node.cc',
+    props: {
+        depth: { type: Number, required: true }
+    },
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const __returned__ = {};
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// tree-node.cc.vue.template.js
+
+import { toDisplayString as _toDisplayString, resolveComponent as _resolveComponent, openBlock as _openBlock, createBlock as _createBlock, createCommentVNode as _createCommentVNode, createTextVNode as _createTextVNode, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  const _component_tree_node = _resolveComponent("tree-node", true)
+  const _component_NamedBranch = _resolveComponent("NamedBranch")
+
+  return (_openBlock(), _createElementBlock("div", null, [
+    _createTextVNode(_toDisplayString($props.depth) + " ", 1 /* TEXT */),
+    ($props.depth > 1)
+      ? (_openBlock(), _createBlock(_component_tree_node, {
+          key: 0,
+          depth: $props.depth - 1
+        }, null, 8 /* PROPS */, ["depth"]))
+      : ($props.depth > 0)
+        ? (_openBlock(), _createBlock(_component_NamedBranch, {
+            key: 1,
+            depth: $props.depth - 1
+          }, null, 8 /* PROPS */, ["depth"]))
+        : _createCommentVNode("v-if", true)
+  ]))
+}

@@ -6,6 +6,7 @@ import styleSheet from "./object-fit.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/project/ui/object-fit.cc.vue",
+  __name: "object-fit",
   render,
   __cueStyleSheets: [styleSheet],
 });

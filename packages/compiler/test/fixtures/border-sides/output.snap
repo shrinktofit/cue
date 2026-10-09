@@ -6,6 +6,7 @@ import styleSheet from "./border-sides.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/border-sides.cc.vue",
+  __name: "border-sides",
   render,
   __cueStyleSheets: [styleSheet],
 });

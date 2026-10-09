@@ -6,6 +6,7 @@ import styleSheet from "./static-inline-style.cc.vue.style.js";
 
 export default Object.assign(component, {
   __file: "/fixtures/static-inline-style.cc.vue",
+  __name: "static-inline-style",
   render,
   __cueStyleSheets: [styleSheet],
 });
