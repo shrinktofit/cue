@@ -92,14 +92,18 @@ import {
 } from './cue-keyboard-source.js';
 import { cueRenderResources } from './cue-render-resources.js';
 
-interface CueRenderRecord {
-  paintKey?: string;
+interface CueMaterialRecord {
+  clipState?: string;
   readonly baseMaterial: Material;
+  material: Material;
+  readonly model: renderer.scene.Model;
+}
+
+interface CueRenderRecord extends CueMaterialRecord {
+  paintKey?: string;
   readonly indexBuffer: gfx.Buffer;
   readonly indexCount: number;
   readonly localVertexBuffer: Float32Array;
-  readonly material: Material;
-  readonly model: renderer.scene.Model;
   readonly renderScene: renderer.RenderScene;
   readonly renderingSubMesh: RenderingSubMesh;
   readonly vertexBuffer: gfx.Buffer;
@@ -108,26 +112,20 @@ interface CueRenderRecord {
 
 type CueShadowRenderRecord = CueRenderRecord;
 
-interface CueTextRenderRecord {
+interface CueTextRenderRecord extends CueMaterialRecord {
   paintKey?: string;
   readonly bounds: RasterizedCueText['bounds'];
-  readonly baseMaterial: Material;
   readonly cacheKey: string;
   readonly localVertexBuffer: Float32Array;
-  readonly material: Material;
-  readonly model: renderer.scene.Model;
   readonly renderScene: renderer.RenderScene;
   readonly renderingSubMesh: RenderingSubMesh;
   readonly texture: Texture2D;
   readonly vertexBuffer: gfx.Buffer;
 }
 
-interface CueImageRenderRecord {
+interface CueImageRenderRecord extends CueMaterialRecord {
   paintKey?: string;
-  readonly baseMaterial: Material;
   readonly localVertexBuffer: Float32Array;
-  readonly material: Material;
-  readonly model: renderer.scene.Model;
   readonly renderScene: renderer.RenderScene;
   readonly renderingSubMesh: RenderingSubMesh;
   readonly spriteFrame: SpriteFrame;
@@ -136,7 +134,6 @@ interface CueImageRenderRecord {
 }
 
 interface CueBackgroundRenderRecord extends CueRenderRecord {
-  readonly material: Material;
   readonly texture: Texture2D;
 }
 
@@ -174,7 +171,7 @@ export class CueDocument extends CycloComponent {
 
   unmount(): void {
     this.#pointerController.cancel();
-    this.#focusController.focus(undefined);
+    this.#blurInput();
     this.#unmount?.();
     this.#unmount = undefined;
     this.#styleSheetCollection?.clear();
@@ -196,10 +193,10 @@ export class CueDocument extends CycloComponent {
       handle: (sample, capturedOnly) => this.#handlePointer(sample, capturedOnly),
       cancel: () => {
         this.#pointerController.cancel();
-        this.#focusController.focus(undefined);
+        this.#blurInput();
       },
       cancelPointer: (pointerId) => this.#pointerController.cancelPointer(pointerId),
-      blur: () => this.#focusController.focus(undefined),
+      blur: () => this.#blurInput(),
       wheel: (sample, event) => {
         const point = this.#pointerPoint(sample);
         const target = point && pickCueElement(this.#hitRegions, point.x, point.y);
@@ -212,7 +209,7 @@ export class CueDocument extends CycloComponent {
     this.#syncRenderRecordEnabled();
     this.#removeInputSource?.();
     this.#removeInputSource = undefined;
-    this.#focusController.focus(undefined);
+    this.#blurInput();
   }
 
   protected override onUpdate(): void {
@@ -330,13 +327,16 @@ export class CueDocument extends CycloComponent {
       control = control.parent;
     }
     this.#focusController.focus(control);
+    if (target) {
+      activateCueKeyboardSource(this.#keyboardClient);
+    } else {
+      this.#blurInput();
+    }
   });
 
   readonly #focusController = new CueFocusController(this.#rootElement, (active) => {
     if (active) {
       activateCueKeyboardSource(this.#keyboardClient);
-    } else {
-      releaseCueKeyboardSource(this.#keyboardClient);
     }
     this.#syncTextInputSource();
   });
@@ -377,6 +377,11 @@ export class CueDocument extends CycloComponent {
   #textRasterizer: CanvasTextRasterizer = undefined!;
   readonly #textRenderRecords = new Map<number, CueTextRenderRecord>();
   #unmount: (() => void) | undefined;
+
+  #blurInput(): void {
+    releaseCueKeyboardSource(this.#keyboardClient);
+    this.#focusController.focus(undefined);
+  }
 
   #inputCamera(): renderer.scene.Camera | undefined {
     return this.node.scene?.renderScene?.cameras
@@ -761,7 +766,7 @@ export class CueDocument extends CycloComponent {
       }
       record.paintKey = paintKey;
       record.localVertexBuffer.set(geometry.vertices);
-      configureClipRead(record.material, run.clipDepth);
+      configureClipRead(record, run.clipDepth);
       record.model.setSubModelMaterial(0, record.material);
       updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
       updateGfxBuffer(record.indexBuffer, geometry.indices);
@@ -885,7 +890,7 @@ export class CueDocument extends CycloComponent {
       }
       record.paintKey = paintKey;
       record.localVertexBuffer.set(geometry.vertices);
-      configureClipWrite(record.material, clip.rect.clipDepth, clip.entering);
+      configureClipWrite(record, clip.rect.clipDepth, clip.entering);
       record.model.setSubModelMaterial(0, record.material);
       updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
       updateGfxBuffer(record.indexBuffer, geometry.indices);
@@ -940,7 +945,7 @@ export class CueDocument extends CycloComponent {
         continue;
       }
       record.localVertexBuffer.set(geometry.vertices);
-      configureClipRead(record.material, background.clipDepth);
+      configureClipRead(record, background.clipDepth);
       record.paintKey = paintKey;
       record.model.setSubModelMaterial(0, record.material);
       updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
@@ -1078,7 +1083,7 @@ export class CueDocument extends CycloComponent {
       }
       record.paintKey = paintKey;
       record.localVertexBuffer.set(geometry.vertices);
-      configureClipRead(record.material, run.clipDepth);
+      configureClipRead(record, run.clipDepth);
       record.model.setSubModelMaterial(0, record.material);
       updateGfxBuffer(record.vertexBuffer, record.localVertexBuffer);
       updateGfxBuffer(record.indexBuffer, geometry.indices);
@@ -1226,7 +1231,7 @@ export class CueDocument extends CycloComponent {
       }
       renderRecord.paintKey = paintKey;
       writeTextureVertexBuffer(renderRecord.localVertexBuffer, paintImage, coordinates);
-      configureClipRead(renderRecord.material, paintImage.clipDepth);
+      configureClipRead(renderRecord, paintImage.clipDepth);
       renderRecord.model.setSubModelMaterial(0, renderRecord.material);
       updateGfxBuffer(renderRecord.vertexBuffer, renderRecord.localVertexBuffer);
       updateGeometryModelBounds(
@@ -1386,7 +1391,7 @@ export class CueDocument extends CycloComponent {
         },
         textTextureCoordinates,
       );
-      configureClipRead(renderRecord.material, paintText.clipDepth);
+      configureClipRead(renderRecord, paintText.clipDepth);
       renderRecord.model.setSubModelMaterial(0, renderRecord.material);
       updateGfxBuffer(renderRecord.vertexBuffer, renderRecord.localVertexBuffer);
       updateGeometryModelBounds(
@@ -1620,7 +1625,33 @@ function updateGeometryModelBounds(
   model.updateWorldBound();
 }
 
-function configureClipRead(material: Material, clipDepth: number): void {
+function prepareClipMaterial(
+  record: CueMaterialRecord & { readonly texture?: Texture2D },
+  clipState: string,
+): Material | undefined {
+  if (record.clipState === clipState) {
+    return undefined;
+  }
+  if (record.clipState !== undefined) {
+    // Cocos WebGL caches PSOs with references to a pass's state objects.
+    // Mutating those objects would also change a cached PSO under its old hash.
+    const previous = record.material;
+    record.material = new renderer.MaterialInstance({ parent: record.baseMaterial });
+    if (record.texture) {
+      record.material.setProperty('mainTexture', record.texture);
+    }
+    record.model.setSubModelMaterial(0, record.material);
+    previous.destroy();
+  }
+  record.clipState = clipState;
+  return record.material;
+}
+
+function configureClipRead(record: CueMaterialRecord, clipDepth: number): void {
+  const material = prepareClipMaterial(record, `read:${clipDepth}`);
+  if (!material) {
+    return;
+  }
   const stencilTest = clipDepth > 0;
   material.overridePipelineStates({
     depthStencilState: {
@@ -1641,10 +1672,14 @@ function configureClipRead(material: Material, clipDepth: number): void {
 }
 
 function configureClipWrite(
-  material: Material,
+  record: CueMaterialRecord,
   clipDepth: number,
   entering: boolean,
 ): void {
+  const material = prepareClipMaterial(record, `write:${clipDepth}:${entering}`);
+  if (!material) {
+    return;
+  }
   const operation = entering ? gfx.StencilOp.INCR : gfx.StencilOp.DECR;
   const reference = entering ? clipDepth : clipDepth + 1;
   material.overridePipelineStates({

@@ -15,6 +15,8 @@ CueDocument 接入宿主输入并进行命中测试；事件随后沿 CueElement
 - Vue 修饰符：`.stop`、`.prevent`、`.self`、`.once`、`.capture`、`.passive`。`.passive.prevent` 会报错。原生动态事件名、原生 `v-on` 对象和未实现事件会在编译期报错；组件自定义 emit 不受原生事件列表限制。
 - 内置控件由 CueDocument 管理焦点、Tab 导航、键盘、wheel 与 Web 文本编辑事件。公开 `focus()` / `blur()`、`CueDocument.activeElement`、模型及按键修饰符契约见 [`builtin-controls.md`](builtin-controls.md)。
 
+点击 document 内的普通元素会清除控件焦点，但保留 document 的键盘输入归属；没有焦点控件时，键盘事件派发到 `rootElement`，Tab 从首个可导航控件开始。文档级快捷键可监听 `rootElement`，不依赖最近点击的控件。点击 document 外、外部 DOM 编辑器获得焦点、窗口失焦、禁用或卸载 document 时释放键盘输入归属。
+
 ## 坐标与命中
 
 - `clientX/clientY` 是浏览器 viewport CSS 坐标，左上原点。
