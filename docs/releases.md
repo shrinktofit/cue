@@ -13,7 +13,7 @@ it in the release group prepares its distribution; language tooling still
 needs implementation.
 
 These packages share a version through a Changesets fixed group. They start at
-`0.0.0`; the initial changeset prepares `0.1.0`. The CLI, OMS plugin, editor
+`0.0.0`; the initial changeset prepares `1.0.0`. The CLI, OMS plugin, editor
 extension, workflow package, and repository root remain private and are ignored
 by Changesets. The extension continues to use its separate EXM distribution.
 
@@ -27,8 +27,8 @@ with published versions when packing packages.
 
 ## Versioning and publishing
 
-1. Pushes to `main` run the Release workflow. After installation, lint, build,
-   and tests, Changesets creates or updates a Version Packages PR using
+1. Pushes to `main` run the Release workflow. After installation,
+   Changesets creates or updates a Version Packages PR using
    `pnpm version-packages` while pending changesets exist. That PR changes
    package versions, changelogs, and the lockfile.
 2. Review the Version Packages PR. Merging it consumes the changesets and
@@ -37,8 +37,10 @@ with published versions when packing packages.
    public packages and publishes versions that are not already on npm.
    Changesets also creates GitHub releases.
 
-This is the standard Changesets release flow: there is no manual publish
-input. The initial changeset remains pending in this setup PR, so merging it
+The workflow follows the official [With Publishing example](https://github.com/changesets/action/blob/maintenance/v1/README.md#with-publishing),
+using the documented `version` script input to also update the pnpm lockfile.
+`changesets/action@v1` is paired with the compatible Changesets CLI v2.
+There is no manual publish input. The initial changeset remains pending in this setup PR, so merging it
 prepares a Version Packages PR. Publishing starts after that version PR is
 merged. No npm publication is performed while preparing this setup PR.
 

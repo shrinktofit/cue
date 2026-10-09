@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",
-    "@changesets/cli": "^3.0.3",
+    "@changesets/cli": "^2.31.1",
     "@shrinktofit/eslint-config": "^0.0.16",
     "@types/node": "catalog:",
     "@typescript-eslint/parser": "^8.65.0",
