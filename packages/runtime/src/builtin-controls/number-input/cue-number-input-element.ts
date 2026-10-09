@@ -13,9 +13,11 @@ export class CueNumberInputElement extends CueEditableInputElement {
   }
 
   set value(value: number | undefined) {
-    if (this.deferValueDuringComposition(() => {
-      this.value = value;
-    })) {
+    if (
+      this.deferValueDuringComposition(() => {
+        this.value = value;
+      })
+    ) {
       return;
     }
     if (value !== undefined && !Number.isFinite(value)) {
@@ -82,7 +84,11 @@ export class CueNumberInputElement extends CueEditableInputElement {
     return false;
   }
 
-  protected override propertyChanged(name: string, previous: unknown, next: unknown): void {
+  protected override propertyChanged(
+    name: string,
+    previous: unknown,
+    next: unknown,
+  ): void {
     super.propertyChanged(name, previous, next);
     switch (name) {
     case 'value':
@@ -102,8 +108,14 @@ export class CueNumberInputElement extends CueEditableInputElement {
 
   protected override defaultAction(event: CueEvent): void {
     super.defaultAction(event);
-    if (this.disabled || this.readOnly || this.composing || !(event instanceof CueKeyboardEvent)
-      || event.type !== 'keydown' || event.isComposing) {
+    if (
+      this.disabled
+      || this.readOnly
+      || this.composing
+      || !(event instanceof CueKeyboardEvent)
+      || event.type !== 'keydown'
+      || event.isComposing
+    ) {
       return;
     }
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -162,7 +174,9 @@ export class CueNumberInputElement extends CueEditableInputElement {
     const origin = this.#value ?? this.#min ?? 0;
     // Decimal precision follows the actual operands, including exponent notation.
     const precision = Math.max(decimalPlaces(origin), decimalPlaces(this.#step));
-    const total = scaledDecimal(origin, precision) + scaledDecimal(this.#step, precision) * BigInt(count);
+    const total
+      = scaledDecimal(origin, precision)
+        + scaledDecimal(this.#step, precision) * BigInt(count);
     const next = this.#clamp(Number(`${total}e-${precision}`));
     if (!Number.isFinite(next)) {
       throw new RangeError('Number input stepping exceeded the finite number range.');
@@ -176,12 +190,15 @@ export class CueNumberInputElement extends CueEditableInputElement {
     this.commitValue();
   }
 }
-function parseNumberInput(text: string): {
-  valid: false;
-} | {
-  valid: true;
-  value: number | undefined;
-} {
+
+function parseNumberInput(text: string):
+  | {
+    valid: false;
+  }
+  | {
+    valid: true;
+    value: number | undefined;
+  } {
   if (text === '') {
     return { valid: true, value: undefined };
   }
@@ -191,13 +208,19 @@ function parseNumberInput(text: string): {
   const value = Number(text);
   return Number.isFinite(value) ? { valid: true, value } : { valid: false };
 }
+
 function decimalPlaces(value: number): number {
   const [significand = '', exponent = '0'] = String(value).split('e');
   return Math.max(0, (significand.split('.')[1]?.length ?? 0) - Number(exponent));
 }
+
 function scaledDecimal(value: number, precision: number): bigint {
   const [significand = '', exponent = '0'] = String(value).split('e');
   const fractionalDigits = significand.split('.')[1]?.length ?? 0;
-  return BigInt(significand.replace('.', '')) * 10n ** BigInt(precision + Number(exponent) - fractionalDigits);
+  return (
+    BigInt(significand.replace('.', ''))
+    * 10n ** BigInt(precision + Number(exponent) - fractionalDigits)
+  );
 }
+
 export {};

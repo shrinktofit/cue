@@ -12,11 +12,13 @@ const cliEntry = fileURLToPath(new URL('../bin.js', import.meta.url));
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map(
-    (directory) => rm(directory, {
-      recursive: true,
-    }),
-  ));
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) =>
+      rm(directory, {
+        recursive: true,
+      }),
+    ),
+  );
 });
 
 describe('cue compile', () => {
@@ -35,7 +37,11 @@ describe('cue compile', () => {
 
     const result = await executeFile(
       process.execPath,
-      [cliEntry, 'compile', 'greeting.cue'],
+      [
+        cliEntry,
+        'compile',
+        'greeting.cue',
+      ],
       {
         cwd: workingDirectory,
       },
@@ -47,7 +53,9 @@ describe('cue compile', () => {
       join(workingDirectory, 'greeting.cue.template.js'),
     ];
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
-    await expect(Promise.all(outputFiles.map((file) => readFile(file, 'utf8')))).resolves.toHaveLength(3);
+    await expect(
+      Promise.all(outputFiles.map((file) => readFile(file, 'utf8'))),
+    ).resolves.toHaveLength(3);
   });
 
   it('writes the generated JavaScript modules to --out-dir', async () => {
@@ -65,7 +73,12 @@ describe('cue compile', () => {
 
     const result = await executeFile(
       process.execPath,
-      [cliEntry, 'compile', 'greeting.cue', '--out-dir=generated'],
+      [
+        cliEntry,
+        'compile',
+        'greeting.cue',
+        '--out-dir=generated',
+      ],
       {
         cwd: workingDirectory,
       },
@@ -77,14 +90,18 @@ describe('cue compile', () => {
       join(workingDirectory, 'generated', 'greeting.cue.template.js'),
     ];
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
-    await expect(Promise.all(outputFiles.map((file) => readFile(file, 'utf8')))).resolves.toHaveLength(3);
+    await expect(
+      Promise.all(outputFiles.map((file) => readFile(file, 'utf8'))),
+    ).resolves.toHaveLength(3);
   });
 
   it('compiles a relative cue-image source to its SpriteFrame UUID', async () => {
     /// @case
-    /// A Cue file references an image beside it and the Cocos meta contains one SpriteFrame subasset.
+    /// A Cue file references an image beside it and the Cocos meta contains one SpriteFrame
+    /// subasset.
     /// @expect
-    /// The generated template refers to that SpriteFrame UUID and no longer contains the relative path.
+    /// The generated template refers to that SpriteFrame UUID and no longer contains the relative
+    /// path.
     const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-image-'));
     temporaryDirectories.push(workingDirectory);
     await Promise.all([
@@ -107,13 +124,13 @@ describe('cue compile', () => {
       ),
     ]);
 
-    await executeFile(
-      process.execPath,
-      [cliEntry, 'compile', 'card.cue'],
-      {
-        cwd: workingDirectory,
-      },
-    );
+    await executeFile(process.execPath, [
+      cliEntry,
+      'compile',
+      'card.cue',
+    ], {
+      cwd: workingDirectory,
+    });
 
     const template = await readFile(
       join(workingDirectory, 'card.cue.template.js'),
@@ -125,15 +142,18 @@ describe('cue compile', () => {
 
   it('compiles a relative CSS background image to its Texture2D UUID', async () => {
     /// @case
-    /// A Cue stylesheet references a PNG beside the component and its Cocos metadata has a texture subasset.
+    /// A Cue stylesheet references a PNG beside the component and its Cocos metadata has a
+    /// texture subasset.
     /// @expect
-    /// Generated style JavaScript contains the texture UUID and not the source path or SpriteFrame UUID.
+    /// Generated style JavaScript contains the texture UUID and not the source path or
+    /// SpriteFrame UUID.
     const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-background-'));
     temporaryDirectories.push(workingDirectory);
     await Promise.all([
       writeFile(
         join(workingDirectory, 'card.cue'),
-        '<template><div class="card" /></template><style>.card { background-image: url("./paper.png"); }</style>',
+        ('<template><div class="card" /></template><style>.card { '
+          + 'background-image: url("./paper.png"); }</style>'),
         'utf8',
       ),
       writeFile(
@@ -154,17 +174,14 @@ describe('cue compile', () => {
       ),
     ]);
 
-    await executeFile(
-      process.execPath,
-      [cliEntry, 'compile', 'card.cue'],
-      {
-        cwd: workingDirectory,
-      },
-    );
-    const style = await readFile(
-      join(workingDirectory, 'card.cue.style.js'),
-      'utf8',
-    );
+    await executeFile(process.execPath, [
+      cliEntry,
+      'compile',
+      'card.cue',
+    ], {
+      cwd: workingDirectory,
+    });
+    const style = await readFile(join(workingDirectory, 'card.cue.style.js'), 'utf8');
     expect(style).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a');
     expect(style).not.toContain('./paper.png');
     expect(style).not.toContain('@f9941');

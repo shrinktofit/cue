@@ -66,16 +66,24 @@ function appendShadow(
     ? -shadow.height / 2 - shadow.yOffset
     : -halfShadowHeight - blurExtent;
   const positions = [
-    quadX, quadY - quadHeight,
-    quadX, quadY,
-    quadX + quadWidth, quadY,
-    quadX + quadWidth, quadY - quadHeight,
+    quadX,
+    quadY - quadHeight,
+    quadX,
+    quadY,
+    quadX + quadWidth,
+    quadY,
+    quadX + quadWidth,
+    quadY - quadHeight,
   ];
   const localPositions = [
-    localLeft, localTop + quadHeight,
-    localLeft, localTop,
-    localLeft + quadWidth, localTop,
-    localLeft + quadWidth, localTop + quadHeight,
+    localLeft,
+    localTop + quadHeight,
+    localLeft,
+    localTop,
+    localLeft + quadWidth,
+    localTop,
+    localLeft + quadWidth,
+    localTop + quadHeight,
   ];
   const radiusX = shadow.radii.map(
     ([horizontal]) => Math.max(0, horizontal + shadow.spread * spreadDirection),

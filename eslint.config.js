@@ -31,17 +31,13 @@ export default defineConfig([
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
         projectService: {
-          allowDefaultProject: [
-            'packages/*/vite.config.ts',
-          ],
+          allowDefaultProject: ['packages/*/vite.config.ts'],
         },
       },
     },
   },
   {
-    files: [
-      '**/*.vue',
-    ],
+    files: ['**/*.vue'],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -49,9 +45,7 @@ export default defineConfig([
       },
       parser: vueParser,
       parserOptions: {
-        extraFileExtensions: [
-          '.vue',
-        ],
+        extraFileExtensions: ['.vue'],
         parser: '@typescript-eslint/parser',
       },
     },

@@ -18,7 +18,8 @@ describe('createCueRenderer', () => {
     /// A Vue component renders a builtin div containing a locally registered custom element.
     /// @expect
     /// Reactive updates preserve element identity while updating properties and text.
-    class CooldownRingElement extends CueElement {}
+    class CooldownRingElement extends CueElement {
+    }
 
     globalElementRegistry.define('cooldown-ring', CooldownRingElement);
     const renderer = createCueRenderer();
@@ -61,7 +62,8 @@ describe('createCueRenderer', () => {
     /// A custom element is registered in the module-level global registry and rendered.
     /// @expect
     /// The default renderer creates that registered CueElement implementation.
-    class GlobalBadgeElement extends CueElement {}
+    class GlobalBadgeElement extends CueElement {
+    }
 
     globalElementRegistry.define('cue-test-global-badge', GlobalBadgeElement);
     const renderer = createCueRenderer();

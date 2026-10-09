@@ -17,9 +17,7 @@ export default defineConfig({
         'host/index': 'src/host/index.ts',
         'index': 'src/index.ts',
       },
-      formats: [
-        'es',
-      ],
+      formats: ['es'],
     },
     minify: false,
     outDir: 'lib',

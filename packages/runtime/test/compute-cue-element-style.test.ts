@@ -25,10 +25,7 @@ const styleSheet: CueStyleSheet = {
           green: 20,
           red: 10,
         },
-        fontFamily: [
-          'Inter',
-          'sans-serif',
-        ],
+        fontFamily: ['Inter', 'sans-serif'],
         fontSize: 24,
         fontWeight: 700,
         cueTextStrokeWidth: 2,
@@ -37,11 +34,7 @@ const styleSheet: CueStyleSheet = {
         textAlign: CueTextAlign.center,
         whiteSpace: CueWhiteSpace.preWrap,
       },
-      selectors: [
-        [
-          { type: 'class', name: 'parent' },
-        ],
-      ],
+      selectors: [[{ type: 'class', name: 'parent' }]],
     },
     {
       declarations: {
@@ -52,11 +45,7 @@ const styleSheet: CueStyleSheet = {
           red: 40,
         },
       },
-      selectors: [
-        [
-          { type: 'class', name: 'child' },
-        ],
-      ],
+      selectors: [[{ type: 'class', name: 'child' }]],
     },
   ],
   version: cueStyleSchemaVersion,
@@ -100,11 +89,7 @@ describe('computeCueElementStyle', () => {
     const child = new DivElement();
     patchCueElementProperty(child, 'class', undefined, 'child');
 
-    const childStyle = computeCueElementStyle(
-      child,
-      [styleSheet],
-      parentStyle,
-    );
+    const childStyle = computeCueElementStyle(child, [styleSheet], parentStyle);
 
     expect(childStyle).toMatchObject({
       color: {
@@ -113,10 +98,7 @@ describe('computeCueElementStyle', () => {
         green: 50,
         red: 40,
       },
-      fontFamily: [
-        'Inter',
-        'sans-serif',
-      ],
+      fontFamily: ['Inter', 'sans-serif'],
       fontSize: 24,
       fontWeight: 700,
       cueTextStrokeWidth: 2,
@@ -134,7 +116,8 @@ describe('computeCueElementStyle', () => {
 
   test('computes currentColor for each border side after color cascade', () => {
     /// @case
-    /// A rule changes color and uses the CSS initial currentColor border color with one visible side.
+    /// A rule changes color and uses the CSS initial currentColor border color with one visible
+    /// side.
     /// @expect
     /// The computed border color follows the element's computed color.
     const element = new DivElement();
@@ -146,18 +129,22 @@ describe('computeCueElementStyle', () => {
       red: 30,
     };
 
-    const style = computeCueElementStyle(element, [{
-      rules: [{
-        declarations: {
-          borderTopColor: CueColorKeyword.currentColor,
-          borderTopStyle: CueBorderStyle.solid,
-          borderTopWidth: 4,
-          color,
-        },
-        selectors: [[{ type: 'class', name: 'bordered' }]],
-      }],
-      version: cueStyleSchemaVersion,
-    }]);
+    const style = computeCueElementStyle(element, [
+      {
+        rules: [
+          {
+            declarations: {
+              borderTopColor: CueColorKeyword.currentColor,
+              borderTopStyle: CueBorderStyle.solid,
+              borderTopWidth: 4,
+              color,
+            },
+            selectors: [[{ type: 'class', name: 'bordered' }]],
+          },
+        ],
+        version: cueStyleSchemaVersion,
+      },
+    ]);
 
     expect(style.borderTopColor).toEqual(color);
     expect(style.borderTopStyle).toBe(CueBorderStyle.solid);

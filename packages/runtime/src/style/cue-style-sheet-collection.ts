@@ -1,10 +1,9 @@
-import {
-  cueStyleSchemaVersion,
-  type CueStyleSheet,
-} from '@bsgames/cue-style-schema';
-// eslint-disable-next-line vue/prefer-import-from-vue -- Cue intentionally targets Vue's custom-renderer runtime.
+import { cueStyleSchemaVersion, type CueStyleSheet } from '@bsgames/cue-style-schema';
+// Cue intentionally targets Vue's custom-renderer runtime.
+// eslint-disable-next-line vue/prefer-import-from-vue
 import { getCurrentInstance } from '@vue/runtime-core';
-// eslint-disable-next-line vue/prefer-import-from-vue -- Cue intentionally targets Vue's custom-renderer runtime.
+// Cue intentionally targets Vue's custom-renderer runtime.
+// eslint-disable-next-line vue/prefer-import-from-vue
 import type { App, Component } from '@vue/runtime-core';
 
 export interface CueStyleSheetCollection {
@@ -64,7 +63,9 @@ export function trackCueStyleSheets(app: App): CueStyleSheetCollection {
   });
 
   return {
-    get revision() { return revision; },
+    get revision() {
+      return revision;
+    },
     get styleSheets() {
       return styleSheets;
     },
@@ -76,18 +77,14 @@ export function trackCueStyleSheets(app: App): CueStyleSheetCollection {
   };
 }
 
-function readComponentStyleSheets(
-  component: Component,
-): readonly CueStyleSheet[] {
+function readComponentStyleSheets(component: Component): readonly CueStyleSheet[] {
   if (
     (typeof component !== 'object' || component === null)
     && typeof component !== 'function'
   ) {
     return [];
   }
-  const styleSheets = (
-    component as { __cueStyleSheets?: unknown }
-  ).__cueStyleSheets;
+  const styleSheets = (component as { __cueStyleSheets?: unknown }).__cueStyleSheets;
   if (styleSheets === undefined) {
     return [];
   }
@@ -95,9 +92,10 @@ function readComponentStyleSheets(
     throw new TypeError('Cue component style metadata must be an array.');
   }
   for (const styleSheet of styleSheets) {
-    const version = styleSheet && typeof styleSheet === 'object'
-      ? (styleSheet as { version?: unknown }).version
-      : undefined;
+    const version
+      = styleSheet && typeof styleSheet === 'object'
+        ? (styleSheet as { version?: unknown }).version
+        : undefined;
     if (version !== cueStyleSchemaVersion) {
       throw new Error('Unsupported Cue style schema version: ' + String(version) + '.');
     }

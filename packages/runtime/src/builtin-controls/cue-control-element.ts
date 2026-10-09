@@ -1,5 +1,15 @@
-import { CueElement, getCueElementProperties, getCueElementStates, patchCueElementProperty, setCueElementState } from '../element/cue-element.js';
-import { blurCueControl, focusCueControl, refreshCueControlFocus } from '../input/cue-focus-controller.js';
+import {
+  CueElement,
+  getCueElementProperties,
+  getCueElementStates,
+  patchCueElementProperty,
+  setCueElementState,
+} from '../element/cue-element.js';
+import {
+  blurCueControl,
+  focusCueControl,
+  refreshCueControlFocus,
+} from '../input/cue-focus-controller.js';
 import { CuePointerEvent } from '../input/cue-pointer-event.js';
 import type { CueEvent } from '../input/cue-event.js';
 
@@ -20,8 +30,14 @@ export abstract class CueControlElement extends CueElement {
   }
 
   get tabIndex(): number {
-    const value = getCueElementProperties(this).get('tabindex') ?? getCueElementProperties(this).get('tabIndex');
-    return typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : 0;
+    const value
+      = getCueElementProperties(this).get('tabindex')
+        ?? getCueElementProperties(this).get('tabIndex');
+    return typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value)
+        : 0;
   }
 
   set tabIndex(value: number) {
@@ -53,7 +69,11 @@ export abstract class CueControlElement extends CueElement {
     }
   }
 
-  protected override propertyChanged(name: string, _previousValue: unknown, _nextValue: unknown): void {
+  protected override propertyChanged(
+    name: string,
+    _previousValue: unknown,
+    _nextValue: unknown,
+  ): void {
     if (name === 'disabled') {
       setCueElementState(this, 'disabled', this.disabled);
       setCueElementState(this, 'enabled', !this.disabled);
@@ -65,7 +85,12 @@ export abstract class CueControlElement extends CueElement {
   }
 
   protected override defaultAction(event: CueEvent): void {
-    if (event instanceof CuePointerEvent && event.type === 'pointerdown' && event.button === 0 && !this.disabled) {
+    if (
+      event instanceof CuePointerEvent
+      && event.type === 'pointerdown'
+      && event.button === 0
+      && !this.disabled
+    ) {
       this.focus();
     }
   }

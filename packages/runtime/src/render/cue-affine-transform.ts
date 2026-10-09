@@ -13,7 +13,12 @@ export type CueAffineTransform = readonly [
 ];
 
 export const identityCueAffineTransform: CueAffineTransform = [
-  1, 0, 0, 1, 0, 0,
+  1,
+  0,
+  0,
+  1,
+  0,
+  0,
 ];
 
 export function createCueElementTransform(
@@ -50,7 +55,14 @@ export function transformCuePaintPoint(
   x: number,
   y: number,
 ): readonly [number, number] {
-  const [a, b, c, d, e, f] = transform;
+  const [
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+  ] = transform;
   const layoutY = -y;
   return [
     a * x + c * layoutY + e,
@@ -77,10 +89,24 @@ function transformMatrix(
     const radians = transform.angle * Math.PI / 180;
     const sine = Math.sin(radians);
     const cosine = Math.cos(radians);
-    return [cosine, sine, -sine, cosine, 0, 0];
+    return [
+      cosine,
+      sine,
+      -sine,
+      cosine,
+      0,
+      0,
+    ];
   }
   case 'scale':
-    return [transform.x, 0, 0, transform.y, 0, 0];
+    return [
+      transform.x,
+      0,
+      0,
+      transform.y,
+      0,
+      0,
+    ];
   case 'skew':
     return [
       1,
@@ -99,15 +125,36 @@ function transformMatrix(
 }
 
 function translation(x: number, y: number): CueAffineTransform {
-  return [1, 0, 0, 1, x, y];
+  return [
+    1,
+    0,
+    0,
+    1,
+    x,
+    y,
+  ];
 }
 
 function multiply(
   left: CueAffineTransform,
   right: CueAffineTransform,
 ): CueAffineTransform {
-  const [a1, b1, c1, d1, e1, f1] = left;
-  const [a2, b2, c2, d2, e2, f2] = right;
+  const [
+    a1,
+    b1,
+    c1,
+    d1,
+    e1,
+    f1,
+  ] = left;
+  const [
+    a2,
+    b2,
+    c2,
+    d2,
+    e2,
+    f2,
+  ] = right;
   return [
     a1 * a2 + c1 * b2,
     b1 * a2 + d1 * b2,

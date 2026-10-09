@@ -66,7 +66,9 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
     const context = this.#useFont(style);
     const key = this.#font + '|' + usedLineHeight(style);
     const cached = this.#metrics.get(key);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
     context.textBaseline = 'alphabetic';
     const metrics = context.measureText('Mg');
     const result = {
@@ -75,13 +77,17 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
       xHeight: context.measureText('x').actualBoundingBoxAscent,
       lineHeight: usedLineHeight(style),
     };
-    if (this.#metrics.size >= 128) this.#metrics.delete(this.#metrics.keys().next().value!);
+    if (this.#metrics.size >= 128) {
+      this.#metrics.delete(this.#metrics.keys().next().value!);
+    }
     this.#metrics.set(key, result);
     return result;
   }
 
   measureWidth(text: string, style: ComputedCueTextStyle): number {
-    if (text.length === 0) return 0;
+    if (text.length === 0) {
+      return 0;
+    }
     const context = this.#useFont(style);
     const key = this.#font + '|' + text;
     const cached = this.#widths.get(key);

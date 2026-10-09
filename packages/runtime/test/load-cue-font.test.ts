@@ -1,10 +1,4 @@
-import {
-  afterEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TTFFont } from 'cc';
 import { loadCueFont } from '../src/host/load-cue-font.js';
 
@@ -29,7 +23,8 @@ afterEach(() => {
 });
 
 describe('loadCueFont asset ownership and readiness', () => {
-  it('returns a usable font only after the browser has loaded it and retains it until disposed', async () => {
+  it(('returns a usable font only after the browser has loaded it '
+    + 'and retains it until disposed'), async () => {
     /// @case
     /// A component acquires a TTF while the browser is still loading its font face.
     /// @expect
@@ -67,23 +62,28 @@ describe('loadCueFont asset ownership and readiness', () => {
   it.each([
     { nativeFamily: '"Project Font_LABEL"', family: 'Project Font_LABEL' },
     { nativeFamily: '03fd-project-font_LABEL', family: '03fd-project-font_LABEL' },
-  ])('returns one raw family name for $nativeFamily', async ({ nativeFamily, family }) => {
-    /// @case
-    /// Cocos provides a quoted generated family containing spaces or an unquoted UUID-prefixed family.
-    /// @expect
-    /// The typed style API receives the actual single family name; browser loading receives a quoted CSS value.
-    const load = vi.fn(() => Promise.resolve([{} as FontFace]));
-    vi.stubGlobal('document', { fonts: { load } });
-    const asset = new TTFFont();
-    asset._nativeAsset = nativeFamily;
+  ])(
+    'returns one raw family name for $nativeFamily',
+    async ({ nativeFamily, family }) => {
+      /// @case
+      /// Cocos provides a quoted generated family containing spaces or an unquoted UUID-prefixed
+      /// family.
+      /// @expect
+      /// The typed style API receives the actual single family name; browser loading receives a
+      /// quoted CSS value.
+      const load = vi.fn(() => Promise.resolve([{} as FontFace]));
+      vi.stubGlobal('document', { fonts: { load } });
+      const asset = new TTFFont();
+      asset._nativeAsset = nativeFamily;
 
-    const font = await loadCueFont(asset);
+      const font = await loadCueFont(asset);
 
-    expect(font.fontFamily).toBe(family);
-    expect(load).toHaveBeenCalledWith(`16px ${JSON.stringify(family)}`);
-    font.dispose();
-    expect(asset.refCount).toBe(0);
-  });
+      expect(font.fontFamily).toBe(family);
+      expect(load).toHaveBeenCalledWith(`16px ${JSON.stringify(family)}`);
+      font.dispose();
+      expect(asset.refCount).toBe(0);
+    },
+  );
 
   it('surfaces a failed browser font load and releases its asset reference', async () => {
     /// @case

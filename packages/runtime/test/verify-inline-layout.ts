@@ -8,25 +8,45 @@ const repository = fileURLToPath(new URL('../../..', import.meta.url));
 const runtime = join(repository, 'packages/runtime');
 const requireRuntime = createRequire(join(runtime, 'package.json'));
 const { createServer } = await import(pathToFileURL(requireRuntime.resolve('vite')).href);
-const { chromium } = await import(pathToFileURL(join(process.argv[2] ?? 'U:/AgentTools/playwright/node_modules/playwright', 'index.mjs')).href);
-const wasm = join(dirname(fileURLToPath(import.meta.resolve('taffy-layout/wasm'))), 'taffy_wasm_bg.wasm').replaceAll('\\', '/');
+const { chromium } = await import(
+  pathToFileURL(
+    join(
+      process.argv[2] ?? 'U:/AgentTools/playwright/node_modules/playwright',
+      'index.mjs',
+    ),
+  ).href,
+);
+const wasm = join(
+  dirname(fileURLToPath(import.meta.resolve('taffy-layout/wasm'))),
+  'taffy_wasm_bg.wasm',
+).replaceAll('\\', '/');
 const server = await createServer({
   configFile: false,
   root: runtime,
   server: { host: '127.0.0.1', port: 0 },
-  plugins: [{
-    name: 'cue:inline-layout-browser-test',
-    enforce: 'pre',
-    resolveId(id: string) {
-      if (id.endsWith('load-cue-font.js')) return '\0cue-inline-system-font';
-      return id.endsWith('taffy_wasm_bg.wasm?wasm-binary') ? '\0cue-inline-test-wasm' : undefined;
+  plugins: [
+    {
+      name: 'cue:inline-layout-browser-test',
+      enforce: 'pre',
+      resolveId(id: string) {
+        if (id.endsWith('load-cue-font.js')) {
+          return '\0cue-inline-system-font';
+        }
+        return id.endsWith('taffy_wasm_bg.wasm?wasm-binary')
+          ? '\0cue-inline-test-wasm'
+          : undefined;
+      },
+      load(id: string) {
+        // This comparison uses installed system fonts, not the Cocos asset loader.
+        if (id === '\0cue-inline-system-font') {
+          return 'export const cueFontRevision = 0;';
+        }
+        return id === '\0cue-inline-test-wasm'
+          ? `export default new Uint8Array(await (await fetch('/@fs/${wasm}')).arrayBuffer());`
+          : undefined;
+      },
     },
-    load(id: string) {
-      // This comparison uses installed system fonts, not the Cocos asset loader.
-      if (id === '\0cue-inline-system-font') return 'export const cueFontRevision = 0;';
-      return id === '\0cue-inline-test-wasm' ? `export default new Uint8Array(await (await fetch('/@fs/${wasm}')).arrayBuffer());` : undefined;
-    },
-  }],
+  ],
 });
 await server.listen();
 const browser = await chromium.launch({ headless: true });
@@ -38,7 +58,9 @@ try {
     console.error(error);
   });
   await page.goto(server.resolvedUrls.local[0]);
-  await page.addScriptTag({ type: 'module', content: `
+  await page.addScriptTag({
+    type: 'module',
+    content: `
     import { CueRootElement, CueButtonElement, DivElement, SpanElement, BrElement, Text, Length } from '/src/index.ts';
     import { CueLayout, createCuePaintList, initializeCueLayout } from '/src/render/create-cue-paint-list.ts';
     import { CanvasTextRasterizer } from '/src/host/canvas-text-rasterizer.ts';
@@ -239,22 +261,47 @@ try {
     }
     window.cueFittingResults = fittingResults;
     window.cueInlineResults = results;
-  ` });
+  `,
+  });
   await page.waitForFunction('window.cueInlineResults', undefined, { timeout: 30000 });
   const results = await page.evaluate('window.cueInlineResults');
-  console.log(`${results.length} browser comparisons; ${results.filter((result: { ok: boolean }) => !result.ok).length} failures`);
-  console.log(JSON.stringify(results.filter((result: { ok: boolean }) => !result.ok), undefined, 2));
+  console.log(
+    `${results.length} browser comparisons; ${results.filter((result: { ok: boolean }) => !result.ok).length} failures`,
+  );
+  console.log(
+    JSON.stringify(
+      results.filter((result: { ok: boolean }) => !result.ok),
+      undefined,
+      2,
+    ),
+  );
   const fittingResults = await page.evaluate('window.cueFittingResults');
-  console.log(`${fittingResults.length} real-font fitting checks`, fittingResults.filter((result: { ok: boolean }) => !result.ok));
+  console.log(
+    `${fittingResults.length} real-font fitting checks`,
+    fittingResults.filter((result: { ok: boolean }) => !result.ok),
+  );
   assert.equal(fittingResults.filter((result: { ok: boolean }) => !result.ok).length, 0);
   assert.deepEqual(errors, []);
-  assert.equal(results.filter((result: { ok: boolean }) => !result.ok).length, 0, 'Cue inline layout must match the browser reference');
-  const performanceResults = await page.evaluate('window.cueInlinePerformance') as Array<{
-    characters: number; coldCalls: number; staticCalls: number; colorCalls: number; reused: boolean;
+  assert.equal(
+    results.filter((result: { ok: boolean }) => !result.ok).length,
+    0,
+    'Cue inline layout must match the browser reference',
+  );
+  const performanceResults = (await page.evaluate(
+    'window.cueInlinePerformance',
+  )) as Array<{
+    characters: number;
+    coldCalls: number;
+    staticCalls: number;
+    colorCalls: number;
+    reused: boolean;
   }>;
   console.log('Canvas measurement regression:', performanceResults);
   for (const result of performanceResults) {
-    assert.ok(result.coldCalls < result.characters * 4, 'Cold layout must not repeatedly reshape identical prefixes');
+    assert.ok(
+      result.coldCalls < result.characters * 4,
+      'Cold layout must not repeatedly reshape identical prefixes',
+    );
     assert.equal(result.staticCalls, 0);
     assert.equal(result.colorCalls, 0);
     assert.equal(result.reused, true);

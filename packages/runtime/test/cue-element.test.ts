@@ -15,7 +15,8 @@ describe('CharacterData', () => {
     /// @case
     /// Text and Comment are created with character data and then updated.
     /// @expect
-    /// Both nodes inherit CharacterData and expose their current data without adding data to CueElement.
+    /// Both nodes inherit CharacterData and expose their current data without adding data to
+    /// CueElement.
     const text = new Text('initial text');
     const comment = new Comment('initial comment');
 
@@ -66,8 +67,9 @@ describe('CueElement', () => {
     const child = new DivElement();
     parent.insertBefore(child);
 
-    expect(() => child.insertBefore(parent))
-      .toThrow('Cannot insert an element into itself or one of its descendants.');
+    expect(() => child.insertBefore(parent)).toThrow(
+      'Cannot insert an element into itself or one of its descendants.',
+    );
     expect(parent.children).toEqual([child]);
     expect(child.parent).toBe(parent);
   });
@@ -76,10 +78,12 @@ describe('CueElement', () => {
 describe('CustomElementRegistry', () => {
   it('stores and returns explicitly defined element constructors', () => {
     /// @case
-    /// A custom constructor is defined in a registry and builtin div is defined in the global registry.
+    /// A custom constructor is defined in a registry and builtin div is defined in the global
+    /// registry.
     /// @expect
     /// Both definitions are returned through get while an unknown name remains absent.
-    class RegisteredElement extends CueElement {}
+    class RegisteredElement extends CueElement {
+    }
 
     const registry = new CustomElementRegistry();
     registry.define('registered-element', RegisteredElement);
@@ -97,12 +101,14 @@ describe('CustomElementRegistry', () => {
     /// The same element name is defined twice in one registry.
     /// @expect
     /// The second definition throws instead of silently replacing the first.
-    class DuplicateElement extends CueElement {}
+    class DuplicateElement extends CueElement {
+    }
 
     const registry = new CustomElementRegistry();
     registry.define('duplicate-element', DuplicateElement);
 
-    expect(() => registry.define('duplicate-element', DuplicateElement))
-      .toThrow('Element "duplicate-element" is already defined in this registry.');
+    expect(() => registry.define('duplicate-element', DuplicateElement)).toThrow(
+      'Element "duplicate-element" is already defined in this registry.',
+    );
   });
 });

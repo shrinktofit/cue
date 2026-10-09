@@ -5,9 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { compileCue, type CompileCueOptions } from '../src/index.js';
 
 const fixturesDirectory = fileURLToPath(new URL('./fixtures', import.meta.url));
-const fixtureNames = (await readdir(fixturesDirectory, {
-  withFileTypes: true,
-}))
+const fixtureNames = (
+  await readdir(fixturesDirectory, {
+    withFileTypes: true,
+  })
+)
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
@@ -30,11 +32,7 @@ describe('compileCue', () => {
         readFile(join(fixtureDirectory, 'opts.json'), 'utf8'),
       ]);
       const fixtureOptions = JSON.parse(optionsSource) as CompileFixtureOptions;
-      const {
-        backgroundImageSources,
-        expectedOk = true,
-        ...options
-      } = fixtureOptions;
+      const { backgroundImageSources, expectedOk = true, ...options } = fixtureOptions;
       const result = compileCue(source, {
         ...options,
         ...(backgroundImageSources
@@ -47,7 +45,9 @@ describe('compileCue', () => {
                   source: canonicalSource,
                 }
                 : {
-                  error: new Error(`Unknown fixture background image ${imageSource}.`),
+                  error: new Error(
+                    `Unknown fixture background image ${imageSource}.`,
+                  ),
                   ok: false as const,
                 };
             },
@@ -58,10 +58,12 @@ describe('compileCue', () => {
       expect(result.ok).toBe(expectedOk);
       if (!result.ok) {
         const output = result.errors
-          .map((error, index) => `/// error ${index + 1}\n\n${typeof error === 'string' ? error : error.message}`)
+          .map(
+            (error, index) =>
+              `/// error ${index + 1}\n\n${typeof error === 'string' ? error : error.message}`,
+          )
           .join('\n\n');
-        await expect(output)
-          .toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
+        await expect(output).toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
         return;
       }
       expect(result.files.length).toBeGreaterThan(1);
@@ -69,8 +71,7 @@ describe('compileCue', () => {
       const output = result.files
         .map(({ code, fileName }) => `/// ${fileName}\n\n${code.trimEnd()}`)
         .join('\n\n');
-      await expect(output)
-        .toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
+      await expect(output).toMatchFileSnapshot(join(fixtureDirectory, 'output.snap'));
     });
   }
 
@@ -78,40 +79,42 @@ describe('compileCue', () => {
     /// @case
     /// A Cue template uses the builtin cue-image element with a source relative to its .cue file.
     /// @expect
-    /// The compiler host receives the source and importer and generated code contains only its canonical UUID.
+    /// The compiler host receives the source and importer and generated code contains only its
+    /// canonical UUID.
     const calls: Array<{
       filename: string;
       source: string;
     }> = [];
-    const result = compileCue(
-      '<template><cue-image src="./icon.png" /></template>',
-      {
-        canonicalizeImageSource(source: string, filename: string) {
-          calls.push({
-            filename,
-            source,
-          });
-          return {
-            ok: true as const,
-            source: 'uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
-          };
-        },
-        filename: '/project/ui/card.cue',
+    const result = compileCue('<template><cue-image src="./icon.png" /></template>', {
+      canonicalizeImageSource(source: string, filename: string) {
+        calls.push({
+          filename,
+          source,
+        });
+        return {
+          ok: true as const,
+          source: 'uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
+        };
       },
-    );
+      filename: '/project/ui/card.cue',
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(calls).toEqual([{
-      filename: '/project/ui/card.cue',
-      source: './icon.png',
-    }]);
-    const templateFile = result.files.find(
-      ({ fileName }) => fileName.endsWith('.template.js'),
+    expect(calls).toEqual([
+      {
+        filename: '/project/ui/card.cue',
+        source: './icon.png',
+      },
+    ]);
+    const templateFile = result.files.find(({ fileName }) =>
+      fileName.endsWith('.template.js'),
     );
-    expect(templateFile?.code).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
+    expect(templateFile?.code).toContain(
+      'uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
+    );
     expect(templateFile?.code).not.toContain('./icon.png');
     expect(templateFile?.code).not.toContain('_resolveComponent("cue-image")');
   });
@@ -138,9 +141,11 @@ describe('compileCue', () => {
 
   it('rejects a cue-image source outside the supported source schemes', () => {
     /// @case
-    /// A Cue template uses an HTTP URL even though the first cue-image profile only supports relative paths and UUIDs.
+    /// A Cue template uses an HTTP URL even though the first cue-image profile only supports
+    /// relative paths and UUIDs.
     /// @expect
-    /// Compilation fails visibly instead of reinterpreting or silently preserving the unsupported source.
+    /// Compilation fails visibly instead of reinterpreting or silently preserving the unsupported
+    /// source.
     const result = compileCue(
       '<template><cue-image src="https://example.com/icon.png" /></template>',
       {
@@ -152,11 +157,9 @@ describe('compileCue', () => {
     if (result.ok) {
       return;
     }
-    expect(result.errors.map((error) => (
-      typeof error === 'string' ? error : error.message
-    ))).toContain(
-      '<cue-image> src must be a relative path or use the "uuid:" scheme.',
-    );
+    expect(
+      result.errors.map((error) => (typeof error === 'string' ? error : error.message)),
+    ).toContain('<cue-image> src must be a relative path or use the "uuid:" scheme.');
   });
 
   it('locates unsupported event diagnostics at the original handler', () => {
@@ -164,9 +167,12 @@ describe('compileCue', () => {
     /// A native element declares a context-menu event outside the supported input contract.
     /// @expect
     /// Compilation rejects the event and points to the original event binding.
-    const result = compileCue('<template>\n  <div @contextmenu="handle" />\n</template>', {
-      filename: '/project/ui/card.cue',
-    });
+    const result = compileCue(
+      '<template>\n  <div @contextmenu="handle" />\n</template>',
+      {
+        filename: '/project/ui/card.cue',
+      },
+    );
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
@@ -220,7 +226,8 @@ describe('compileCue', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.files.find(({ fileName }) => fileName.endsWith('.style.js'))?.code)
-      .toContain(source);
+    expect(
+      result.files.find(({ fileName }) => fileName.endsWith('.style.js'))?.code,
+    ).toContain(source);
   });
 });

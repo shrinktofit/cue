@@ -66,9 +66,18 @@ export function layoutEditableText(
           const spaceWidth = measureWidth(' ');
           const tabWidth = measureWidth('        ');
           const currentWidth = measureWidth(displayed);
-          part = ' '.repeat(spaceWidth > 0
-            ? Math.max(1, Math.ceil(((Math.floor(currentWidth / tabWidth) + 1) * tabWidth - currentWidth) / spaceWidth))
-            : 8);
+          part = ' '.repeat(
+            spaceWidth > 0
+              ? Math.max(
+                1,
+                Math.ceil(
+                  ((Math.floor(currentWidth / tabWidth) + 1) * tabWidth
+                    - currentWidth)
+                  / spaceWidth,
+                ),
+              )
+              : 8,
+          );
         }
         if (multiline && cursor > start && measureWidth(displayed + part) > width) {
           if (lastBreak > start) {
@@ -117,18 +126,40 @@ export function layoutEditableText(
 export function editableTextCaret(
   layout: EditableTextLayout,
   offset: number,
-): { x: number; y: number; line: number } {
-  const lineIndex = Math.max(0, layout.lines.findIndex((line, index) => (
-    offset >= line.start && (offset < line.end || index === layout.lines.length - 1
-      || offset < layout.lines[index + 1]!.start)
-  )));
+): {
+  x: number;
+  y: number;
+  line: number;
+} {
+  const lineIndex = Math.max(
+    0,
+    layout.lines.findIndex(
+      (line, index) =>
+        offset >= line.start
+        && (offset < line.end
+          || index === layout.lines.length - 1
+          || offset < layout.lines[index + 1]!.start),
+    ),
+  );
   const line = layout.lines[lineIndex]!;
-  const position = line.positions.find((entry) => entry.offset >= offset) ?? line.positions.at(-1)!;
-  return { x: position.x, y: lineIndex * layout.lineHeight, line: lineIndex };
+  const position
+    = line.positions.find((entry) => entry.offset >= offset) ?? line.positions.at(-1)!;
+  return {
+    x: position.x,
+    y: lineIndex * layout.lineHeight,
+    line: lineIndex,
+  };
 }
 
-export function editableTextOffsetAt(layout: EditableTextLayout, x: number, y: number): number {
-  const line = layout.lines[Math.max(0, Math.min(layout.lines.length - 1, Math.floor(y / layout.lineHeight)))]!;
+export function editableTextOffsetAt(
+  layout: EditableTextLayout,
+  x: number,
+  y: number,
+): number {
+  const line
+    = layout.lines[
+      Math.max(0, Math.min(layout.lines.length - 1, Math.floor(y / layout.lineHeight)))
+    ]!;
   for (let index = 0; index < line.positions.length - 1; ++index) {
     const current = line.positions[index]!;
     const next = line.positions[index + 1]!;

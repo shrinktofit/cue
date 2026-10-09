@@ -13,7 +13,11 @@ export interface CueKeyboardEventInit extends CueEventInit {
 
 export class CueKeyboardEvent extends CueEvent {
   constructor(type: string, init: CueKeyboardEventInit = {}) {
-    super(type, { bubbles: true, cancelable: true, ...init });
+    super(type, {
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
     this.key = init.key ?? '';
     this.code = init.code ?? '';
     this.repeat = init.repeat ?? false;

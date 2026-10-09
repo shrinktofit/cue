@@ -12,9 +12,7 @@ export default defineConfig({
         main: './src/main.ts',
       },
       fileName: (_format, entryName) => `${entryName}.cjs`,
-      formats: [
-        'cjs',
-      ],
+      formats: ['cjs'],
     },
     minify: false,
     outDir: './dist',
@@ -26,7 +24,5 @@ export default defineConfig({
     },
     sourcemap: 'inline',
   },
-  plugins: [
-    useEditorModules(),
-  ],
+  plugins: [useEditorModules()],
 });

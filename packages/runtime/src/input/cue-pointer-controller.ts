@@ -1,5 +1,9 @@
 import type { CueElement } from '../element/cue-element.js';
-import { getCueElementStates, setCueElementClientSize, setCueElementState } from '../element/cue-element.js';
+import {
+  getCueElementStates,
+  setCueElementClientSize,
+  setCueElementState,
+} from '../element/cue-element.js';
 import { CuePointerEvent, type CuePointerType } from './cue-pointer-event.js';
 import { cueLocalPoint, pickCueElement, type CueHitRegion } from './cue-hit-region.js';
 
@@ -59,7 +63,11 @@ export function hasCuePointerCapture(element: CueElement, pointerId: number): bo
 
 /** Per-document pointer state. The host supplies layout-space coordinates. */
 export class CuePointerController {
-  constructor(readonly root: CueElement, readonly onPointerDown?: (target: CueElement | undefined) => void) {}
+  constructor(
+    readonly root: CueElement,
+    readonly onPointerDown?: (target: CueElement | undefined) => void,
+  ) {
+  }
 
   setRegions(regions: readonly CueHitRegion[]): void {
     const liveElements = new Set(regions.map((region) => region.element));
@@ -80,7 +88,11 @@ export class CuePointerController {
       if (state.downTarget && !this.#contains(state.downTarget)) {
         state.downTarget = undefined;
       }
-      if (state.sample.pointerType === 'mouse' && !state.capture && !state.pendingCapture) {
+      if (
+        state.sample.pointerType === 'mouse'
+        && !state.capture
+        && !state.pendingCapture
+      ) {
         this.#updateHover(state, this.#pick(state.sample));
       }
     }
@@ -93,7 +105,10 @@ export class CuePointerController {
 
   capturePointer(element: CueElement, pointerId: number): void {
     if (!this.#contains(element)) {
-      throw new DOMException('The element is not in the pointer document.', 'InvalidStateError');
+      throw new DOMException(
+        'The element is not in the pointer document.',
+        'InvalidStateError',
+      );
     }
     const state = this.#pointers.get(pointerId)!;
     if (state.sample.buttons !== 0) {
@@ -119,7 +134,14 @@ export class CuePointerController {
       if (!hit || sample.type === 'pointerup' || sample.type === 'pointercancel') {
         return false;
       }
-      state = { sample, hoverPath: [], downTarget: undefined, capture: undefined, pendingCapture: undefined, cancelling: false };
+      state = {
+        sample,
+        hoverPath: [],
+        downTarget: undefined,
+        capture: undefined,
+        pendingCapture: undefined,
+        cancelling: false,
+      };
       this.#pointers.set(sample.pointerId, state);
     }
     if (state.cancelling) {
@@ -147,9 +169,10 @@ export class CuePointerController {
       this.onPointerDown?.(undefined);
     }
     if (sample.type === 'pointerup' || sample.type === 'pointercancel') {
-      const clickTarget = sample.type === 'pointerup' && sample.button === 0 && state.downTarget && target
-        ? state.capture ?? commonAncestor(state.downTarget, target)
-        : undefined;
+      const clickTarget
+        = sample.type === 'pointerup' && sample.button === 0 && state.downTarget && target
+          ? (state.capture ?? commonAncestor(state.downTarget, target))
+          : undefined;
       state.downTarget = undefined;
       state.pendingCapture = undefined;
       this.#applyCapture(state);
@@ -181,7 +204,11 @@ export class CuePointerController {
     }
     state.cancelling = true;
     const target = state.capture ?? state.downTarget;
-    state.sample = { ...state.sample, button: -1, buttons: 0 };
+    state.sample = {
+      ...state.sample,
+      button: -1,
+      buttons: 0,
+    };
     if (target) {
       this.#dispatch(this.#contains(target) ? target : this.root, 'pointercancel', state);
     }
@@ -242,7 +269,11 @@ export class CuePointerController {
     const next = state.pendingCapture;
     state.capture = next;
     if (previous) {
-      this.#dispatch(this.#contains(previous) ? previous : this.root, 'lostpointercapture', state);
+      this.#dispatch(
+        this.#contains(previous) ? previous : this.root,
+        'lostpointercapture',
+        state,
+      );
     }
     if (next) {
       this.#updateHover(state, next);
@@ -253,13 +284,20 @@ export class CuePointerController {
   #updateHover(state: PointerState, next: CueElement | undefined): void {
     const previousPath = state.hoverPath;
     const nextPath = elementPath(next);
-    if (previousPath[0] === next && previousPath.every((element, index) => element === nextPath[index])) {
+    if (
+      previousPath[0] === next
+      && previousPath.every((element, index) => element === nextPath[index])
+    ) {
       return;
     }
     const previous = previousPath[0];
     state.hoverPath = nextPath;
     for (const element of previousPath) {
-      if (![...this.#pointers.values()].some((pointer) => pointer.hoverPath.includes(element))) {
+      if (
+        ![...this.#pointers.values()].some((pointer) =>
+          pointer.hoverPath.includes(element),
+        )
+      ) {
         setCueElementState(element, 'hover', false);
       }
     }
@@ -284,21 +322,35 @@ export class CuePointerController {
     }
   }
 
-  #dispatch(target: CueElement, type: string, state: PointerState, relatedTarget?: CueElement): boolean {
-    if (type === 'click' && elementPath(target).some((element) => getCueElementStates(element).has('disabled'))) {
+  #dispatch(
+    target: CueElement,
+    type: string,
+    state: PointerState,
+    relatedTarget?: CueElement,
+  ): boolean {
+    if (
+      type === 'click'
+      && elementPath(target).some((element) => getCueElementStates(element).has('disabled'))
+    ) {
       return false;
     }
     const region = this.#regions.find((candidate) => candidate.element === target);
     const point = region && cueLocalPoint(region, state.sample.x, state.sample.y);
     const boundary = type === 'pointerenter' || type === 'pointerleave';
-    return target.dispatchEvent(new CuePointerEvent(type, {
-      ...state.sample,
-      bubbles: !boundary,
-      cancelable: !boundary && type !== 'pointercancel' && type !== 'gotpointercapture' && type !== 'lostpointercapture',
-      offsetX: point && region ? point[0] - region.borderLeft : 0,
-      offsetY: point && region ? point[1] - region.borderTop : 0,
-      relatedTarget,
-    }));
+    return target.dispatchEvent(
+      new CuePointerEvent(type, {
+        ...state.sample,
+        bubbles: !boundary,
+        cancelable:
+          !boundary
+          && type !== 'pointercancel'
+          && type !== 'gotpointercapture'
+          && type !== 'lostpointercapture',
+        offsetX: point && region ? point[0] - region.borderLeft : 0,
+        offsetY: point && region ? point[1] - region.borderTop : 0,
+        relatedTarget,
+      }),
+    );
   }
 }
 

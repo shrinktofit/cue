@@ -12,7 +12,10 @@ export class CueBeforeInputEvent extends CueEvent {
 }
 
 export class CueCompositionEvent extends CueEvent {
-  constructor(type: 'compositionstart' | 'compositionupdate' | 'compositionend', readonly data: string) {
+  constructor(
+    type: 'compositionstart' | 'compositionupdate' | 'compositionend',
+    readonly data: string,
+  ) {
     super(type, { bubbles: true });
   }
 }

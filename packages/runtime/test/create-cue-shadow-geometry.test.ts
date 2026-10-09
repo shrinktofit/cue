@@ -15,7 +15,12 @@ const shadow: CuePaintShadow = {
   height: 60,
   inset: false,
   opacity: 1,
-  radii: [[20, 10], [20, 10], [20, 10], [20, 10]],
+  radii: [
+    [20, 10],
+    [20, 10],
+    [20, 10],
+    [20, 10],
+  ],
   spread: 2,
   transform: identityCueAffineTransform,
   width: 100,
@@ -34,7 +39,14 @@ describe('createShadowGeometry', () => {
     const geometry = createShadowGeometry([shadow]);
 
     expect(geometry.vertices.length).toBe(100);
-    expect([...geometry.indices]).toEqual([0, 1, 2, 0, 2, 3]);
+    expect([...geometry.indices]).toEqual([
+      0,
+      1,
+      2,
+      0,
+      2,
+      3,
+    ]);
     expect(geometry.vertices[0]).toBe(-5);
     expect(geometry.vertices[1]).toBe(-94);
     expect(geometry.vertices[18]).toBe(12);
@@ -49,10 +61,12 @@ describe('createShadowGeometry', () => {
     /// The same CSS shadow is marked inset.
     /// @expect
     /// Its quad exactly matches the box while shader parameters retain inset and offset values.
-    const geometry = createShadowGeometry([{
-      ...shadow,
-      inset: true,
-    }]);
+    const geometry = createShadowGeometry([
+      {
+        ...shadow,
+        inset: true,
+      },
+    ]);
 
     expect(geometry.vertices[0]).toBe(10);
     expect(geometry.vertices[1]).toBe(-65);

@@ -1,15 +1,30 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CueBorderStyle, CueOverflow } from '@bsgames/cue-style-schema';
 import { DivElement } from '../src/element/div-element.js';
-import { getCueElementProperties, getCueElementStates } from '../src/element/cue-element.js';
-import { createCuePaintList, initializeCueLayout, type CueTextMeasurer } from '../src/render/create-cue-paint-list.js';
+import {
+  getCueElementProperties,
+  getCueElementStates,
+} from '../src/element/cue-element.js';
+import {
+  createCuePaintList,
+  initializeCueLayout,
+  type CueTextMeasurer,
+} from '../src/render/create-cue-paint-list.js';
 import { CueRootElement } from '../src/element/cue-root-element.js';
 import { CueButtonElement } from '../src/builtin-controls/button/cue-button-element.js';
 import { CueToggleElement } from '../src/builtin-controls/toggle/cue-toggle-element.js';
-import { CueSliderElement, updateCueSliderLayout } from '../src/builtin-controls/slider/cue-slider-element.js';
-import { CueSelectElement, updateCueSelectLayout } from '../src/builtin-controls/select/cue-select-element.js';
+import {
+  CueSliderElement,
+  updateCueSliderLayout,
+} from '../src/builtin-controls/slider/cue-slider-element.js';
+import {
+  CueSelectElement,
+  updateCueSelectLayout,
+} from '../src/builtin-controls/select/cue-select-element.js';
 import { CueTextInputElement } from '../src/builtin-controls/text-input/cue-text-input-element.js';
-import { CueNumberInputElement } from '../src/builtin-controls/number-input/cue-number-input-element.js';
+import {
+  CueNumberInputElement,
+} from '../src/builtin-controls/number-input/cue-number-input-element.js';
 import { CueFocusController } from '../src/input/cue-focus-controller.js';
 import { CuePointerEvent } from '../src/input/cue-pointer-event.js';
 
@@ -17,11 +32,29 @@ describe('native control interaction', () => {
   beforeAll(initializeCueLayout);
   const measurer: CueTextMeasurer = {
     measureWidth: (text) => text.length * 8,
-    metrics: () => ({ ascent: 12, descent: 4, xHeight: 8, lineHeight: 16 }),
-    layout: (text) => ({ width: text.length * 8, height: 16, lines: [{ text, width: text.length * 8 }] }),
+    metrics: () => ({
+      ascent: 12,
+      descent: 4,
+      xHeight: 8,
+      lineHeight: 16,
+    }),
+    layout: (text) => ({
+      width: text.length * 8,
+      height: 16,
+      lines: [{ text, width: text.length * 8 }],
+    }),
   };
 
-  it.each([CueButtonElement, CueToggleElement, CueSliderElement, CueSelectElement, CueTextInputElement, CueNumberInputElement].map((Control) => ({ name: Control.name, Control })))('lays out $name without author CSS or flex blockification', ({ Control }) => {
+  it.each(
+    [
+      CueButtonElement,
+      CueToggleElement,
+      CueSliderElement,
+      CueSelectElement,
+      CueTextInputElement,
+      CueNumberInputElement,
+    ].map((Control) => ({ name: Control.name, Control })),
+  )('lays out $name without author CSS or flex blockification', ({ Control }) => {
     /// @case Each control is mounted in normal block flow after an offset spacer.
     /// @expect Default styling produces a nonempty box without requiring author CSS.
     const root = new CueRootElement();
@@ -33,7 +66,14 @@ describe('native control interaction', () => {
     const control = new Control();
     control.style.marginLeft = 60;
     container.insertBefore(control);
-    const paint = createCuePaintList(root, [], measurer, () => undefined, () => undefined, { width: 800, height: 600 });
+    const paint = createCuePaintList(
+      root,
+      [],
+      measurer,
+      () => undefined,
+      () => undefined,
+      { width: 800, height: 600 },
+    );
     const box = paint.hitRegions.find((region) => region.element === control)!;
     expect(box.x).toBe(60);
     expect(box.y).toBe(80);
@@ -41,23 +81,48 @@ describe('native control interaction', () => {
     expect(box.height).toBeGreaterThan(0);
   });
 
-  it('lays out native control parts inside their host and paints popup above ancestor clips', () => {
+  it(('lays out native control parts inside their host and paints '
+    + 'popup above ancestor clips'), () => {
     /// @case A select inside a clipped, offset container is opened without author control CSS.
-    /// @expect Its label/arrow remain within its host; options escape ancestor clipping in a top layer.
+    /// @expect Its label/arrow remain within its host; options escape ancestor clipping in a top
+    /// layer.
     const root = new CueRootElement();
     const container = new DivElement();
-    Object.assign(container.style, { width: 400, height: 80, marginLeft: 100, marginTop: 60, overflowX: CueOverflow.hidden, overflowY: CueOverflow.hidden });
+    Object.assign(container.style, {
+      width: 400,
+      height: 80,
+      marginLeft: 100,
+      marginTop: 60,
+      overflowX: CueOverflow.hidden,
+      overflowY: CueOverflow.hidden,
+    });
     root.insertBefore(container);
     const select = new CueSelectElement();
-    select.options = [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }];
+    select.options = [
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B' },
+    ];
     container.insertBefore(select);
     select.open = true;
-    const paint = createCuePaintList(root, [], measurer, () => undefined, () => undefined, { width: 800, height: 600 });
+    const paint = createCuePaintList(
+      root,
+      [],
+      measurer,
+      () => undefined,
+      () => undefined,
+      { width: 800, height: 600 },
+    );
     const host = paint.hitRegions.find((region) => region.element === select)!;
-    const arrow = paint.hitRegions.find((region) => getCueElementProperties(region.element).get('class') === 'cue-select-arrow')!;
+    const arrow = paint.hitRegions.find(
+      (region) =>
+        getCueElementProperties(region.element).get('class') === 'cue-select-arrow',
+    )!;
     expect(arrow.x).toBeGreaterThanOrEqual(host.x);
     expect(arrow.x + arrow.width).toBeLessThanOrEqual(host.x + host.width);
-    const row = paint.hitRegions.find((region) => getCueElementProperties(region.element).get('class') === 'cue-select-option')!;
+    const row = paint.hitRegions.find(
+      (region) =>
+        getCueElementProperties(region.element).get('class') === 'cue-select-option',
+    )!;
     expect(row.clips).toHaveLength(1);
     expect(row.clips[0]!.y).toBeGreaterThanOrEqual(host.y + host.height);
     expect(row.y).toBeGreaterThanOrEqual(host.y + host.height);
@@ -74,61 +139,130 @@ describe('native control interaction', () => {
     slider.value = 100;
     container.insertBefore(slider);
     const select = new CueSelectElement();
-    select.options = Array.from({ length: 10 }, (_, index) => ({ value: String(index), label: String(index) }));
+    select.options = Array.from({ length: 10 }, (_, index) => ({
+      value: String(index),
+      label: String(index),
+    }));
     select.open = true;
     container.insertBefore(select);
-    const sheets = [{ version: 1 as const, rules: [
-      { selectors: [[{ type: 'class' as const, name: 'cue-slider-thumb' }]], declarations: { width: 40, height: 40 } },
-      { selectors: [[{ type: 'class' as const, name: 'cue-select-option' }]], declarations: { height: 50, paddingTop: 10 } },
-      { selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]], declarations: { paddingTop: 10, paddingBottom: 10 } },
-    ] }];
-    const paint = () => createCuePaintList(root, sheets, measurer, () => undefined, () => undefined, { width: 800, height: 310 });
+    const sheets = [
+      {
+        version: 1 as const,
+        rules: [
+          {
+            selectors: [[{ type: 'class' as const, name: 'cue-slider-thumb' }]],
+            declarations: { width: 40, height: 40 },
+          },
+          {
+            selectors: [[{ type: 'class' as const, name: 'cue-select-option' }]],
+            declarations: { height: 50, paddingTop: 10 },
+          },
+          {
+            selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]],
+            declarations: { paddingTop: 10, paddingBottom: 10 },
+          },
+        ],
+      },
+    ];
+    const paint = () =>
+      createCuePaintList(
+        root,
+        sheets,
+        measurer,
+        () => undefined,
+        () => undefined,
+        { width: 800, height: 310 },
+      );
     let list = paint();
     updateCueSliderLayout(slider, list.hitRegions);
     updateCueSelectLayout(select, 310, list.hitRegions);
     list = paint();
-    const part = (name: string) => list.hitRegions.find((region) => getCueElementProperties(region.element).get('class') === name)!;
-    expect(part('cue-slider-thumb').x + 20).toBe(part('cue-slider-track').x + part('cue-slider-track').width);
-    expect(part('cue-slider-thumb').y + 20).toBe(part('cue-slider-track').y + part('cue-slider-track').height / 2);
-    expect(part('cue-select-popup').y + part('cue-select-popup').height).toBeLessThanOrEqual(310);
+    const part = (name: string) =>
+      list.hitRegions.find(
+        (region) => getCueElementProperties(region.element).get('class') === name,
+      )!;
+    expect(part('cue-slider-thumb').x + 20).toBe(
+      part('cue-slider-track').x + part('cue-slider-track').width,
+    );
+    expect(part('cue-slider-thumb').y + 20).toBe(
+      part('cue-slider-track').y + part('cue-slider-track').height / 2,
+    );
+    expect(
+      part('cue-select-popup').y + part('cue-select-popup').height,
+    ).toBeLessThanOrEqual(310);
     const focus = new CueFocusController(root);
     select.focus();
     focus.handle('keydown', { key: 'End' });
     list = paint();
     updateCueSelectLayout(select, 310, list.hitRegions);
     list = paint();
-    const lastRow = list.hitRegions.filter((region) => getCueElementProperties(region.element).get('class') === 'cue-select-option').at(-1)!;
+    const lastRow = list.hitRegions
+      .filter(
+        (region) =>
+          getCueElementProperties(region.element).get('class') === 'cue-select-option',
+      )
+      .at(-1)!;
     const popup = part('cue-select-popup');
     expect(lastRow.y + lastRow.height).toBe(popup.y + popup.height - 10);
     focus.dispose();
   });
 
-  it.each([{ viewportHeight: 310, borderWidth: 0 }, { viewportHeight: 32, borderWidth: 10 }])('fits a padded popup in a $viewportHeight px viewport with $borderWidth px host borders', ({ viewportHeight, borderWidth }) => {
-    /// @case A full-height select leaves no space above or below its host.
-    /// @expect The popup overlaps its host instead of overflowing with a zero-height padded box.
-    const root = new CueRootElement();
-    const select = new CueSelectElement();
-    Object.assign(select.style, {
-      borderTopStyle: CueBorderStyle.solid, borderBottomStyle: CueBorderStyle.solid,
-      borderTopWidth: borderWidth, borderBottomWidth: borderWidth,
-    });
-    select.options = Array.from({ length: 10 }, (_, index) => ({ value: String(index), label: String(index) }));
-    select.open = true;
-    root.insertBefore(select);
-    const sheets = [{ version: 1 as const, rules: [
-      { selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]], declarations: { paddingTop: 10, paddingBottom: 10 } },
-    ] }];
-    const paint = () => createCuePaintList(root, sheets, measurer, () => undefined, () => undefined, { width: 800, height: viewportHeight });
-    let list = paint();
-    const host = list.hitRegions.find((region) => region.element === select)!;
-    expect(host.height).toBeGreaterThanOrEqual(viewportHeight);
-    updateCueSelectLayout(select, viewportHeight, list.hitRegions);
-    list = paint();
-    const popup = list.hitRegions.find((region) => getCueElementProperties(region.element).get('class') === 'cue-select-popup')!;
-    expect(popup.y).toBeGreaterThanOrEqual(0);
-    expect(popup.y + popup.height).toBeLessThanOrEqual(viewportHeight);
-    expect(popup.height).toBeGreaterThan(20);
-  });
+  it.each([
+    { viewportHeight: 310, borderWidth: 0 },
+    { viewportHeight: 32, borderWidth: 10 },
+  ])(
+    'fits a padded popup in a $viewportHeight px viewport with $borderWidth px host borders',
+    ({ viewportHeight, borderWidth }) => {
+      /// @case A full-height select leaves no space above or below its host.
+      /// @expect The popup overlaps its host instead of overflowing with a zero-height padded box.
+      const root = new CueRootElement();
+      const select = new CueSelectElement();
+      Object.assign(select.style, {
+        borderTopStyle: CueBorderStyle.solid,
+        borderBottomStyle: CueBorderStyle.solid,
+        borderTopWidth: borderWidth,
+        borderBottomWidth: borderWidth,
+      });
+      select.options = Array.from({ length: 10 }, (_, index) => ({
+        value: String(index),
+        label: String(index),
+      }));
+      select.open = true;
+      root.insertBefore(select);
+      const sheets = [
+        {
+          version: 1 as const,
+          rules: [
+            {
+              selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]],
+              declarations: { paddingTop: 10, paddingBottom: 10 },
+            },
+          ],
+        },
+      ];
+      const paint = () =>
+        createCuePaintList(
+          root,
+          sheets,
+          measurer,
+          () => undefined,
+          () => undefined,
+          { width: 800, height: viewportHeight },
+        );
+      let list = paint();
+      const host = list.hitRegions.find((region) => region.element === select)!;
+      expect(host.height).toBeGreaterThanOrEqual(viewportHeight);
+      updateCueSelectLayout(select, viewportHeight, list.hitRegions);
+      list = paint();
+      const popup = list.hitRegions.find(
+        (region) =>
+          getCueElementProperties(region.element).get('class') === 'cue-select-popup',
+      )!;
+      expect(popup.y).toBeGreaterThanOrEqual(0);
+      expect(popup.y + popup.height).toBeLessThanOrEqual(viewportHeight);
+      expect(popup.height).toBeGreaterThan(20);
+    },
+  );
 
   it('closes a select popup when the viewport cannot contain its padding', () => {
     /// @case The viewport is smaller than the authored popup padding.
@@ -138,10 +272,25 @@ describe('native control interaction', () => {
     select.options = [{ value: 'a', label: 'A' }];
     select.open = true;
     root.insertBefore(select);
-    const sheets = [{ version: 1 as const, rules: [
-      { selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]], declarations: { paddingTop: 10, paddingBottom: 10 } },
-    ] }];
-    const paint = createCuePaintList(root, sheets, measurer, () => undefined, () => undefined, { width: 800, height: 16 });
+    const sheets = [
+      {
+        version: 1 as const,
+        rules: [
+          {
+            selectors: [[{ type: 'class' as const, name: 'cue-select-popup' }]],
+            declarations: { paddingTop: 10, paddingBottom: 10 },
+          },
+        ],
+      },
+    ];
+    const paint = createCuePaintList(
+      root,
+      sheets,
+      measurer,
+      () => undefined,
+      () => undefined,
+      { width: 800, height: 16 },
+    );
     expect(updateCueSelectLayout(select, 16, paint.hitRegions)).toBe(true);
     expect(select.open).toBe(false);
   });
@@ -157,14 +306,29 @@ describe('native control interaction', () => {
     spacer.style.height = 280;
     container.insertBefore(spacer);
     const select = new CueSelectElement();
-    select.options = Array.from({ length: 10 }, (_, index) => ({ value: String(index), label: String(index) }));
+    select.options = Array.from({ length: 10 }, (_, index) => ({
+      value: String(index),
+      label: String(index),
+    }));
     select.open = true;
     container.insertBefore(select);
-    const paint = () => createCuePaintList(root, [], measurer, () => undefined, () => undefined, { width: 800, height: 310 });
+    const paint = () =>
+      createCuePaintList(
+        root,
+        [],
+        measurer,
+        () => undefined,
+        () => undefined,
+        { width: 800, height: 310 },
+      );
     let list = paint();
     updateCueSelectLayout(select, 310, list.hitRegions);
     list = paint();
-    const part = () => list.hitRegions.find((region) => getCueElementProperties(region.element).get('class') === 'cue-select-popup')!;
+    const part = () =>
+      list.hitRegions.find(
+        (region) =>
+          getCueElementProperties(region.element).get('class') === 'cue-select-popup',
+      )!;
     expect(part().y).toBeGreaterThanOrEqual(0);
     expect(part().y + part().height).toBe(280);
     spacer.style.height = 0;
@@ -212,10 +376,14 @@ describe('native control interaction', () => {
     toggle.addEventListener('change', (event) => values.push(event.value));
     toggle.value = true;
     expect(values).toEqual([]);
-    toggle.dispatchEvent(new CuePointerEvent('click', { bubbles: true, cancelable: true }));
+    toggle.dispatchEvent(
+      new CuePointerEvent('click', { bubbles: true, cancelable: true }),
+    );
     expect(values).toEqual([false, false]);
     root.addEventListener('click', (event) => event.preventDefault());
-    toggle.dispatchEvent(new CuePointerEvent('click', { bubbles: true, cancelable: true }));
+    toggle.dispatchEvent(
+      new CuePointerEvent('click', { bubbles: true, cancelable: true }),
+    );
     expect(toggle.value).toBe(false);
     expect(values).toEqual([false, false]);
   });
@@ -237,7 +405,11 @@ describe('native control interaction', () => {
     focus.handle('keydown', { key: 'ArrowRight' });
     focus.handle('keydown', { key: 'ArrowRight', repeat: true });
     focus.handle('keydown', { key: 'ArrowRight', repeat: true });
-    expect(inputs).toEqual([0.1, 0.2, 0.3]);
+    expect(inputs).toEqual([
+      0.1,
+      0.2,
+      0.3,
+    ]);
     expect(changes).toEqual([]);
     focus.handle('keyup', { key: 'ArrowRight' });
     expect(changes).toEqual([0.3]);
@@ -267,7 +439,15 @@ describe('native control interaction', () => {
     const select = new CueSelectElement();
     root.insertBefore(select);
     const focus = new CueFocusController(root);
-    select.options = [{ value: 'a', label: 'A' }, { value: 'b', label: 'B', disabled: true }, { value: 'c', label: 'C' }];
+    select.options = [
+      { value: 'a', label: 'A' },
+      {
+        value: 'b',
+        label: 'B',
+        disabled: true,
+      },
+      { value: 'c', label: 'C' },
+    ];
     select.value = 'a';
     select.focus();
     const changes: unknown[] = [];
