@@ -1,16 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": [
-    "@changesets/cli/changelog",
-    {
-      "repo": "shrinktofit/cue"
-    }
-  ],
-  "commit": false,
-  "fixed": [],
-  "linked": [],
   "access": "public",
   "baseBranch": "main",
-  "updateInternalDependencies": "patch",
   "privatePackages": false
 }

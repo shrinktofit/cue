@@ -10,8 +10,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "changeset": "changeset",
-    "version-packages": "changeset version && pnpm install --lockfile-only",
-    "release": "pnpm build --filter='!@bsgames/oms-plugin-cue' && changeset publish"
+    "build:ci": "node --run build -- --filter='!@bsgames/oms-plugin-cue'",
+    "test:ci": "node --run test"
   },
   "devDependencies": {
     "@bsgames/cue-workflow": "workspace:*",

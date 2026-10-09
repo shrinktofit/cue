@@ -26,14 +26,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build
-        # Full OMS build requires an external local checkout.
-        run: pnpm build --filter='!@bsgames/oms-plugin-cue'
+        run: node --run build:ci
       - name: Lint
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm exec lint-staged --diff="$BASE_SHA...$HEAD_SHA"
       - name: Test
-        run: |
-          pnpm test --filter='!@bsgames/oms-plugin-cue'
-          pnpm --filter @bsgames/oms-plugin-cue exec vitest run
+        run: node --run test:ci
