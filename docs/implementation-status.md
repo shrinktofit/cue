@@ -13,7 +13,7 @@
 
 | 能力 | 状态 | 当前边界 |
 | --- | :---: | --- |
-| 使用 Vue SFC 语法解析 `.cue` | ✅ | 基于 `@vue/compiler-sfc` |
+| 使用 Vue SFC 语法解析 `.cc.vue` | ✅ | 基于 `@vue/compiler-sfc` |
 | `<script>` 与 `<script setup>` | ✅ | JavaScript / TypeScript 输出为 JavaScript |
 | `<template>` 编译为 Vue render function | ✅ | runtime helper 指向 `@bsgames/cue` |
 | 项目配置声明 Custom Element | ✅ | 通过 `CompileCueOptions.customElements` 传入 |
@@ -24,9 +24,9 @@
 | 版本化 Style IR | ✅ | 当前 schema version 为 `1` |
 | 多文件 JavaScript 产物 | ✅ | entry、script、template、style 按实际内容生成 |
 | `cue compile <file> --out-dir=<dir>` | ✅ | CLI 仅调用 compiler library |
-| `<cue-image src>` 静态资源规范化 | ✅[^cue-image] | `uuid:` 原样保留；相对 `.cue` 的路径由 compiler host 规范化为 SpriteFrame UUID |
+| `<cue-image src>` 静态资源规范化 | ✅[^cue-image] | `uuid:` 原样保留；相对 `.cc.vue` 的路径由 compiler host 规范化为 SpriteFrame UUID |
 | Compiler → runtime 可执行 fixture | ✅ | 覆盖 Vue 响应式更新、Custom Element 与组件样式挂载 |
-| Source map | ❌ | script、template、style 均未回映到 `.cue` |
+| Source map | ❌ | script、template、style 均未回映到 `.cc.vue` |
 | 稳定 diagnostic code 与精确 source range | ❌ | 当前主要透传 parser/compiler error |
 | 未支持 selector 的 diagnostics | ✅[^selector-subset] | 未支持的 combinator、attribute / pseudo selector 显式诊断 |
 | 全量 CSS property / value / at-rule diagnostics | ❌ | 尚未统一覆盖；部分未支持的声明仍会被忽略 |
@@ -35,7 +35,7 @@
 | CSS preprocessors | ❌ | 尚未实现 |
 | Asset reference / dependency metadata | ❌ | 尚未实现 |
 | HMR metadata 与增量 patch 分类 | ❌ | 尚未实现 |
-| OMS source compiler 接入 | ✅ | `@bsgames/oms-plugin-cue`；直接 import `.cue`，派生模块不落盘；见 [接入说明](oms-integration.md) |
+| OMS source compiler 接入 | ✅ | `@bsgames/oms-plugin-cue`；直接 import `.cc.vue`，派生模块不落盘；见 [接入说明](oms-integration.md) |
 | OMS 源文件及图片元数据监听 | ✅ | 源文件 / asset / `.meta` 登记到 OMS；更新、删除失败及重建恢复；非细粒度 HMR |
 
 ## Element 与 Vue Runtime
@@ -90,7 +90,7 @@
 | `cue-number-input` | ✅[^builtin-controls] | number / undefined；草稿与有效数值分离、范围、精确步进；不输出 NaN |
 | 外部 value 同步 | ✅[^builtin-controls] | 不主动发 input / change；显式交互操作另有提交语义 |
 | 内部节点所有权 | ✅[^builtin-controls] | Button 以外拒绝作者 children；真实节点与稳定 class 定制 |
-| `.ce.cue` / 内置控件自举 | ❌ | 本轮不实现；生产控件用 TypeScript，gallery 用 `.cue` 消费 |
+| 内置控件自举 | ❌ | 本轮不实现；生产控件用 TypeScript，gallery 用 `.cc.vue` 消费 |
 | 完整 HTML form / label / validation | ❌ | 不声明浏览器 HTML 控件兼容性 |
 
 ## CSS Selector 与 Cascade
@@ -302,11 +302,11 @@
 | Vortex / Cocos extension package v2 skeleton | ✅ | ESM source，Vite 输出宿主 CJS bridge |
 | Cue runtime assets 挂载到 `asset-db` | ✅ | hooks 注册只读 `Cue-Runtime` mount |
 | Extension service lifecycle / commands / UI | ❌ | `main.ts` 当前为空入口 |
-| `.cue` asset importer / dependency graph | ❌ | 尚未实现 |
+| `.cc.vue` asset importer / dependency graph | ❌ | 尚未实现 |
 | Cue 专用 build / preview contribution | ❌ | 不含上表已接通的 OMS source compiler 插件 |
 | Runtime Inspector | ❌ | 尚未实现 |
-| `.cue` language plugin | ❌ | package 当前只有空导出 |
-| `vue-tsc` 的 `.cue` 检查 | ❌ | 尚未实现 |
+| Cue 专属 language plugin | ❌ | `.cc.vue` 由标准 Vue 工具链识别；Cue 模板/CSS 语义尚未实现，package 当前只有空导出 |
+| `vue-tsc` 的 Cue 专属类型检查 | ❌ | 文件后缀无需适配；Cue native element/props/events 的完整类型检查尚未实现 |
 | CSS Profile completion / diagnostics | ❌ | 尚未实现 |
 | Custom Element editor metadata | ❌ | 尚未实现 |
 | Flex playground 可视化验收 | ✅ | 独立 examples 仓库以控制面驱动一个 live flex layout；控制面与舞台同属一个 Cue 文档 |
@@ -332,7 +332,7 @@
 
 [^input]: 当前面向 Cocos / Vortex 3.8 Web Preview；真实 Chromium 鼠标和触摸已经验证，不宣称完整 DOM／Pointer Events conformance。CueDocument 集中接入 host backend，原生 UI 优先于普通 Cue 命中，捕获指针优先返回 Cue。控件 focus、keyboard、wheel 与 Web 编辑见 [Builtin controls](builtin-controls.md)，不把 composition 自动测试当作 OS IME 人工验收。命中仍受当前 paint/stacking-context 范围限制。坐标、清理和引擎接口边界见 [Input](input.md)。
 
-[^builtin-controls]: 六控件为真实 CueElement，统一以 TypeScript 实现，不引入 `.ce.cue` 自举、运行时 compiler 或 CSS parser。默认普通声明低于作者样式；部件是普通节点与稳定 class，不是 `::part`。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/Cocos EditBox 共存已通过；touch 回归确认 Toggle 和 Slider 的实际 touch 事件。文本仅声明 Web Preview / LTR。OS IME 人工验收、Native、production smoke、长期资源释放和用户明确验收仍保留。详见 [Builtin controls](builtin-controls.md)。
+[^builtin-controls]: 六控件为真实 CueElement，统一以 TypeScript 实现，不引入内部 SFC 自举、运行时 compiler 或 CSS parser。默认普通声明低于作者样式；部件是普通节点与稳定 class，不是 `::part`。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/Cocos EditBox 共存已通过；touch 回归确认 Toggle 和 Slider 的实际 touch 事件。文本仅声明 Web Preview / LTR。OS IME 人工验收、Native、production smoke、长期资源释放和用户明确验收仍保留。详见 [Builtin controls](builtin-controls.md)。
 
 [^inline-style]: 静态 attribute 仅在编译期使用 Lightning CSS；inline normal 高于 stylesheet normal、低于 stylesheet important，inline important 高于 stylesheet important。支持范围同静态 stylesheet，没有 runtime CSS parser。
 
@@ -376,7 +376,7 @@
 
 [^text-fit]: 对齐 [CSS Text Level 5 编辑草案](https://drafts.csswg.org/css-text-5/#text-fit)，不是稳定 CSS Recommendation；当前为普通 inline formatting 的 `none / shrink` 子集。先按原字号换行，再以最小缩放因子统一缩小；行尾空白不参与缩字判定，固定 px 行高不缩放，normal 行高按使用字号计算，intrinsic widths 不受影响。真实字体缩小后会重新测宽，避免 hinting 造成残留溢出。不承诺完整 shaping / bidi；可编辑输入框的专用 caret/selection 排版不在此声明内。
 
-[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时默认以 `object-fit: fill` 拉伸到 content box。尚无 URL、data URL、图片自身的裁剪或 nine-slice 语义。
+[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cc.vue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时默认以 `object-fit: fill` 拉伸到 content box。尚无 URL、data URL、图片自身的裁剪或 nine-slice 语义。
 
 [^object-fit]: 遵循 [CSS Images 3](https://www.w3.org/TR/css-images-3/#the-object-fit) 的 `fill / contain` 子集；不继承，初始值为 `fill`，适配目标为扣除 border/padding 的 content box。contain 使用 SpriteFrame `rect` 比例，仅改变图片 quad 的尺寸与位置，采用标准初始 `object-position: 50% 50%`，不改变背景、布局或命中区域。异步加载、换图、容器尺寸和 typed style 更新后重新适配；这不是 `scale-down`，小图也会放大。
 
@@ -394,4 +394,4 @@
 
 [^z-index]: 当前实现同父级 positioned elements 与直接 flex items 的绘制顺序：负整数层级在 normal flow 前；positioned `auto` / `0` 和显式 `z-index: 0` 的 flex item 在 normal flow 后；正整数层级最后绘制，同层保持原有顺序。非 flex 的 static 元素不应用 `z-index`。完整 stacking-context tree、positioned descendants 和 auto ancestor 的跨 subtree 排序尚未实现。
 
-[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，控制面与它同属一个 Cue 文档，Cocos 只保留场景、相机与 EditBox 对照物；通过 OMS 插件直接编译 `.cue`；它用于人工视觉验收，不等同于像素级 conformance suite。
+[^decoration-gallery]: Decoration playground 位于独立 examples 仓库，控制面与它同属一个 Cue 文档，Cocos 只保留场景、相机与 EditBox 对照物；通过 OMS 插件直接编译 `.cc.vue`；它用于人工视觉验收，不等同于像素级 conformance suite。

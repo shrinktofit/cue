@@ -1,21 +1,21 @@
-/// static-inline-style.cue.js
+/// static-inline-style.cc.vue.js
 
-import component from "./static-inline-style.cue.script.js";
-import { render } from "./static-inline-style.cue.template.js";
-import styleSheet from "./static-inline-style.cue.style.js";
+import component from "./static-inline-style.cc.vue.script.js";
+import { render } from "./static-inline-style.cc.vue.template.js";
+import styleSheet from "./static-inline-style.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/static-inline-style.cue",
+  __file: "/fixtures/static-inline-style.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// static-inline-style.cue.script.js
+/// static-inline-style.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// static-inline-style.cue.template.js
+/// static-inline-style.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -35,7 +35,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// static-inline-style.cue.style.js
+/// static-inline-style.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

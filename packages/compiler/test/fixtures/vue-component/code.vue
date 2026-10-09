@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import HealthBar from './health-bar.cue';
+import HealthBar from './health-bar.cc.vue';
 </script>
 
 <template>

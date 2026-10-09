@@ -77,7 +77,7 @@ describe('compileCue', () => {
 
   it('canonicalizes a relative cue-image source through the compiler host', () => {
     /// @case
-    /// A Cue template uses the builtin cue-image element with a source relative to its .cue file.
+    /// A .cc.vue template uses the builtin cue-image element with a relative source.
     /// @expect
     /// The compiler host receives the source and importer and generated code contains only its
     /// canonical UUID.
@@ -96,7 +96,7 @@ describe('compileCue', () => {
           source: 'uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
         };
       },
-      filename: '/project/ui/card.cue',
+      filename: '/project/ui/card.cc.vue',
     });
 
     expect(result.ok).toBe(true);
@@ -105,7 +105,7 @@ describe('compileCue', () => {
     }
     expect(calls).toEqual([
       {
-        filename: '/project/ui/card.cue',
+        filename: '/project/ui/card.cc.vue',
         source: './icon.png',
       },
     ]);
@@ -125,7 +125,7 @@ describe('compileCue', () => {
     /// @expect
     /// Compilation rejects the unsupported binding and retains its source line and attribute text.
     const result = compileCue('<template>\n  <div :style="appearance" />\n</template>', {
-      filename: '/project/ui/card.cue',
+      filename: '/project/ui/card.cc.vue',
     });
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -149,7 +149,7 @@ describe('compileCue', () => {
     const result = compileCue(
       '<template><cue-image src="https://example.com/icon.png" /></template>',
       {
-        filename: '/project/ui/card.cue',
+        filename: '/project/ui/card.cc.vue',
       },
     );
 
@@ -170,7 +170,7 @@ describe('compileCue', () => {
     const result = compileCue(
       '<template>\n  <div @contextmenu="handle" />\n</template>',
       {
-        filename: '/project/ui/card.cue',
+        filename: '/project/ui/card.cc.vue',
       },
     );
     expect(result.ok).toBe(false);
@@ -205,7 +205,7 @@ describe('compileCue', () => {
     /// Standard unitless zero succeeds, while unsupported visuals fail visibly.
     const result = compileCue(
       `<template><div class="test" /></template><style>.test { ${declaration} }</style>`,
-      { filename: '/project/ui/card.cue' },
+      { filename: '/project/ui/card.cc.vue' },
     );
 
     expect(result.ok).toBe(supported);
@@ -219,7 +219,7 @@ describe('compileCue', () => {
     const source = 'uuid:a9f027e7-44da-44dc-9a20-99ed39c18322';
     const result = compileCue(
       `<template><div class="test" /></template><style>.test { background-image: url("${source}"); }</style>`,
-      { filename: '/project/ui/card.cue' },
+      { filename: '/project/ui/card.cc.vue' },
     );
 
     expect(result.ok).toBe(true);

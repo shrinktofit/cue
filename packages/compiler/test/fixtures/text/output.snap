@@ -1,21 +1,21 @@
-/// text.cue.js
+/// text.cc.vue.js
 
-import component from "./text.cue.script.js";
-import { render } from "./text.cue.template.js";
-import styleSheet from "./text.cue.style.js";
+import component from "./text.cc.vue.script.js";
+import { render } from "./text.cc.vue.template.js";
+import styleSheet from "./text.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "text.cue",
+  __file: "text.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// text.cue.script.js
+/// text.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// text.cue.template.js
+/// text.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -23,7 +23,7 @@ export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "message" }, "  Hello\nCue  "))
 }
 
-/// text.cue.style.js
+/// text.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

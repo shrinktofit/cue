@@ -4,12 +4,16 @@ Cue is a Vue 3 retained-mode runtime UI system and Cocos Creator / Vortex extens
 
 ## Workspace packages
 
+Cue components use `*.cc.vue`: standard Vue tooling recognizes the `.vue` suffix without custom
+file associations or extension registration. The CLI and OMS Cue plugin match the full `.cc.vue`
+suffix, not ordinary `.vue` files. Runtime imports remain `@bsgames/cue`.
+
 - `@bsgames/cue`: project runtime and Vue custom renderer.
-- `@bsgames/cue-compiler`: `.cue` SFC, template, style, and metadata compiler.
+- `@bsgames/cue-compiler`: `.cc.vue` SFC, template, style, and metadata compiler.
 - `@bsgames/cue-style-schema`: shared runtime style IR.
 - `@bsgames/cue-cli`: early command-line frontend for the compiler library.
-- `@bsgames/oms-plugin-cue`: direct `.cue` imports for OMS development and production builds.
-- `@bsgames/cue-language-service`: Vue/TypeScript/CSS language tooling for `.cue` files.
+- `@bsgames/oms-plugin-cue`: direct `.cc.vue` imports for OMS development and production builds.
+- `@bsgames/cue-language-service`: Vue/TypeScript/CSS language tooling for `.cc.vue` files.
 - `cue`: Vortex extension published through exm as `@bsgames/extension-cue`.
 - `@bsgames/cue-workflow`: private shared TypeScript workflow configuration.
 
@@ -39,6 +43,6 @@ See [OMS integration](docs/oms-integration.md) for current boundaries and verifi
 The CLI remains available as a standalone compiler frontend:
 
 ```text
-cue compile example.cue
-cue compile example.cue --out-dir=generated
+cue compile example.cc.vue
+cue compile example.cc.vue --out-dir=generated
 ```

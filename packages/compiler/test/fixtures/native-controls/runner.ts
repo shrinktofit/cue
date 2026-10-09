@@ -1,4 +1,4 @@
-import component from './native-controls.cue.js';
+import component from './native-controls.cc.vue.js';
 import { CueChangeEvent, CueElement, CueInputEvent, CueKeyboardEvent, CueRootElement, createCueRenderer, nextTick } from '@bsgames/cue';
 
 export async function runNativeControlModels() {

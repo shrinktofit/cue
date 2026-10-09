@@ -26,7 +26,7 @@ Cue 的文本不再是“元素内容区中的一个固定文本块”。Block/F
 - 两者均继承，`white-space: nowrap / pre` 仍禁止软换行，组合字符与 emoji 序列不拆开。
 - `text-fit: none | shrink`：按 CSS Text Level 5 草案，先换行再缩字，默认所有行采用同一个最小缩放因子。需要单行标签时使用 `white-space: nowrap; text-fit: shrink`。
 - 缩字不改变作者/computed `font-size` 或 intrinsic widths；固定 px 行高、inline 边距/边框/内边距和图片/inline-block 尺寸保持不变。`line-height: normal` 使用缩小后的字体度量。行尾空白不触发额外缩字；字体 hinting 引起的非线性宽度会经过重测。
-- `.cue` 中由 Lightning CSS 在编译时解析；运行时通过 `element.style.overflowWrap / wordBreak / textFit` 和对应枚举修改，设为 `undefined` 清除覆盖，不加载 CSS parser。
+- `.cc.vue` 中由 Lightning CSS 在编译时解析；运行时通过 `element.style.overflowWrap / wordBreak / textFit` 和对应枚举修改，设为 `undefined` 清除覆盖，不加载 CSS parser。
 - 当前不支持 grow、per-line、百分比缩放下限或可编辑输入框的自动缩字，不将草案子集描述为完整 CSS Text 5。
 
 ## 验证

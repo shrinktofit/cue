@@ -1,4 +1,4 @@
 {
   "expectedOk": false,
-  "filename": "/fixtures/unsupported-pointer-events.cue"
+  "filename": "/fixtures/unsupported-pointer-events.cc.vue"
 }

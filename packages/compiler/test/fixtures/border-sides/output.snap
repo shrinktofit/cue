@@ -1,21 +1,21 @@
-/// border-sides.cue.js
+/// border-sides.cc.vue.js
 
-import component from "./border-sides.cue.script.js";
-import { render } from "./border-sides.cue.template.js";
-import styleSheet from "./border-sides.cue.style.js";
+import component from "./border-sides.cc.vue.script.js";
+import { render } from "./border-sides.cc.vue.template.js";
+import styleSheet from "./border-sides.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/border-sides.cue",
+  __file: "/fixtures/border-sides.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// border-sides.cue.script.js
+/// border-sides.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// border-sides.cue.template.js
+/// border-sides.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -23,7 +23,7 @@ export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "frame" }))
 }
 
-/// border-sides.cue.style.js
+/// border-sides.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

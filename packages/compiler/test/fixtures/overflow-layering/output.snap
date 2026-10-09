@@ -1,21 +1,21 @@
-/// overflow-layering.cue.js
+/// overflow-layering.cc.vue.js
 
-import component from "./overflow-layering.cue.script.js";
-import { render } from "./overflow-layering.cue.template.js";
-import styleSheet from "./overflow-layering.cue.style.js";
+import component from "./overflow-layering.cc.vue.script.js";
+import { render } from "./overflow-layering.cc.vue.template.js";
+import styleSheet from "./overflow-layering.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/overflow-layering.cue",
+  __file: "/fixtures/overflow-layering.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// overflow-layering.cue.script.js
+/// overflow-layering.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// overflow-layering.cue.template.js
+/// overflow-layering.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -27,7 +27,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// overflow-layering.cue.style.js
+/// overflow-layering.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

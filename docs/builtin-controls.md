@@ -4,7 +4,7 @@
 
 本轮提供六类原生 `CueElement` 控件，统一位于 `packages/runtime/src/builtin-controls/`，通过 `globalElementRegistry` 创建。它们拥有真实元素身份，CSS type selector 匹配实际 `CueElement.tagName`。
 
-实现使用 TypeScript，不引入 `.ce.cue`、内部 SFC 自举或运行时 compiler。Gallery 用 `.cue` 消费控件。当前交付面向 Cocos / Vortex 3.8 Web Preview，不声明完整 HTML 控件、DOM 或 CSS 兼容性。
+实现使用 TypeScript，不引入 内部 SFC 自举或运行时 compiler。Gallery 用 `.cc.vue` 消费控件。当前交付面向 Cocos / Vortex 3.8 Web Preview，不声明完整 HTML 控件、DOM 或 CSS 兼容性。
 
 ## 公开 API
 
@@ -121,7 +121,7 @@ CSS 只在构建期由 Lightning CSS 编译为 Style IR。schema version 仍为 
 
 ## Gallery 与验证
 
-独立 examples 仓库的 `basic/src/button/`、`toggle/`、`slider/`、`select/`、`text-input/`、`number-input/` 各有独立 `.cue` gallery。每页比较默认/自定义外观，分别保存实例状态，记录事件顺序，以 Cocos UI 控制 disabled、外部值、模式、宽度和重挂载。导航及控制面仍用 Cocos UI。
+独立 examples 仓库的 `basic/src/button/`、`toggle/`、`slider/`、`select/`、`text-input/`、`number-input/` 各有独立 `.cc.vue` gallery。每页比较默认/自定义外观，分别保存实例状态，记录事件顺序，以 Cocos UI 控制 disabled、外部值、模式、宽度和重挂载。导航及控制面仍用 Cocos UI。
 
 本轮已验证 compiler/runtime 全量测试，以及 Chromium 中真实键盘、鼠标、文本输入和 Cue 编辑器与 Cocos EditBox 共存。编译挂载测试覆盖模型类型、`undefined`、composition guard、`.lazy`、额外监听器、外部同步与卸载。
 

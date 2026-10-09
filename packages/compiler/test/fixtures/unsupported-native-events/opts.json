@@ -1,5 +1,5 @@
 {
   "customElements": ["custom-control"],
   "expectedOk": false,
-  "filename": "/fixtures/unsupported-native-events.cue"
+  "filename": "/fixtures/unsupported-native-events.cc.vue"
 }

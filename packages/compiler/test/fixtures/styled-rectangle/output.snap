@@ -1,21 +1,21 @@
-/// styled-rectangle.cue.js
+/// styled-rectangle.cc.vue.js
 
-import component from "./styled-rectangle.cue.script.js";
-import { render } from "./styled-rectangle.cue.template.js";
-import styleSheet from "./styled-rectangle.cue.style.js";
+import component from "./styled-rectangle.cc.vue.script.js";
+import { render } from "./styled-rectangle.cc.vue.template.js";
+import styleSheet from "./styled-rectangle.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "styled-rectangle.cue",
+  __file: "styled-rectangle.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// styled-rectangle.cue.script.js
+/// styled-rectangle.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// styled-rectangle.cue.template.js
+/// styled-rectangle.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -27,7 +27,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// styled-rectangle.cue.style.js
+/// styled-rectangle.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

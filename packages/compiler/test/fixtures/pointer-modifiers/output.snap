@@ -1,19 +1,19 @@
-/// pointer-modifiers.cue.js
+/// pointer-modifiers.cc.vue.js
 
-import component from "./pointer-modifiers.cue.script.js";
-import { render } from "./pointer-modifiers.cue.template.js";
+import component from "./pointer-modifiers.cc.vue.script.js";
+import { render } from "./pointer-modifiers.cc.vue.template.js";
 
 export default Object.assign(component, {
-  __file: "pointer-modifiers.cue",
+  __file: "pointer-modifiers.cc.vue",
   render,
 });
 
-/// pointer-modifiers.cue.script.js
+/// pointer-modifiers.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// pointer-modifiers.cue.template.js
+/// pointer-modifiers.cc.vue.template.js
 
 import { withModifiers as _withModifiers, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 

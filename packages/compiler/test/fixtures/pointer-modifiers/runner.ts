@@ -1,4 +1,4 @@
-import { render } from './pointer-modifiers.cue.template.js';
+import { render } from './pointer-modifiers.cc.vue.template.js';
 
 export function runPointerModifiers() {
   const calls: string[] = [];

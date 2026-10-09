@@ -1,4 +1,4 @@
-import component from './component-custom-events.cue.js';
+import component from './component-custom-events.cc.vue.js';
 import { createCueRenderer, CueRootElement } from '@bsgames/cue';
 
 export function runComponentCustomEvents() {

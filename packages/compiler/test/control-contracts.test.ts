@@ -14,7 +14,7 @@ describe('native control compilation contracts', () => {
     const result = compileCue(
       `<script setup>let value;</script><template><${tagName} v-model="value" /></template>`,
       {
-        filename: 'control.cue',
+        filename: 'control.cc.vue',
       },
     );
     expect(result.ok).toBe(true);
@@ -36,7 +36,7 @@ describe('native control compilation contracts', () => {
     /// @expect Only change writes back the event value to the bound model.
     const result = compileCue(
       '<template><cue-number-input v-model.lazy="value" /></template>',
-      { filename: 'lazy.cue' },
+      { filename: 'lazy.cc.vue' },
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -58,7 +58,7 @@ describe('native control compilation contracts', () => {
     /// @case A native model requests a missing control contract, argument, or modifier.
     /// @expect Compilation fails rather than generating DOM directives or silently ignoring syntax.
     expect(
-      compileCue(`<template>${template}</template>`, { filename: 'invalid.cue' }).ok,
+      compileCue(`<template>${template}</template>`, { filename: 'invalid.cc.vue' }).ok,
     ).toBe(false);
   });
 
@@ -70,7 +70,7 @@ describe('native control compilation contracts', () => {
         + '/></template><style>cue-slider#volume.form:hover > .thumb, '
         + '* .label:focus-within { width: 12px; }</style>'),
       {
-        filename: 'selectors.cue',
+        filename: 'selectors.cc.vue',
       },
     );
     expect(result.ok).toBe(true);
@@ -100,7 +100,7 @@ describe('native control compilation contracts', () => {
       expect(
         compileCue(
           `<template><div /></template><style>${selector} { width: 1px; }</style>`,
-          { filename: 'unsupported.cue' },
+          { filename: 'unsupported.cc.vue' },
         ).ok,
       ).toBe(false);
     },

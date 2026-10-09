@@ -1,21 +1,21 @@
-/// object-fit.cue.js
+/// object-fit.cc.vue.js
 
-import component from "./object-fit.cue.script.js";
-import { render } from "./object-fit.cue.template.js";
-import styleSheet from "./object-fit.cue.style.js";
+import component from "./object-fit.cc.vue.script.js";
+import { render } from "./object-fit.cc.vue.template.js";
+import styleSheet from "./object-fit.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/project/ui/object-fit.cue",
+  __file: "/project/ui/object-fit.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// object-fit.cue.script.js
+/// object-fit.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// object-fit.cue.template.js
+/// object-fit.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -27,7 +27,7 @@ export function render(_ctx, _cache) {
   }))
 }
 
-/// object-fit.cue.style.js
+/// object-fit.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

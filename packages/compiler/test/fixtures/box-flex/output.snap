@@ -1,21 +1,21 @@
-/// box-flex.cue.js
+/// box-flex.cc.vue.js
 
-import component from "./box-flex.cue.script.js";
-import { render } from "./box-flex.cue.template.js";
-import styleSheet from "./box-flex.cue.style.js";
+import component from "./box-flex.cc.vue.script.js";
+import { render } from "./box-flex.cc.vue.template.js";
+import styleSheet from "./box-flex.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "box-flex.cue",
+  __file: "box-flex.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// box-flex.cue.script.js
+/// box-flex.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// box-flex.cue.template.js
+/// box-flex.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -29,7 +29,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// box-flex.cue.style.js
+/// box-flex.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

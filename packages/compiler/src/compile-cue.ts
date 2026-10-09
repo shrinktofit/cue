@@ -24,7 +24,7 @@ import {
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 import { compileCueInlineStyle, compileCueStyle } from './compile-cue-style.js';
 
-export const cueFileExtension = '.cue';
+export const cueFileExtension = '.cc.vue';
 export const cueRuntimeModuleName = '@bsgames/cue';
 
 export type CompileCueError

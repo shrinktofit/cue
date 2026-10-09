@@ -1,21 +1,21 @@
-/// text-weight-stroke.cue.js
+/// text-weight-stroke.cc.vue.js
 
-import component from "./text-weight-stroke.cue.script.js";
-import { render } from "./text-weight-stroke.cue.template.js";
-import styleSheet from "./text-weight-stroke.cue.style.js";
+import component from "./text-weight-stroke.cc.vue.script.js";
+import { render } from "./text-weight-stroke.cc.vue.template.js";
+import styleSheet from "./text-weight-stroke.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/text-weight-stroke.cue",
+  __file: "/fixtures/text-weight-stroke.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// text-weight-stroke.cue.script.js
+/// text-weight-stroke.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// text-weight-stroke.cue.template.js
+/// text-weight-stroke.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -33,7 +33,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// text-weight-stroke.cue.style.js
+/// text-weight-stroke.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

@@ -1,5 +1,5 @@
 {
-  "filename": "custom-element.cue",
+  "filename": "custom-element.cc.vue",
   "customElements": [
     "cooldown-ring"
   ]

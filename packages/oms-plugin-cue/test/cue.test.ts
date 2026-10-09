@@ -25,7 +25,7 @@ async function createProject(files: Record<string, string>): Promise<string> {
 
 async function build(project: string, cache?: RollupCache) {
   const bundle = await rollup({
-    input: join(project, 'app.cue'),
+    input: join(project, 'app.cc.vue'),
     plugins: [cue()],
     external: ['@bsgames/cue', 'vue'],
     cache,
@@ -49,20 +49,20 @@ describe('Cue plugin in the Rollup build pipeline', () => {
   it('bundles nested components without writing intermediate modules', async () => {
     /// @case
     /// Two components with the same basename import different helpers relative to their original
-    /// .cue files.
+    /// .cc.vue files.
     /// @expect
     /// The output preserves both helpers and the source tree contains no generated JavaScript.
     const project = await createProject({
-      'app.cue':
-        ('<script setup>import Left from "./left/card.cue"; import '
-          + 'Right from "./right/card.cue";</script><template><Left/><Rig'
+      'app.cc.vue':
+        ('<script setup>import Left from "./left/card.cc.vue"; import '
+          + 'Right from "./right/card.cc.vue";</script><template><Left/><Rig'
           + 'ht/></template>'),
-      'left/card.cue':
+      'left/card.cc.vue':
         ('<script setup>import { label } from '
           + '"./label.js";</script><template><div>{{ label '
           + '}}</div></template>'),
       'left/label.js': 'export const label = "left-original-directory";',
-      'right/card.cue':
+      'right/card.cc.vue':
         ('<script setup>import { label } from '
           + '"./label.js";</script><template><div>{{ label '
           + '}}</div></template>'),
@@ -82,7 +82,7 @@ describe('Cue plugin in the Rollup build pipeline', () => {
     /// @expect
     /// Both canonical UUIDs update and the original source, asset and metadata are watched.
     const project = await createProject({
-      'app.cue':
+      'app.cc.vue':
         ('<template><cue-image src="./icon.png" class="icon" '
           + '/></template><style>.icon { background-image: '
           + 'url("./icon.png"); }</style>'),
@@ -99,7 +99,7 @@ describe('Cue plugin in the Rollup build pipeline', () => {
     expect(first.code).toContain('uuid:texture-before');
     expect(first.watchFiles).toEqual(
       expect.arrayContaining([
-        join(project, 'app.cue'),
+        join(project, 'app.cc.vue'),
         join(project, 'icon.png'),
         join(project, 'icon.png.meta'),
       ]),
@@ -119,13 +119,13 @@ describe('Cue plugin in the Rollup build pipeline', () => {
     /// @case
     /// A directly imported source contains an unsupported dynamic style binding.
     /// @expect
-    /// The build fails with the .cue filename and original source line, not a generated module
+    /// The build fails with the .cc.vue filename and original source line, not a generated module
     /// path.
     const project = await createProject({
-      'app.cue': '<template>\n  <div :style="appearance" />\n</template>',
+      'app.cc.vue': '<template>\n  <div :style="appearance" />\n</template>',
     });
     await expect(build(project)).rejects.toMatchObject({
-      id: join(project, 'app.cue'),
+      id: join(project, 'app.cc.vue'),
       loc: { line: 2, column: 7 },
       message: expect.stringContaining('Dynamic :style'),
     });

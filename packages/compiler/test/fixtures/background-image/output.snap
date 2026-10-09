@@ -1,21 +1,21 @@
-/// background-image.cue.js
+/// background-image.cc.vue.js
 
-import component from "./background-image.cue.script.js";
-import { render } from "./background-image.cue.template.js";
-import styleSheet from "./background-image.cue.style.js";
+import component from "./background-image.cc.vue.script.js";
+import { render } from "./background-image.cc.vue.template.js";
+import styleSheet from "./background-image.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/background-image.cue",
+  __file: "/fixtures/background-image.cc.vue",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// background-image.cue.script.js
+/// background-image.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// background-image.cue.template.js
+/// background-image.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -23,7 +23,7 @@ export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "paper" }))
 }
 
-/// background-image.cue.style.js
+/// background-image.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

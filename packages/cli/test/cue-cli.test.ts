@@ -24,13 +24,13 @@ afterEach(async () => {
 describe('cue compile', () => {
   it('writes the generated JavaScript modules to the current directory by default', async () => {
     /// @case
-    /// A user compiles a .cue file without passing --out-dir.
+    /// A user compiles a .cc.vue file without passing --out-dir.
     /// @expect
     /// The CLI writes every generated JavaScript file into the current working directory.
     const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-default-'));
     temporaryDirectories.push(workingDirectory);
     await writeFile(
-      join(workingDirectory, 'greeting.cue'),
+      join(workingDirectory, 'greeting.cc.vue'),
       '<template><div>Hello</div></template>',
       'utf8',
     );
@@ -40,7 +40,7 @@ describe('cue compile', () => {
       [
         cliEntry,
         'compile',
-        'greeting.cue',
+        'greeting.cc.vue',
       ],
       {
         cwd: workingDirectory,
@@ -48,9 +48,9 @@ describe('cue compile', () => {
     );
 
     const outputFiles = [
-      join(workingDirectory, 'greeting.cue.js'),
-      join(workingDirectory, 'greeting.cue.script.js'),
-      join(workingDirectory, 'greeting.cue.template.js'),
+      join(workingDirectory, 'greeting.cc.vue.js'),
+      join(workingDirectory, 'greeting.cc.vue.script.js'),
+      join(workingDirectory, 'greeting.cc.vue.template.js'),
     ];
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
     await expect(
@@ -60,13 +60,13 @@ describe('cue compile', () => {
 
   it('writes the generated JavaScript modules to --out-dir', async () => {
     /// @case
-    /// A user compiles a .cue file with an explicit generated directory.
+    /// A user compiles a .cc.vue file with an explicit generated directory.
     /// @expect
     /// The CLI creates the directory and writes every generated JavaScript file there.
     const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-output-'));
     temporaryDirectories.push(workingDirectory);
     await writeFile(
-      join(workingDirectory, 'greeting.cue'),
+      join(workingDirectory, 'greeting.cc.vue'),
       '<template><div>Hello</div></template>',
       'utf8',
     );
@@ -76,7 +76,7 @@ describe('cue compile', () => {
       [
         cliEntry,
         'compile',
-        'greeting.cue',
+        'greeting.cc.vue',
         '--out-dir=generated',
       ],
       {
@@ -85,9 +85,9 @@ describe('cue compile', () => {
     );
 
     const outputFiles = [
-      join(workingDirectory, 'generated', 'greeting.cue.js'),
-      join(workingDirectory, 'generated', 'greeting.cue.script.js'),
-      join(workingDirectory, 'generated', 'greeting.cue.template.js'),
+      join(workingDirectory, 'generated', 'greeting.cc.vue.js'),
+      join(workingDirectory, 'generated', 'greeting.cc.vue.script.js'),
+      join(workingDirectory, 'generated', 'greeting.cc.vue.template.js'),
     ];
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
     await expect(
@@ -106,7 +106,7 @@ describe('cue compile', () => {
     temporaryDirectories.push(workingDirectory);
     await Promise.all([
       writeFile(
-        join(workingDirectory, 'card.cue'),
+        join(workingDirectory, 'card.cc.vue'),
         '<template><cue-image src="./icon.png" /></template>',
         'utf8',
       ),
@@ -127,13 +127,13 @@ describe('cue compile', () => {
     await executeFile(process.execPath, [
       cliEntry,
       'compile',
-      'card.cue',
+      'card.cc.vue',
     ], {
       cwd: workingDirectory,
     });
 
     const template = await readFile(
-      join(workingDirectory, 'card.cue.template.js'),
+      join(workingDirectory, 'card.cc.vue.template.js'),
       'utf8',
     );
     expect(template).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
@@ -151,7 +151,7 @@ describe('cue compile', () => {
     temporaryDirectories.push(workingDirectory);
     await Promise.all([
       writeFile(
-        join(workingDirectory, 'card.cue'),
+        join(workingDirectory, 'card.cc.vue'),
         ('<template><div class="card" /></template><style>.card { '
           + 'background-image: url("./paper.png"); }</style>'),
         'utf8',
@@ -177,11 +177,11 @@ describe('cue compile', () => {
     await executeFile(process.execPath, [
       cliEntry,
       'compile',
-      'card.cue',
+      'card.cc.vue',
     ], {
       cwd: workingDirectory,
     });
-    const style = await readFile(join(workingDirectory, 'card.cue.style.js'), 'utf8');
+    const style = await readFile(join(workingDirectory, 'card.cc.vue.style.js'), 'utf8');
     expect(style).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a');
     expect(style).not.toContain('./paper.png');
     expect(style).not.toContain('@f9941');

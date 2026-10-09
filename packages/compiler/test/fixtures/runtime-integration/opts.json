@@ -2,5 +2,5 @@
   "customElements": [
     "counter-display"
   ],
-  "filename": "runtime-integration.cue"
+  "filename": "runtime-integration.cc.vue"
 }
