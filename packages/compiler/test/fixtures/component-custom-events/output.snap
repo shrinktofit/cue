@@ -1,20 +1,21 @@
-/// component-custom-events.cue.js
+/// component-custom-events.cc.vue.js
 
-import component from "./component-custom-events.cue.script.js";
-import { render } from "./component-custom-events.cue.template.js";
+import component from "./component-custom-events.cc.vue.script.js";
+import { render } from "./component-custom-events.cc.vue.template.js";
 
 export default Object.assign(component, {
-  __file: "component-custom-events.cue",
+  __file: "component-custom-events.cc.vue",
+  __name: "component-custom-events",
   render,
 });
 
-/// component-custom-events.cue.script.js
+/// component-custom-events.cc.vue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
 import { defineComponent, h, onMounted } from '@bsgames/cue';
 const eventName = 'dynamic';
 const __sfc__ = /*@__PURE__*/ _defineComponent({
-    __name: 'component-custom-events',
+    __name: 'component-custom-events.cc',
     setup(__props, { expose: __expose }) {
         const calls = [];
         function handle(value) { calls.push(value); }
@@ -41,7 +42,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
 });
 export default __sfc__;
 
-/// component-custom-events.cue.template.js
+/// component-custom-events.cc.vue.template.js
 
 import { toHandlerKey as _toHandlerKey, toHandlers as _toHandlers, mergeProps as _mergeProps, openBlock as _openBlock, createBlock as _createBlock } from "@bsgames/cue"
 

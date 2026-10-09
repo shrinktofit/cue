@@ -2,7 +2,7 @@
 
 状态：推进 Phase 0 剩余契约与验证 Gate；OMS 直接导入和 examples 迁移已交付，保留用户验收与平台 Gate
 目标运行环境：Cocos Creator / Vortex 3.8
-文档日期：2026-10-09
+文档日期：2026-10-10
 
 ## 1. 项目定位
 
@@ -11,7 +11,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 目标链路为：
 
 ```text
-.cue SFC
+.cc.vue SFC
   -> Cue compiler
   -> JavaScript render function + versioned style/asset metadata
   -> oh-my-script build/runtime
@@ -44,8 +44,8 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 
 - Pointer Events / 命中 / Vue 事件与 Input Gallery 的边界见 [`input.md`](input.md)。本轮已接通内置控件 focus、Web keyboard、wheel 与文本编辑/composition 桥接；Native、OS IME 人工验收、通用 scrolling / gestures 和长期交互回归仍为 Gate，完成项待用户确认后移除。
 - 六类原生控件、真实 type/state selectors、低来源默认样式和各自 gallery 已交付，契约见 [`builtin-controls.md`](builtin-controls.md)。compiler/runtime 全量测试及真实 Chromium keyboard/mouse/text/touch 回归已有通过记录；不据此关闭 OS IME、production、Native 或用户验收。
-- `.cue` 已通过独立 OMS 插件接入开发/生产脚本构建，examples 不再需要 CLI 预生成 JS；源文件和图片元数据交由 OMS 监听。交付及用户验收 Gate 保留，source map、完整编译依赖和细粒度 HMR 仍未实现，见 [`oms-integration.md`](oms-integration.md)。
-- language-service package 尚未实现 `.cue` virtual code、Vue/TypeScript 检查和 CSS Profile。
+- `.cc.vue` 已通过独立 OMS 插件接入开发/生产脚本构建，examples 不再需要 CLI 预生成 JS；源文件和图片元数据交由 OMS 监听。交付及用户验收 Gate 保留，source map、完整编译依赖和细粒度 HMR 仍未实现，见 [`oms-integration.md`](oms-integration.md)。
+- `.cc.vue` 复用 Vue 工具链的标准 `.vue` 文件识别；language-service package 尚未实现 Cue 专属的模板类型检查和 CSS Profile。
 - 本轮水平 LTR inline formatting 已接入 line box、匿名 inline/block/flex item、span/br、inline-block 与 vertical-align，并补 Text Gallery；契约及剩余边界见 [`inline-layout.md`](inline-layout.md)。交付项保留至用户验收。
 - 文本断词 `overflow-wrap: anywhere`、`word-break: break-all` 与 CSS Text 5 草案 `text-fit: shrink` 子集已接通，Text Gallery 可组合验收；仍保留完整 shaping/bidi、其余断词/缩字值、可编辑文本缩字和平台验证边界，见 [`inline-layout.md`](inline-layout.md)。
 - Box/Flex 已有文本和图片 intrinsic measurement；仍缺完整几何断言矩阵、Flex text baseline 回调、完整 inline conformance 和 Grid。
@@ -59,9 +59,9 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 可以保留的经验：
 
 - runtime / compiler / language-service 分包。
-- 使用 `@vue/compiler-sfc` 解析 `.cue`。
+- 使用 `@vue/compiler-sfc` 解析 `.cc.vue`。
 - 通过 `runtimeModuleName` 把模板 helper 指向 Cue runtime。
-- 使用 `@vue/language-core` 让 `.cue` 参与 Vue/TypeScript 语言服务。
+- 复用 Vue 的 `.vue` 识别与 virtual code；Cue language-service 只补充 runtime 类型、模板语义和 CSS Profile。
 - 用独立 example fixture 同时验证 `vue-tsc` 和编译结果。
 
 不能迁移的设计：
@@ -121,7 +121,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 - `compiler`：SFC、template、CSS、asset reference、IR、source map 和 HMR metadata 编译。
 - `cue-cli`：早期开发阶段的 compiler 命令行前端，只调用 compiler 库，不承载独立编译逻辑。
 - `oms-plugin-cue`：使用公开 OMS/Vite 子集 hooks 消费 compiler artifacts，管理内存派生模块及编译依赖登记，不拥有 watcher 或第二套 bundler。
-- `language-service`：`.cue` 的 Volar/Vue/TypeScript/CSS profile 集成。
+- `language-service`：`.cc.vue` 的 Volar/Vue/TypeScript/CSS profile 集成。
 - `extension`：Vortex 生命周期、OMS 对接、asset-db/build/preview contributions、开发工具 UI。
 
 暂不建立 `shared`、`protocol`、`utils`、`testing` 等 catch-all package。若 compiler/runtime/language-service 确实需要同一稳定 ABI，再以具体职责命名并通过 ADR 拆分。
@@ -138,7 +138,7 @@ Cue 是一套面向 Cocos Creator / Vortex 的 Vue 3 运行时 UI 系统及其�
 1. 通过 exm 安装 Cue extension 和 oh-my-script extension。
 2. 通过 pnpm 安装 Cue runtime 与 language-service 所需 npm 包。
 3. 在 `oms.config.*` 中声明 Cue 所需的 project peer，仅当实际需要单例或项目统一版本时使用。
-4. 在 `tsconfig.json` / Vue compiler options 中启用 `.cue` 和 Cue language plugin。
+4. 在 `tsconfig.json` / Vue compiler options 中配置 Cue runtime 类型和 Cue language plugin；`.cc.vue` 无需额外注册扩展名。
 
 已确定 npm scope 为 `@bsgames`，runtime 包为 `@bsgames/cue`，exm 发布名为 `@bsgames/extension-cue`。ADR-001 仍需确认 runtime helper 最终使用 npm specifier 还是 OMS public export；compiler、language-service、OMS 和生成文件必须只引用这一份规范值，不能各自硬编码。
 
@@ -224,7 +224,7 @@ source locations (development only)
 
 剩余约束：
 
-- production 可移除 source locations 和调试字符串，但 development 表示必须可定位回 `.cue`。
+- production 可移除 source locations 和调试字符串，但 development 表示必须可定位回 `.cc.vue`。
 - 开发 patch 使用稳定 stylesheet/rule/declaration IDs。
 - 是否引入 binary / MessagePack、typed-array module 或继续使用可 tree-shake JavaScript，由体积、解析成本与 HMR patch 实验决定；不为了格式本身升级 schema version。
 - compiler 和 runtime 的 compatibility table 必须进入发布流程。
@@ -253,7 +253,7 @@ source locations (development only)
 - 把现有 template golden fixtures 扩展到 slot、directive、事件、条件和列表。
 - CSS profile table tests：每个支持/拒绝的 property、value、selector 和 at-rule。
 - selector bytecode 与 runtime matcher contract tests。
-- source map tests：script/template/style 错误均映射回 `.cue` 原位置。
+- source map tests：script/template/style 错误均映射回 `.cc.vue` 原位置。
 - asset dependency tests：bundle/path/subasset、CSS URL、动态 `AssetRef`。
 - deterministic output tests：同一输入必须逐 byte 一致。
 - production stripping 和体积 tests。
@@ -265,7 +265,7 @@ source locations (development only)
 
 当前 plugin-enabled OMS worktree 已提供公开的 `@oms/plugin`，Cue 仅消费其 Vite 兼容子集：
 
-- `oms.config.js` 注册独立 `@bsgames/oms-plugin-cue`，直接导入 `.cue`。
+- `oms.config.js` 注册独立 `@bsgames/oms-plugin-cue`，直接导入 `.cc.vue`。
 - facade/script/template/style 通过标准 `resolveId/load` 留在内存；相对导入以原始源码为基准。
 - `addWatchFile` 登记源文件、图片和元数据，OMS 管理重建与整体重载。
 
@@ -294,7 +294,7 @@ config / configResolved
 
 ### 8.3 不接受的方案
 
-- 绕回 Cocos 内置脚本系统处理 `.cue`。
+- 绕回 Cocos 内置脚本系统处理 `.cc.vue`。
 - 修改 `node_modules` 或已安装 OMS extension。
 - Cue 自带第二套项目脚本 watcher、module graph 和 production bundler。
 - 将首版整体重载误报为细粒度 HMR；整体重载是当前用户已确认可接受的开发方式。
@@ -304,12 +304,12 @@ Cue 管理的预编译临时文件只允许用于验证 OMS 扩展点设计，�
 
 ### 8.4 Phase 0 集成验收
 
-- 项目 `src` 可以直接 import 一个 `.cue` component。
-- `.cue` 可以 import 普通 TS、npm dependency 和允许的 `#oms-peer`。
+- 项目 `src` 可以直接 import 一个 `.cc.vue` component。
+- `.cc.vue` 可以 import 普通 TS、npm dependency 和允许的 `#oms-peer`。
 - development 修改 template/style/script 能触发正确的重建及整体重载；细粒度 HMR 独立验收。
 - production Web 输出包含相同语义，不依赖 dev server。
 - headless profile 对不支持的 UI import 给出明确错误或按 ADR 定义排除，不能静默生成空实现。
-- diagnostics 和 stack/source map 能回到 `.cue` 源位置。
+- diagnostics 和 stack/source map 能回到 `.cc.vue` 源位置。
 - OMS 与 Cue extension 版本不兼容时在启动阶段给出一次明确错误。
 
 ## 9. Language Service 规划
@@ -318,27 +318,27 @@ Cue 管理的预编译临时文件只允许用于验证 OMS 扩展点设计，�
 
 第一阶段必须同时支持 IDE 和 CLI：
 
-- `.cue` 文件识别、语法高亮与 document symbols。
+- 复用 Vue 工具链的文件识别、语法高亮与 document symbols，不再维护自定义扩展名识别层。
 - script/script-setup TypeScript completion、diagnostics、rename、references。
 - template 中 Vue component、Cue native element、props、events、slots 和 directives 类型检查。
 - CSS 标准语法能力及 Cue CSS Profile completion、hover、diagnostics。
 - `asset://` completion、definition 和不存在资源 diagnostics，前提是项目 asset index 可用。
 - compiler diagnostics 与 language-service diagnostics 使用同一 code、message 和 source range。
-- `vue-tsc --noEmit` 可在 CI 检查 `.cue`。
+- `vue-tsc --noEmit` 可在 CI 检查 `.cc.vue`。
 
 ### 9.2 分层
 
 ```text
 editor client / vue-tsc
+  -> standard Vue SFC recognition / virtual code
   -> Cue Vue language plugin
-  -> Cue virtual code generator
   -> shared template semantics
   -> TypeScript service
   -> Cue CSS profile service
   -> optional project asset index provider
 ```
 
-- Vue language plugin 负责 `.cue` file kind、virtual code 和 compiler options。
+- 标准 Vue 工具链负责 `.vue` file kind 和 virtual code；Cue language plugin 补充 Cue 模板语义和 compiler options。
 - TypeScript 服务处理 script 与 template generated code。
 - CSS profile 服务不伪装成完整浏览器 CSS；明确标记支持、部分支持和不支持。
 - asset index 是可选的编辑器数据源；缺失时只能降低 asset completion，不得关闭其他类型检查。
@@ -360,7 +360,7 @@ editor client / vue-tsc
 
 LS-A：基础 Vue/TS
 
-- 基于 `@vue/language-core` 接受 `.cue`。
+- 基于标准 `.vue` 工具链验证 `.cc.vue` 的 Vue/TS 检查，不封装文件名或另造 virtual code。
 - runtime lib 指向最终 Cue runtime package。
 - 支持 `vue-tsc`、unknown element/prop/event diagnostics。
 - 用 cc-plus fixture 经验建立最小测试，但改成 `CueElement` 语义。
@@ -383,7 +383,7 @@ LS-C：项目感知
 - 明确支持的 TypeScript、Vue、`@vue/language-core`、VS Code Vue extension 版本矩阵。
 - peer dependency 使用经过测试的范围，不无条件写 `*`。
 - 每次升级 Vue/Volar 都运行 compiled fixture、`vue-tsc`、editor smoke 三层测试。
-- Volar plugin API 改变时由 language-service package 吸收，不让 runtime 或 `.cue` 文件格式跟随变动。
+- Volar plugin API 改变时由 language-service package 吸收，不让 runtime 或 `.cc.vue` 文件格式跟随变动。
 
 ## 10. Runtime 落地规划
 
@@ -451,7 +451,7 @@ Phase 0 必须分别验证：
 
 - main：版本检查、服务启动/停止、菜单和消息入口。
 - hooks/build contribution：把 compiler/IR/asset manifest 接入项目 build。
-- asset-db contribution：识别 `.cue` 资源、刷新 diagnostics 和 dependency graph。
+- asset-db contribution：识别 `.cc.vue` 资源、刷新 diagnostics 和 dependency graph。
 - preview/scene contribution：保持薄层，通过 OMS 的精确公开入口转调；不在 attach 阶段顶层加载 runtime peers。
 - panel：Runtime Inspector、cascade/layout/render diagnostics。
 - worker：compiler、asset indexing 和耗时静态工作；不承载 runtime UI 状态。
@@ -462,9 +462,9 @@ extension 安装测试必须同时 link Cue 和 oh-my-script 到 launcher 创建
 
 独立仓库：`U:\Repos\Bluesquall\cc-extensions\cc-extension-cue-examples`
 
-Examples 通过 OMS 插件直接导入 `.cue`，构建/测试显式断言没有预生成 JS 输入。CLI 只保留为独立工具，不再是 examples 的前置步骤。
+Examples 通过 OMS 插件直接导入 `.cc.vue`，构建/测试显式断言没有预生成 JS 输入。CLI 只保留为独立工具，不再是 examples 的前置步骤。
 
-本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面已自举为 `.cue`（单 CueDocument，仅保留场景/相机与 EditBox 对照物）；六类控件本身仍是 TypeScript `CueElement`，不通过 `.ce.cue` 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
+本轮 `basic` 已增加 Button、Toggle、Slider、Select、TextInput、NumberInput 六个独立 gallery，实际使用原生控件。导航与控制面已自举为 `.cc.vue`（单 CueDocument，仅保留场景/相机与 EditBox 对照物）；六类控件本身仍是 TypeScript `CueElement`，不通过内部 SFC 自举。已验证和剩余人工/平台 Gate 见 [`builtin-controls.md`](builtin-controls.md)，待用户确认的交付不从本计划删除。
 
 后续项目与验收序列：
 
@@ -519,16 +519,16 @@ Examples 通过 OMS 插件直接导入 `.cue`，构建/测试显式断言没有�
 
 - ADR-001：包名、发布通道、安装与 runtime helper specifier。
 - ADR-002：Cue↔OMS source compiler API。
-- ADR-003：`.cue` SFC block 与 scoped/module style 语义。
+- ADR-003：`.cc.vue` SFC block 与 scoped/module style 语义。
 - ADR-004：Style IR/HMR protocol versioning。
 - ADR-005：Taffy Web/Native backend 策略。
 - compiler、language-service 与 runtime 共享的 Custom Element 类型元数据契约。
-- 最小 language plugin：`.cue` + `vue-tsc`。
+- 最小 language plugin：`.cc.vue` + `vue-tsc`。
 - 在现有 isolated Vortex example 上贯通 HMR 和 production build。
 
 退出 Gate：
 
-- `.cue` 通过 OMS 运行，不经过 Cocos 内置脚本系统。
+- `.cc.vue` 通过 OMS 运行，不经过 Cocos 内置脚本系统。
 - source map 和基础 diagnostics 正确。
 - 1000 quad、初始 bundle size 和 Taffy batch bridge 有测量结果。
 - Native 风险有可执行结论，不以“以后再看”关闭。
@@ -631,7 +631,7 @@ Phase 0 前置决策：
 
 1. Cue runtime helper 使用普通 npm specifier、OMS project peer，还是 extension public OMS export。
 2. OMS source compiler extension API 的所有者与发布顺序。
-3. `.cue` 第一版是否支持 `<style scoped>` 与 CSS Modules。
+3. `.cc.vue` 第一版是否支持 `<style scoped>` 与 CSS Modules。
 
 阻断 Phase 0 退出：
 
@@ -657,4 +657,4 @@ Phase 0 前置决策：
 4. 完成 Flex Gate：自动几何测试、Web Preview playground、resize 与 production Web smoke 同时通过。
 5. Flex Gate 完成后接入 Taffy Grid，并建立同结构的 Grid status table、fixtures 与 gallery controls。
 
-OMS 接入的剩余 source map / 发布 Gate、HMR 与 language-service 继续独立跟踪，不混入首版直接导入 `.cue` 的必要接口。
+OMS 接入的剩余 source map / 发布 Gate、HMR 与 language-service 继续独立跟踪，不混入首版直接导入 `.cc.vue` 的必要接口。

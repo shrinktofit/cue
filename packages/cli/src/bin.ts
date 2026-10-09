@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   dirname,
-  extname,
   join,
   resolve,
 } from 'node:path';
@@ -23,7 +22,7 @@ try {
     .demandCommand(1)
     .command(
       'compile <file>',
-      'Compile a .cue file into JavaScript modules.',
+      'Compile a .cc.vue file into JavaScript modules.',
       (command) => command
         .positional('file', {
           describe: 'Cue SFC to compile.',
@@ -37,7 +36,7 @@ try {
         }),
       async (args) => {
         const sourceFile = resolve(args.file);
-        if (extname(sourceFile) !== cueFileExtension) {
+        if (!sourceFile.endsWith(cueFileExtension)) {
           throw new Error(`Expected a ${cueFileExtension} input file: ${sourceFile}`);
         }
 

@@ -1,4 +1,4 @@
 {
   "customElements": ["custom-control"],
-  "filename": "/fixtures/pointer-events.cue"
+  "filename": "/fixtures/pointer-events.cc.vue"
 }

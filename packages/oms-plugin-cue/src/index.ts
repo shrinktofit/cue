@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
   compileCue,
+  cueFileExtension,
   type CanonicalizeCueImageSourceResult,
   type CompileCueFile,
 } from '@bsgames/cue-compiler';
@@ -45,7 +46,7 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
           ...(importerAttributes ? { importerAttributes } : {}),
         });
       }
-      if (importer?.endsWith('.cue')) {
+      if (importer?.endsWith(cueFileExtension)) {
         const component = compileComponent(this, importer, options);
         const file = component.files.find(
           (candidate) => source === `./${candidate.fileName}`,
@@ -69,7 +70,7 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
         }
         return { code: file.code, map: null };
       }
-      if (!id.endsWith('.cue')) {
+      if (!id.endsWith(cueFileExtension)) {
         return undefined;
       }
       const component = compileComponent(this, id, options);

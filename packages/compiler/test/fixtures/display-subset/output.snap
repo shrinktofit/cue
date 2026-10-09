@@ -1,21 +1,22 @@
-/// display-subset.cue.js
+/// display-subset.cc.vue.js
 
-import component from "./display-subset.cue.script.js";
-import { render } from "./display-subset.cue.template.js";
-import styleSheet from "./display-subset.cue.style.js";
+import component from "./display-subset.cc.vue.script.js";
+import { render } from "./display-subset.cc.vue.template.js";
+import styleSheet from "./display-subset.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "display-subset.cue",
+  __file: "display-subset.cc.vue",
+  __name: "display-subset",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// display-subset.cue.script.js
+/// display-subset.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// display-subset.cue.template.js
+/// display-subset.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -23,7 +24,7 @@ export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div"))
 }
 
-/// display-subset.cue.style.js
+/// display-subset.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

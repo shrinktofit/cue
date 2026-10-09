@@ -1,21 +1,22 @@
-/// position-inset.cue.js
+/// position-inset.cc.vue.js
 
-import component from "./position-inset.cue.script.js";
-import { render } from "./position-inset.cue.template.js";
-import styleSheet from "./position-inset.cue.style.js";
+import component from "./position-inset.cc.vue.script.js";
+import { render } from "./position-inset.cc.vue.template.js";
+import styleSheet from "./position-inset.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/position-inset.cue",
+  __file: "/fixtures/position-inset.cc.vue",
+  __name: "position-inset",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// position-inset.cue.script.js
+/// position-inset.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// position-inset.cue.template.js
+/// position-inset.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -31,7 +32,7 @@ export function render(_ctx, _cache) {
   ]))
 }
 
-/// position-inset.cue.style.js
+/// position-inset.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

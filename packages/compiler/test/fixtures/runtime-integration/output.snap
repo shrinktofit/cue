@@ -1,19 +1,20 @@
-/// runtime-integration.cue.js
+/// runtime-integration.cc.vue.js
 
-import component from "./runtime-integration.cue.script.js";
-import { render } from "./runtime-integration.cue.template.js";
+import component from "./runtime-integration.cc.vue.script.js";
+import { render } from "./runtime-integration.cc.vue.template.js";
 
 export default Object.assign(component, {
-  __file: "runtime-integration.cue",
+  __file: "runtime-integration.cc.vue",
+  __name: "runtime-integration",
   render,
 });
 
-/// runtime-integration.cue.script.js
+/// runtime-integration.cc.vue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
 import { defineComponent, h, Length, ref, shallowRef, watchEffect } from '@bsgames/cue';
 const __sfc__ = /*@__PURE__*/ _defineComponent({
-    __name: 'runtime-integration',
+    __name: 'runtime-integration.cc',
     setup(__props, { expose: __expose }) {
         const count = ref(1);
         const panel = shallowRef();
@@ -44,7 +45,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
 });
 export default __sfc__;
 
-/// runtime-integration.cue.template.js
+/// runtime-integration.cc.vue.template.js
 
 import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, createVNode as _createVNode, renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, createTextVNode as _createTextVNode, createCommentVNode as _createCommentVNode } from "@bsgames/cue"
 

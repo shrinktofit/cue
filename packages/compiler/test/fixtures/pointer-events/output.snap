@@ -1,21 +1,22 @@
-/// pointer-events.cue.js
+/// pointer-events.cc.vue.js
 
-import component from "./pointer-events.cue.script.js";
-import { render } from "./pointer-events.cue.template.js";
-import styleSheet from "./pointer-events.cue.style.js";
+import component from "./pointer-events.cc.vue.script.js";
+import { render } from "./pointer-events.cc.vue.template.js";
+import styleSheet from "./pointer-events.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/pointer-events.cue",
+  __file: "/fixtures/pointer-events.cc.vue",
+  __name: "pointer-events",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// pointer-events.cue.script.js
+/// pointer-events.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// pointer-events.cue.template.js
+/// pointer-events.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, withModifiers as _withModifiers, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -47,7 +48,7 @@ export function render(_ctx, _cache) {
   ], 32 /* NEED_HYDRATION */))
 }
 
-/// pointer-events.cue.style.js
+/// pointer-events.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

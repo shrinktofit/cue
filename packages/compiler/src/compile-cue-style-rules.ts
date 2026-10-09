@@ -296,7 +296,7 @@ export function compileCueStyleDeclarations(
       if (!source.startsWith('./') && !source.startsWith('../')) {
         errors.push(
           new SyntaxError(
-            ('background-image url() must be relative to the .cue '
+            ('background-image url() must be relative to the .cc.vue '
               + 'stylesheet or use the "uuid:" scheme.'),
           ),
         );

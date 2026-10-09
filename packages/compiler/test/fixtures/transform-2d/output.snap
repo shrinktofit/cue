@@ -1,21 +1,22 @@
-/// transform-2d.cue.js
+/// transform-2d.cc.vue.js
 
-import component from "./transform-2d.cue.script.js";
-import { render } from "./transform-2d.cue.template.js";
-import styleSheet from "./transform-2d.cue.style.js";
+import component from "./transform-2d.cc.vue.script.js";
+import { render } from "./transform-2d.cc.vue.template.js";
+import styleSheet from "./transform-2d.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/fixtures/transform-2d.cue",
+  __file: "/fixtures/transform-2d.cc.vue",
+  __name: "transform-2d",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// transform-2d.cue.script.js
+/// transform-2d.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// transform-2d.cue.template.js
+/// transform-2d.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -23,7 +24,7 @@ export function render(_ctx, _cache) {
   return (_openBlock(), _createElementBlock("div", { class: "card" }))
 }
 
-/// transform-2d.cue.style.js
+/// transform-2d.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

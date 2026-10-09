@@ -1,0 +1,33 @@
+/// tree-node.cc.vue.js
+
+import component from "./tree-node.cc.vue.script.js";
+import { render } from "./tree-node.cc.vue.template.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/tree-node.cc.vue",
+  __name: "tree-node",
+  render,
+});
+
+/// tree-node.cc.vue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+import TreeNode from './child.ts';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'tree-node.cc',
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const __returned__ = { get TreeNode() { return TreeNode; } };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// tree-node.cc.vue.template.js
+
+import { openBlock as _openBlock, createBlock as _createBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createBlock($setup["TreeNode"]))
+}

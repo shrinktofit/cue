@@ -1,4 +1,4 @@
-import component from './runtime-integration.cue.js';
+import component from './runtime-integration.cc.vue.js';
 import {
   CueElement,
   CueRootElement,

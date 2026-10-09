@@ -1,21 +1,22 @@
-/// text-fitting.cue.js
+/// text-fitting.cc.vue.js
 
-import component from "./text-fitting.cue.script.js";
-import { render } from "./text-fitting.cue.template.js";
-import styleSheet from "./text-fitting.cue.style.js";
+import component from "./text-fitting.cc.vue.script.js";
+import { render } from "./text-fitting.cc.vue.template.js";
+import styleSheet from "./text-fitting.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "/project/ui/text-fitting.cue",
+  __file: "/project/ui/text-fitting.cc.vue",
+  __name: "text-fitting",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// text-fitting.cue.script.js
+/// text-fitting.cc.vue.script.js
 
 const __sfc__ = {};
 export default __sfc__;
 
-/// text-fitting.cue.template.js
+/// text-fitting.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -26,7 +27,7 @@ export function render(_ctx, _cache) {
   }, "AnUnbreakableLabel"))
 }
 
-/// text-fitting.cue.style.js
+/// text-fitting.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

@@ -1,19 +1,20 @@
-/// custom-element.cue.js
+/// custom-element.cc.vue.js
 
-import component from "./custom-element.cue.script.js";
-import { render } from "./custom-element.cue.template.js";
+import component from "./custom-element.cc.vue.script.js";
+import { render } from "./custom-element.cc.vue.template.js";
 
 export default Object.assign(component, {
-  __file: "custom-element.cue",
+  __file: "custom-element.cc.vue",
+  __name: "custom-element",
   render,
 });
 
-/// custom-element.cue.script.js
+/// custom-element.cc.vue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
 const progress = 0.75;
 const __sfc__ = /*@__PURE__*/ _defineComponent({
-    __name: 'custom-element',
+    __name: 'custom-element.cc',
     setup(__props, { expose: __expose }) {
         __expose();
         const __returned__ = { progress };
@@ -23,7 +24,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
 });
 export default __sfc__;
 
-/// custom-element.cue.template.js
+/// custom-element.cc.vue.template.js
 
 import { openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 

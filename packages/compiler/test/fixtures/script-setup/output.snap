@@ -1,19 +1,20 @@
-/// greeting.cue.js
+/// greeting.cc.vue.js
 
-import component from "./greeting.cue.script.js";
-import { render } from "./greeting.cue.template.js";
+import component from "./greeting.cc.vue.script.js";
+import { render } from "./greeting.cc.vue.template.js";
 
 export default Object.assign(component, {
-  __file: "greeting.cue",
+  __file: "greeting.cc.vue",
+  __name: "greeting",
   render,
 });
 
-/// greeting.cue.script.js
+/// greeting.cc.vue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
 const message = 'Hello';
 const __sfc__ = /*@__PURE__*/ _defineComponent({
-    __name: 'greeting',
+    __name: 'greeting.cc',
     setup(__props, { expose: __expose }) {
         __expose();
         const __returned__ = { message };
@@ -23,7 +24,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
 });
 export default __sfc__;
 
-/// greeting.cue.template.js
+/// greeting.cc.vue.template.js
 
 import { toDisplayString as _toDisplayString, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 

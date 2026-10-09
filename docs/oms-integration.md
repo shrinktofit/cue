@@ -1,12 +1,12 @@
 # OMS integration
 
 `@bsgames/oms-plugin-cue` consumes the public `@oms/plugin` Vite-compatible subset.
-Register `cue({ customElements: [...] })` in the project's `oms.config.js`; then import `.cue`
+Register `cue({ customElements: [...] })` in the project's `oms.config.js`; then import `.cc.vue`
 from ordinary TypeScript and other Cue components. `customElements` is optional.
 
 The plugin uses `buildStart`, `resolveId` and `load`. Compiler output remains an in-memory
 facade plus script/template/style modules, with identities derived from the full original filename.
-Imports in generated scripts resolve relative to the original `.cue`, not a generated directory.
+Imports in generated scripts resolve relative to the original `.cc.vue`, not a generated directory.
 Per-build state uses Rollup's plugin cache so simultaneous OMS profiles do not share mutable compilations.
 The compiler library does not import OMS or write files.
 
@@ -32,7 +32,7 @@ the plugin-enabled OMS extension. Its `scripts/build-oms.ts` calls only the publ
   recreation/recovery, and unchanged-source recompilation.
 - Existing browser regressions validate the running galleries, HUD and hotbar.
 
-Build and test reject any `src/generated` directory, intermediate `.cue.js` imports or CLI dependency.
+Build and test reject any `src/generated` directory, intermediate `.cc.vue.js` imports or CLI dependency.
 OMS final files in `temp/oms` and `build` are expected; these are not source inputs. Old local generated
 files were moved to the examples' ignored `.validation/oms-generated-backup` for recovery.
 

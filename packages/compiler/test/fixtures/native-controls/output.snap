@@ -1,21 +1,22 @@
-/// native-controls.cue.js
+/// native-controls.cc.vue.js
 
-import component from "./native-controls.cue.script.js";
-import { render } from "./native-controls.cue.template.js";
-import styleSheet from "./native-controls.cue.style.js";
+import component from "./native-controls.cc.vue.script.js";
+import { render } from "./native-controls.cc.vue.template.js";
+import styleSheet from "./native-controls.cc.vue.style.js";
 
 export default Object.assign(component, {
-  __file: "native-controls.cue",
+  __file: "native-controls.cc.vue",
+  __name: "native-controls",
   render,
   __cueStyleSheets: [styleSheet],
 });
 
-/// native-controls.cue.script.js
+/// native-controls.cc.vue.script.js
 
 import { defineComponent as _defineComponent } from "@bsgames/cue";
 import { ref } from '@bsgames/cue';
 const __sfc__ = /*@__PURE__*/ _defineComponent({
-    __name: 'native-controls',
+    __name: 'native-controls.cc',
     setup(__props, { expose: __expose }) {
         const toggle = ref(false);
         const slider = ref(20);
@@ -43,7 +44,7 @@ const __sfc__ = /*@__PURE__*/ _defineComponent({
 });
 export default __sfc__;
 
-/// native-controls.cue.template.js
+/// native-controls.cc.vue.template.js
 
 import { createElementVNode as _createElementVNode, withModifiers as _withModifiers, withKeys as _withKeys, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
@@ -90,7 +91,7 @@ export function render(_ctx, _cache, $props, $setup, $data, $options) {
   ]))
 }
 
-/// native-controls.cue.style.js
+/// native-controls.cc.vue.style.js
 
 const styleSheet = {
   "rules": [

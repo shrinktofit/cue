@@ -81,15 +81,11 @@ export class CueFocusController {
 
   handle(type: string, init: CueKeyboardEventInit): boolean {
     const active = this.#active;
-    if (!active) {
-      return false;
-    }
-    if (active.disabled || !this.#contains(active)) {
+    if (active && (active.disabled || !this.#contains(active))) {
       this.focus(undefined);
-      return false;
     }
     const event = new CueKeyboardEvent(type, init);
-    active.dispatchEvent(event);
+    (this.#active ?? this.root).dispatchEvent(event);
     if (
       type === 'keydown'
       && event.key === 'Tab'
