@@ -66,8 +66,7 @@ export class CuePointerController {
   constructor(
     readonly root: CueElement,
     readonly onPointerDown?: (target: CueElement | undefined) => void,
-  ) {
-  }
+  ) {}
 
   setRegions(regions: readonly CueHitRegion[]): void {
     const liveElements = new Set(regions.map((region) => region.element));

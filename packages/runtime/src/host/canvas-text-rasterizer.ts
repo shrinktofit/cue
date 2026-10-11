@@ -223,7 +223,12 @@ export class CanvasTextRasterizer implements CueTextMeasurer {
 }
 
 function toCanvasColor(color: CueColor): string {
-  const { alpha, blue, green, red } = color;
+  const {
+    alpha,
+    blue,
+    green,
+    red,
+  } = color;
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 

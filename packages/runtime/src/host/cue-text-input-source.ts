@@ -15,8 +15,7 @@ export interface CueTextInputAnchor {
 }
 /** Web editing/IME transport only. Text, caret and selection remain Cue geometry. */
 export class CueTextInputSource {
-  constructor(readonly ownerDocument: Document = document) {
-  }
+  constructor(readonly ownerDocument: Document = document) {}
 
   sync(activeElement: CueElement | undefined, anchor?: CueTextInputAnchor): void {
     const element

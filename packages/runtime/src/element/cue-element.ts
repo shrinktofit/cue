@@ -299,25 +299,15 @@ export abstract class CueElement extends CueNode {
     _name: string,
     _previousValue: unknown,
     _nextValue: unknown,
-  ): void {
-    // Element subclasses handle their own attribute contracts.
-  }
+  ): void { /* Element subclasses handle their own attribute contracts. */ }
 
-  protected defaultAction(_event: CueEvent): void {
-    // Native controls supply behavior after propagation.
-  }
+  protected defaultAction(_event: CueEvent): void { /* Native controls act after propagation. */ }
 
-  protected connected(): void {
-    // Custom elements may attach document-scoped resources.
-  }
+  protected connected(): void { /* Custom elements may attach document-scoped resources. */ }
 
-  protected disconnected(): void {
-    // Custom elements release document-scoped resources here.
-  }
+  protected disconnected(): void { /* Custom elements release document-scoped resources here. */ }
 
-  protected reparented(): void {
-    // Same-document moves preserve state but can change ancestor-dependent state.
-  }
+  protected reparented(): void { /* Moves preserve state; ancestor-dependent state may change. */ }
 
   readonly #children: CueNode[] = [];
   readonly #properties = new Map<string, unknown>();

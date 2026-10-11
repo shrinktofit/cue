@@ -82,8 +82,7 @@ describe('CustomElementRegistry', () => {
     /// registry.
     /// @expect
     /// Both definitions are returned through get while an unknown name remains absent.
-    class RegisteredElement extends CueElement {
-    }
+    class RegisteredElement extends CueElement {}
 
     const registry = new CustomElementRegistry();
     registry.define('registered-element', RegisteredElement);
@@ -101,8 +100,7 @@ describe('CustomElementRegistry', () => {
     /// The same element name is defined twice in one registry.
     /// @expect
     /// The second definition throws instead of silently replacing the first.
-    class DuplicateElement extends CueElement {
-    }
+    class DuplicateElement extends CueElement {}
 
     const registry = new CustomElementRegistry();
     registry.define('duplicate-element', DuplicateElement);

@@ -40,7 +40,12 @@ describe('CSS relative and absolute box positioning', () => {
     },
   ])(
     'blockifies an inline replaced element in $display / $position layout',
-    ({ display, position, x, y }) => {
+    ({
+      display,
+      position,
+      x,
+      y,
+    }) => {
       /// @case
       /// A cue-image has no authored display and is absolutely positioned or is a flex item.
       /// @expect
