@@ -50,7 +50,12 @@ describe('layoutCueTextLines', () => {
       text: ' A  B\n C D ',
       whiteSpace: CueWhiteSpace.preLine,
     },
-  ])('$name', ({ availableWidth, expectedLines, text, whiteSpace }) => {
+  ])('$name', ({
+    availableWidth,
+    expectedLines,
+    text,
+    whiteSpace,
+  }) => {
     /// @case Text contains spaces and segment breaks under one supported Web CSS white-space mode.
     /// @expect The resulting lines preserve, collapse, and wrap whitespace according to that mode.
     const lines = layoutCueTextLines(

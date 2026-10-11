@@ -394,7 +394,12 @@ function collectTemplateIdentifiers(root: RootNode): Set<string> {
           identifiers.add(property.arg.content);
         }
         if (property.forParseResult) {
-          const { source, value, key, index } = property.forParseResult;
+          const {
+            source,
+            value,
+            key,
+            index,
+          } = property.forParseResult;
           for (const expression of [
             source,
             value,

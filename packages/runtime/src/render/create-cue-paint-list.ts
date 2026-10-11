@@ -78,8 +78,18 @@ import {
 } from './cue-affine-transform.js';
 
 export interface CuePaintRect {
-  borderColors: readonly [CueColor, CueColor, CueColor, CueColor];
-  borderWidths: readonly [number, number, number, number];
+  borderColors: readonly [
+    CueColor,
+    CueColor,
+    CueColor,
+    CueColor,
+  ];
+  borderWidths: readonly [
+    number,
+    number,
+    number,
+    number,
+  ];
   clipDepth: number;
   color: CueColor;
   opacity: number;
@@ -420,8 +430,7 @@ export class CueLayout {
     private readonly _textMeasurer: CueTextMeasurer,
     private readonly _imageSourceLookup: CueImageSourceLookup,
     private readonly _backgroundSourceLookup: CueBackgroundSourceLookup,
-  ) {
-  }
+  ) {}
 
   update(
     styleSheets: readonly CueStyleSheet[],

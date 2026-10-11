@@ -20,7 +20,12 @@ describe('Cue event propagation through the public element tree', () => {
     const target = new DivElement();
     root.insertBefore(parent);
     parent.insertBefore(target);
-    const calls: Array<[CueElement, number, CueElement | undefined, CueElement[]]> = [];
+    const calls: Array<[
+      CueElement,
+      number,
+      CueElement | undefined,
+      CueElement[],
+    ]> = [];
     for (const element of [
       root,
       parent,
