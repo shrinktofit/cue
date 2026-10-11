@@ -18,6 +18,7 @@ export default __sfc__;
 
 /// static-inline-style.cc.vue.template.js
 
+import _cue_image_0 from "./badge.png?uuid" with { importer: "texture" };
 import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
 
 export function render(_ctx, _cache) {
@@ -30,7 +31,9 @@ export function render(_ctx, _cache) {
       __cueInlineStyle: {"declarations":{"position":"absolute","top":0,"right":0,"bottom":0,"left":0},"selectors":[[{"type":"class","name":"cue-inline"}]]}
     }),
     _createTextVNode(),
-    _createElementVNode("status-badge", { __cueInlineStyle: {"declarations":{"backgroundImage":"uuid:cb09da6a-4f20-485c-93a8-db46692a05b3@f9941","fontWeight":700},"selectors":[[{"type":"class","name":"cue-inline"}]]} }),
+    _createElementVNode("status-badge", {
+      __cueInlineStyle: { "declarations": { "backgroundImage": ("uuid:" + _cue_image_0), "fontWeight": 700 }, "selectors": [[{"type":"class","name":"cue-inline"}]] }
+    }, null, 8 /* PROPS */, ["__cueInlineStyle"]),
     _createTextVNode(),
     _createElementVNode("div", null, "Empty inline declaration")
   ]))

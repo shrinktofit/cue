@@ -1,0 +1,50 @@
+/// image-imports.cc.vue.js
+
+import component from "./image-imports.cc.vue.script.js";
+import { render } from "./image-imports.cc.vue.template.js";
+import styleSheet from "./image-imports.cc.vue.style.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/image-imports.cc.vue",
+  __name: "image-imports",
+  render,
+  __cueStyleSheets: [styleSheet],
+});
+
+/// image-imports.cc.vue.script.js
+
+const __sfc__ = {};
+export default __sfc__;
+
+/// image-imports.cc.vue.template.js
+
+import _cue_image_0 from "./icon.png?uuid" with { importer: "sprite-frame" };
+import _cue_image_1 from "./icon.png?uuid" with { importer: "texture" };
+import { createElementVNode as _createElementVNode, createTextVNode as _createTextVNode, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock } from "@bsgames/cue"
+
+export function render(_ctx, _cache) {
+  return (_openBlock(), _createElementBlock(_Fragment, null, [
+    _createElementVNode("cue-image", {
+      src: ("uuid:" + _cue_image_0),
+      __cueInlineStyle: { "importantDeclarations": { "backgroundImage": ("uuid:" + _cue_image_1) }, "selectors": [[{"type":"class","name":"cue-inline"}]] }
+    }, null, 8 /* PROPS */, ["src", "__cueInlineStyle"]),
+    _createTextVNode(),
+    _createElementVNode("cue-image", {
+      src: ("uuid:" + _cue_image_0)
+    }, null, 8 /* PROPS */, ["src"]),
+    _createTextVNode(),
+    _createElementVNode("cue-image", { src: "uuid:existing-sprite-frame" })
+  ], 64 /* STABLE_FRAGMENT */))
+}
+
+/// image-imports.cc.vue.style.js
+
+import _cue_image_0 from "./icon.png?uuid" with { importer: "texture" };
+import _cue_image_1 from "../assets/other.png?uuid" with { importer: "texture" };
+
+const styleSheet = { version: 1, rules: [
+  { "declarations": { "backgroundImage": ("uuid:" + _cue_image_0) }, "selectors": [[{"type":"class","name":"tile"}]] },
+  { "importantDeclarations": { "backgroundImage": ("uuid:" + _cue_image_1) }, "selectors": [[{"type":"class","name":"tile"},{"type":"pseudo-class","kind":"hover"}]] },
+] };
+
+export default styleSheet;

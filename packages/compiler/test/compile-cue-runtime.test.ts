@@ -40,6 +40,27 @@ afterEach(async () => {
 });
 
 describe('compiled Cue runtime integration', () => {
+  it('keeps generated asset imports separate from user bindings', async () => {
+    /// @case
+    /// Setup, context, loop and destructured slot bindings use generated-looking names.
+    /// @expect
+    /// Executing the compiled render preserves user text and always uses the imported image UUID.
+    const integrationModule = (await executeCompiledFixture('image-import-bindings')) as {
+      runImageBindings(): unknown;
+    };
+    expect(integrationModule.runImageBindings()).toEqual({
+      setupText: 'setup text',
+      contextText: 'context text',
+      shorthandText: 'shorthand text',
+      escapedIdentifier: 'escaped identifier',
+      loop: [
+        { src: 'uuid:asset-uuid', text: '1' },
+        { src: 'uuid:asset-uuid', text: '2' },
+      ],
+      slot: { src: 'uuid:asset-uuid', text: 'slot text' },
+    });
+  });
+
   it.each([
     [
       'recursive-component',

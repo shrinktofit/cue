@@ -24,7 +24,7 @@
 | 版本化 Style IR | ✅ | 当前 schema version 为 `1` |
 | 多文件 JavaScript 产物 | ✅ | entry、script、template、style 按实际内容生成 |
 | `cue compile <file> --out-dir=<dir>` | ✅ | CLI 仅调用 compiler library |
-| `<cue-image src>` 静态资源规范化 | ✅[^cue-image] | `uuid:` 原样保留；相对 `.cc.vue` 的路径由 compiler host 规范化为 SpriteFrame UUID |
+| `<cue-image src>` 静态资源规范化 | ✅[^cue-image] | `uuid:` 原样保留；相对路径生成 `?uuid` import，需要 OMS 的 `importer: 'sprite-frame'` 支持 |
 | Compiler → runtime 可执行 fixture | ✅ | 覆盖 Vue 响应式更新、Custom Element 与组件样式挂载 |
 | Source map | ❌ | script、template、style 均未回映到 `.cc.vue` |
 | 稳定 diagnostic code 与精确 source range | ❌ | 当前主要透传 parser/compiler error |
@@ -36,7 +36,7 @@
 | Asset reference / dependency metadata | ❌ | 尚未实现 |
 | HMR metadata 与增量 patch 分类 | ❌ | 尚未实现 |
 | OMS source compiler 接入 | ✅ | `@bsgames/oms-plugin-cue`；直接 import `.cc.vue`，派生模块不落盘；见 [接入说明](oms-integration.md) |
-| OMS 源文件及图片元数据监听 | ✅ | 源文件 / asset / `.meta` 登记到 OMS；更新、删除失败及重建恢复；非细粒度 HMR |
+| OMS 源文件及图片元数据监听 | ✅ | Cue 登记源文件；OMS `?uuid` 负责 asset / `.meta` 依赖、更新与失败恢复；非细粒度 HMR |
 
 ## Element 与 Vue Runtime
 
@@ -376,11 +376,11 @@
 
 [^text-fit]: 对齐 [CSS Text Level 5 编辑草案](https://drafts.csswg.org/css-text-5/#text-fit)，不是稳定 CSS Recommendation；当前为普通 inline formatting 的 `none / shrink` 子集。先按原字号换行，再以最小缩放因子统一缩小；行尾空白不参与缩字判定，固定 px 行高不缩放，normal 行高按使用字号计算，intrinsic widths 不受影响。真实字体缩小后会重新测宽，避免 hinting 造成残留溢出。不承诺完整 shaping / bidi；可编辑输入框的专用 caret/selection 排版不在此声明内。
 
-[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cc.vue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径由宿主读取 Cocos `.meta`，且必须唯一对应一个 `sprite-frame` subasset。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时默认以 `object-fit: fill` 拉伸到 content box。尚无 URL、data URL、图片自身的裁剪或 nine-slice 语义。
+[^cue-image]: `cue-image` 是 Cue 自有元素，不声明 Web `<img>` 兼容性。静态 `src` 只接受相对 `.cc.vue` 文件的路径或 `uuid:<SpriteFrame UUID>`；动态 `src` 当前只接受 `uuid:`。相对路径经 OMS `?uuid` 的 `importer: 'sprite-frame'` 属性唯一选择已有导入资源，保留其配置。资源异步加载后以 SpriteFrame `rect` 作为固有尺寸；只指定一边时保持该比例，两边都指定时默认以 `object-fit: fill` 拉伸到 content box。尚无 URL、data URL、图片自身的裁剪或 nine-slice 语义。
 
 [^object-fit]: 遵循 [CSS Images 3](https://www.w3.org/TR/css-images-3/#the-object-fit) 的 `fill / contain` 子集；不继承，初始值为 `fill`，适配目标为扣除 border/padding 的 content box。contain 使用 SpriteFrame `rect` 比例，仅改变图片 quad 的尺寸与位置，采用标准初始 `object-position: 50% 50%`，不改变背景、布局或命中区域。异步加载、换图、容器尺寸和 typed style 更新后重新适配；这不是 `scale-down`，小图也会放大。
 
-[^background-image]: 对外语法仍是 Web CSS `background-image: url(...)`。当前只接受一层相对路径或 `uuid:` URL；相对路径由 compiler host 规范化为 Cocos `Texture2D` UUID。绘制使用 Web CSS 初始的 `background-repeat: repeat`、`background-position: 0% 0%`、`background-origin: padding-box`、`background-clip: border-box` 和 auto 固有尺寸。显式 repeat / position / size / origin / clip、多层图片、远程 URL 与 nine-slice 尚未实现。
+[^background-image]: 对外语法仍是 Web CSS `background-image: url(...)`。当前只接受一层相对路径或 `uuid:` URL；相对路径经 OMS `?uuid` 的 `importer: 'texture'` 属性规范化为已有 `Texture2D` 的 UUID。绘制使用 Web CSS 初始的 `background-repeat: repeat`、`background-position: 0% 0%`、`background-origin: padding-box`、`background-clip: border-box` 和 auto 固有尺寸。显式 repeat / position / size / origin / clip、多层图片、远程 URL 与 nine-slice 尚未实现。
 
 [^gradient]: 当前 gradient 子集为两个无显式位置、不透明 RGB color stop，以及 `to top` / `right` / `bottom` / `left` 四种方向。斜向、角度、透明 stop、多 stop、显式 stop position、repeating 与 radial / conic gradient 会被拒绝，不会被重解释。
 

@@ -10,10 +10,13 @@ Imports in generated scripts resolve relative to the original `.cc.vue`, not a g
 Per-build state uses Rollup's plugin cache so simultaneous OMS profiles do not share mutable compilations.
 The compiler library does not import OMS or write files.
 
-Relative `<cue-image src>` and CSS `background-image` paths read the adjacent Cocos `.meta`,
-selecting the SpriteFrame and Texture2D subassets respectively. The plugin registers source,
-asset and metadata dependencies before reading; missing metadata fails visibly and can recover
-when recreated. `uuid:` references retain the existing compiler semantics.
+Relative `<cue-image src>` and CSS `background-image` paths generate `?uuid` imports with
+`{ importer: 'sprite-frame' }` and `{ importer: 'texture' }` respectively. This requires OMS's
+importer attribute support: OMS selects the unique matching imported asset and owns asset/metadata
+watching. Cue does not read `.meta`; generated properties use the existing `uuid:` string format
+and load the original SpriteFrame/Texture2D, preserving importer settings. Explicit `uuid:` sources
+remain unchanged. The CLI rebases these imports to `--out-dir`; its output needs an OMS-compatible
+bundler, rather than embedding UUIDs during compilation.
 
 OMS owns watching, full rebuilds, reload, bundling and final output. The plugin does not implement
 another watcher or HMR transport. Fine-grained HMR and compiler source maps are **not implemented**;

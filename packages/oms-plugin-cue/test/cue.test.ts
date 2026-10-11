@@ -1,7 +1,7 @@
-import { mkdtemp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { rollup, type RollupCache } from 'rollup';
+import { rollup, type Plugin } from 'rollup';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cue } from '../src/index.js';
 
@@ -23,12 +23,11 @@ async function createProject(files: Record<string, string>): Promise<string> {
   return project;
 }
 
-async function build(project: string, cache?: RollupCache) {
+async function build(project: string, plugins: Plugin[] = []) {
   const bundle = await rollup({
     input: join(project, 'app.cc.vue'),
-    plugins: [cue()],
+    plugins: [cue(), ...plugins],
     external: ['@bsgames/cue', 'vue'],
-    cache,
     onwarn(warning) {
       throw new Error(warning.message);
     },
@@ -75,44 +74,46 @@ describe('Cue plugin in the Rollup build pipeline', () => {
     expect(await readdir(project, { recursive: true })).toEqual(before);
   });
 
-  it('watches image metadata and recompiles unchanged source with the native cache', async () => {
+  it('delegates image imports to the host with the original component importer', async () => {
     /// @case
-    /// A source uses one image as a SpriteFrame and a background Texture2D, then only its
-    /// metadata changes.
+    /// The host supplies image and background UUID modules without local metadata.
     /// @expect
-    /// Both canonical UUIDs update and the original source, asset and metadata are watched.
+    /// Imports select distinct SpriteFrame/Texture2D assets relative to the source,
+    /// and compiled properties use the existing uuid: string contract.
     const project = await createProject({
       'app.cc.vue':
-        ('<template><cue-image src="./icon.png" class="icon" '
+        ('<template><cue-image src="./icon\'s.png" class="icon" '
           + '/></template><style>.icon { background-image: '
-          + 'url("./icon.png"); }</style>'),
-      'icon.png': '',
-      'icon.png.meta': JSON.stringify({
-        subMetas: {
-          sprite: { importer: 'sprite-frame', uuid: 'sprite-before' },
-          texture: { importer: 'texture', uuid: 'texture-before' },
-        },
-      }),
+          + 'url("./icon\'s.png"); }</style>'),
     });
-    const first = await build(project);
-    expect(first.code).toContain('uuid:sprite-before');
-    expect(first.code).toContain('uuid:texture-before');
-    expect(first.watchFiles).toEqual(
-      expect.arrayContaining([
-        join(project, 'app.cc.vue'),
-        join(project, 'icon.png'),
-        join(project, 'icon.png.meta'),
-      ]),
-    );
-    const metaPath = join(project, 'icon.png.meta');
-    await writeFile(
-      metaPath,
-      (await readFile(metaPath, 'utf8')).replaceAll('before', 'after'),
-    );
-    const second = await build(project, first.cache);
-    expect(second.code).toContain('uuid:sprite-after');
-    expect(second.code).toContain('uuid:texture-after');
-    expect(second.code).not.toContain('uuid:sprite-before');
+    const imports: Array<{ filename: string | undefined; importer: string | undefined }> = [];
+    const output = await build(project, [
+      {
+        name: 'test:host-uuid',
+        resolveId(source, importer, options) {
+          if (source === './icon\'s.png?uuid') {
+            imports.push({ filename: importer, importer: options.attributes.importer });
+            expect(['sprite-frame', 'texture']).toContain(options.attributes.importer);
+            return '\0host:' + options.attributes.importer;
+          }
+          return undefined;
+        },
+        load(id) {
+          return id.startsWith('\0host:')
+            ? `export default ${JSON.stringify(id.slice('\0host:'.length) + '-uuid')};`
+            : undefined;
+        },
+      },
+    ]);
+    expect(imports).toHaveLength(2);
+    expect(imports.every((entry) => entry.filename === join(project, 'app.cc.vue'))).toBe(true);
+    expect(imports.map((entry) => entry.importer).sort()).toEqual([
+      'sprite-frame',
+      'texture',
+    ]);
+    expect(output.code).toContain('"uuid:" + _cue_image_0');
+    expect(output.code).toContain('sprite-frame-uuid');
+    expect(output.code).toContain('texture-uuid');
   });
 
   it('reports the original source location for an unsupported template binding', async () => {
