@@ -12,5 +12,8 @@
     "@bsgames/cue-style-schema": "0.0.0",
     "@bsgames/cue-workflow": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "cue-top-level-render-resources",
+    "initial-cue-release"
+  ]
 }
