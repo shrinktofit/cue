@@ -85,15 +85,8 @@ import type {
   StyleSheet,
 } from 'lightningcss';
 
-export type CanonicalizeCueImageSource = (
-  source: string,
-  filename: string,
-) => { ok: true; source: string } | { ok: false; error: Error | string };
-
 export function compileCueStyleRules(
   styleSheet: StyleSheet,
-  filename: string,
-  canonicalizeBackgroundImageSource: CanonicalizeCueImageSource | undefined,
   errors: Error[],
 ): CueStyleRule[] {
   const rules: CueStyleRule[] = [];
@@ -104,14 +97,10 @@ export function compileCueStyleRules(
 
     const declarations = compileCueStyleDeclarations(
       rule.value.declarations?.declarations ?? [],
-      filename,
-      canonicalizeBackgroundImageSource,
       errors,
     );
     const importantDeclarations = compileCueStyleDeclarations(
       rule.value.declarations?.importantDeclarations ?? [],
-      filename,
-      canonicalizeBackgroundImageSource,
       errors,
     );
     if (
@@ -147,8 +136,6 @@ export function compileCueStyleRules(
 
 export function compileCueStyleDeclarations(
   declarations: readonly Declaration[],
-  filename: string,
-  canonicalizeBackgroundImageSource: CanonicalizeCueImageSource | undefined,
   errors: Error[],
 ): CueStyleDeclarations {
   const compiledDeclarations: CueStyleDeclarations = {};
@@ -302,35 +289,7 @@ export function compileCueStyleDeclarations(
         );
         break;
       }
-      if (!canonicalizeBackgroundImageSource) {
-        errors.push(
-          new SyntaxError(
-            `Cannot compile relative background-image url(${JSON.stringify(source)}) without a compiler-host background image canonicalizer.`,
-          ),
-        );
-        break;
-      }
-      const result = canonicalizeBackgroundImageSource(source, filename);
-      if (!result.ok) {
-        errors.push(
-          result.error instanceof Error ? result.error : new Error(result.error),
-        );
-        break;
-      }
-      if (
-        !result.source.startsWith('uuid:')
-        || result.source.length <= 'uuid:'.length
-        || /\s/u.test(result.source)
-      ) {
-        errors.push(
-          new SyntaxError(
-            ('The compiler host returned an invalid background image '
-              + 'source; expected a non-empty "uuid:" source.'),
-          ),
-        );
-        break;
-      }
-      compiledDeclarations[CueStyleProperty.backgroundImage] = result.source;
+      compiledDeclarations[CueStyleProperty.backgroundImage] = source;
       break;
     }
     case 'color': {

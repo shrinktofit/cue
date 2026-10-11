@@ -26,79 +26,10 @@ export function render(_ctx, _cache) {
 
 /// background-image.cc.vue.style.js
 
-const styleSheet = {
-  "rules": [
-    {
-      "declarations": {
-        "width": 240,
-        "height": 160,
-        "backgroundColor": {
-          "alpha": 1,
-          "blue": 51,
-          "green": 34,
-          "red": 17
-        },
-        "backgroundImage": "uuid:81de8e76-44f9-4d8b-aa6f-8b13a70673a5@6c48a",
-        "borderTopColor": {
-          "alpha": 1,
-          "blue": 255,
-          "green": 255,
-          "red": 255
-        },
-        "borderTopStyle": "solid",
-        "borderTopWidth": 4,
-        "borderRightColor": {
-          "alpha": 1,
-          "blue": 255,
-          "green": 255,
-          "red": 255
-        },
-        "borderRightStyle": "solid",
-        "borderRightWidth": 4,
-        "borderBottomColor": {
-          "alpha": 1,
-          "blue": 255,
-          "green": 255,
-          "red": 255
-        },
-        "borderBottomStyle": "solid",
-        "borderBottomWidth": 4,
-        "borderLeftColor": {
-          "alpha": 1,
-          "blue": 255,
-          "green": 255,
-          "red": 255
-        },
-        "borderLeftStyle": "solid",
-        "borderLeftWidth": 4,
-        "borderBottomLeftRadius": [
-          36,
-          24
-        ],
-        "borderBottomRightRadius": [
-          18,
-          12
-        ],
-        "borderTopLeftRadius": [
-          18,
-          12
-        ],
-        "borderTopRightRadius": [
-          36,
-          24
-        ]
-      },
-      "selectors": [
-        [
-          {
-            "type": "class",
-            "name": "paper"
-          }
-        ]
-      ]
-    }
-  ],
-  "version": 1
-};
+import _cue_image_0 from "./paper.png?uuid" with { importer: "texture" };
+
+const styleSheet = { version: 1, rules: [
+  { "declarations": { "width": 240, "height": 160, "backgroundColor": {"alpha":1,"blue":51,"green":34,"red":17}, "backgroundImage": ("uuid:" + _cue_image_0), "borderTopColor": {"alpha":1,"blue":255,"green":255,"red":255}, "borderTopStyle": "solid", "borderTopWidth": 4, "borderRightColor": {"alpha":1,"blue":255,"green":255,"red":255}, "borderRightStyle": "solid", "borderRightWidth": 4, "borderBottomColor": {"alpha":1,"blue":255,"green":255,"red":255}, "borderBottomStyle": "solid", "borderBottomWidth": 4, "borderLeftColor": {"alpha":1,"blue":255,"green":255,"red":255}, "borderLeftStyle": "solid", "borderLeftWidth": 4, "borderBottomLeftRadius": [36,24], "borderBottomRightRadius": [18,12], "borderTopLeftRadius": [18,12], "borderTopRightRadius": [36,24] }, "selectors": [[{"type":"class","name":"paper"}]] },
+] };
 
 export default styleSheet;

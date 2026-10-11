@@ -1,0 +1,58 @@
+/// image-import-bindings.cc.vue.js
+
+import component from "./image-import-bindings.cc.vue.script.js";
+import { render } from "./image-import-bindings.cc.vue.template.js";
+
+export default Object.assign(component, {
+  __file: "/project/ui/image-import-bindings.cc.vue",
+  __name: "image-import-bindings",
+  render,
+});
+
+/// image-import-bindings.cc.vue.script.js
+
+import { defineComponent as _defineComponent } from "@bsgames/cue";
+const _cue_image_0 = 'setup text';
+const __sfc__ = /*@__PURE__*/ _defineComponent({
+    __name: 'image-import-bindings.cc',
+    setup(__props, { expose: __expose }) {
+        __expose();
+        const SlotHost = {};
+        const __returned__ = { _cue_image_0, SlotHost };
+        Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
+        return __returned__;
+    }
+});
+export default __sfc__;
+
+/// image-import-bindings.cc.vue.template.js
+
+import _cue_image_5 from "./image.ts?uuid" with { importer: "sprite-frame" };
+import { toDisplayString as _toDisplayString, createElementVNode as _createElementVNode, renderList as _renderList, Fragment as _Fragment, openBlock as _openBlock, createElementBlock as _createElementBlock, withCtx as _withCtx, createVNode as _createVNode, createTextVNode as _createTextVNode } from "@bsgames/cue"
+
+export function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock(_Fragment, null, [
+    _createElementVNode("div", null, _toDisplayString($setup._cue_image_0)),
+    _createTextVNode(),
+    _createElementVNode("div", {
+      _cue_image_3: _ctx._cue_image_3,
+      title: _ctx._cue_image_4
+    }, _toDisplayString(_ctx._cue_image_1), 9 /* TEXT, PROPS */, ["_cue_image_3", "title"]),
+    _createTextVNode(),
+    (_openBlock(), _createElementBlock(_Fragment, null, _renderList([1, 2], (_cue_image_0) => {
+      return _createElementVNode("cue-image", {
+        key: _cue_image_0,
+        src: ("uuid:" + _cue_image_5)
+      }, _toDisplayString(_cue_image_0), 9 /* TEXT, PROPS */, ["src"])
+    }), 64 /* STABLE_FRAGMENT */)),
+    _createTextVNode(),
+    _createVNode($setup["SlotHost"], null, {
+      default: _withCtx(({ value: _cue_image_2 }) => [
+        _createElementVNode("cue-image", {
+          src: ("uuid:" + _cue_image_5)
+        }, _toDisplayString(_cue_image_2), 9 /* TEXT, PROPS */, ["src"])
+      ]),
+      _: 2 /* DYNAMIC */
+    }, 1024 /* DYNAMIC_SLOTS */)
+  ], 64 /* STABLE_FRAGMENT */))
+}

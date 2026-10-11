@@ -1,9 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
 import {
   compileCue,
   cueFileExtension,
-  type CanonicalizeCueImageSourceResult,
   type CompileCueFile,
 } from '@bsgames/cue-compiler';
 import type { OmsPlugin, OmsPluginContext } from '@oms/plugin';
@@ -15,7 +13,6 @@ export interface CuePluginOptions {
 interface CompiledComponent {
   entryFileName: string;
   files: CompileCueFile[];
-  dependencies: string[];
 }
 
 const modulePrefix = '\0cue:';
@@ -27,8 +24,7 @@ export function cue(options: CuePluginOptions = {}): OmsPlugin {
     name: 'oms-plugin-cue',
     enforce: 'pre',
     buildStart() {
-      // Native plugin caches are separate for each OMS build/profile. A build-local
-      // collection also ensures metadata changes never reuse stale UUIDs.
+      // Native plugin caches are separate for each OMS build/profile.
       this.cache.set(cacheKey, {});
     },
     async resolveId(source, importer, resolveOptions) {
@@ -89,45 +85,12 @@ function compileComponent(
   options: CuePluginOptions,
 ): CompiledComponent {
   const components: Record<string, CompiledComponent> = context.cache.get(cacheKey);
+  context.addWatchFile(filename);
   let component = components[filename];
   if (!component) {
-    const dependencies = new Set([filename]);
-    context.addWatchFile(filename);
-    const canonicalize = (
-      source: string,
-      importer: 'sprite-frame' | 'texture',
-    ): CanonicalizeCueImageSourceResult => {
-      const assetPath = resolve(dirname(filename), source);
-      const metaPath = `${assetPath}.meta`;
-      for (const dependency of [assetPath, metaPath]) {
-        dependencies.add(dependency);
-        // Register before reading so a missing or invalid .meta can recover on change.
-        context.addWatchFile(dependency);
-      }
-      const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as {
-        subMetas?: Record<string, { importer?: string; uuid?: string }>;
-      };
-      const assets = Object.values(meta.subMetas ?? {}).filter(
-        (asset) =>
-          asset.importer === importer
-          && typeof asset.uuid === 'string'
-          && asset.uuid.length > 0,
-      );
-      if (assets.length !== 1) {
-        return {
-          ok: false,
-          error: new SyntaxError(
-            `Expected exactly one ${importer} subasset in ${metaPath}, found ${assets.length}.`,
-          ),
-        };
-      }
-      return { ok: true, source: `uuid:${assets[0]!.uuid}` };
-    };
     const result = compileCue(readFileSync(filename, 'utf8'), {
       ...options,
       filename,
-      canonicalizeImageSource: (source) => canonicalize(source, 'sprite-frame'),
-      canonicalizeBackgroundImageSource: (source) => canonicalize(source, 'texture'),
     });
     if (!result.ok) {
       const first = result.errors[0];
@@ -154,13 +117,9 @@ function compileComponent(
     component = {
       entryFileName: result.entryFileName,
       files: result.files,
-      dependencies: [...dependencies],
     };
     components[filename] = component;
     context.cache.set(cacheKey, components);
-  }
-  for (const dependency of component.dependencies) {
-    context.addWatchFile(dependency);
   }
   return component;
 }

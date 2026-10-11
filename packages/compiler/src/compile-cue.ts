@@ -6,11 +6,11 @@ import {
   ElementTypes,
   NodeTypes,
   transformModel,
-  type AttributeNode,
+  walkIdentifiers,
   type CompoundExpressionNode,
   type DirectiveTransform,
   type ElementNode,
-  type NodeTransform,
+  type ExpressionNode,
   type RootNode,
 } from '@vue/compiler-core';
 import {
@@ -23,6 +23,7 @@ import {
 } from '@vue/compiler-sfc';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 import { compileCueInlineStyle, compileCueStyle } from './compile-cue-style.js';
+import { CueImageImports } from './cue-image-imports.js';
 
 export const cueFileExtension = '.cc.vue';
 export const cueRuntimeModuleName = '@bsgames/cue';
@@ -31,24 +32,9 @@ export type CompileCueError
   = | SFCParseResult['errors'][number]
     | SFCTemplateCompileResults['errors'][number];
 
-export type CanonicalizeCueImageSourceResult
-  = | {
-    ok: true;
-    source: string;
-  }
-  | {
-    ok: false;
-    error: CompileCueError;
-  };
-
-export type CueImageSourceCanonicalizer = (
-  source: string,
-  filename: string,
-) => CanonicalizeCueImageSourceResult;
-
 export interface CompileCueOptions {
-  canonicalizeBackgroundImageSource?: CueImageSourceCanonicalizer;
-  canonicalizeImageSource?: CueImageSourceCanonicalizer;
+  /** Source directory relative to emitted modules; omitted for bundler virtual modules. */
+  assetImportBase?: string;
   customElements?: readonly string[];
   filename: string;
   id?: string;
@@ -102,8 +88,12 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     ? structuredClone(descriptor.template.ast)
     : undefined;
   const templatePropertyErrors: CompileCueError[] = [];
+  const templateImages = new CueImageImports(
+    options.assetImportBase,
+    templateAst ? collectTemplateIdentifiers(templateAst) : undefined,
+  );
   if (templateAst) {
-    compileTemplateProperties(templateAst, options, templatePropertyErrors);
+    compileTemplateProperties(templateAst, options, templateImages, templatePropertyErrors);
   }
   if (templatePropertyErrors.length > 0) {
     return { ok: false, errors: templatePropertyErrors };
@@ -111,7 +101,6 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
   const compiledStyle = compileCueStyle(
     descriptor.styles.map((style) => style.content),
     options.filename,
-    options.canonicalizeBackgroundImageSource,
   );
   if (compiledStyle.errors.length > 0) {
     return {
@@ -128,7 +117,6 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     ? sourceFileName.slice(0, -cueFileExtension.length)
     : undefined;
   const id = options.id ?? options.filename;
-  const imageSourceErrors: CompileCueError[] = [];
   const templateCompilerOptions: CompilerOptions = {
     ...options.templateCompilerOptions,
     hoistStatic: false,
@@ -139,6 +127,11 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     },
     nodeTransforms: [
       (node, context) => {
+        if (node.type === NodeTypes.ROOT) {
+          for (const { name } of templateImages.bindings.values()) {
+            context.addIdentifiers(name);
+          }
+        }
         // Vue removes only .vue when inferring selfName. Remove the remaining .cc
         // without changing the real filename used for imports and diagnostics.
         if (
@@ -149,7 +142,6 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
           context.selfName = context.selfName.slice(0, -'.cc'.length);
         }
       },
-      createCueImageSourceTransform(options, imageSourceErrors),
       ...(options.templateCompilerOptions?.nodeTransforms ?? []),
     ],
     runtimeModuleName: cueRuntimeModuleName,
@@ -183,10 +175,10 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     })
     : undefined;
 
-  if (template && (template.errors.length > 0 || imageSourceErrors.length > 0)) {
+  if (template && template.errors.length > 0) {
     return {
       ok: false,
-      errors: [...template.errors, ...imageSourceErrors],
+      errors: template.errors,
     };
   }
 
@@ -236,6 +228,18 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
     '',
   ].join('\n');
 
+  const styleImages = new CueImageImports(options.assetImportBase);
+  const styleRules = compiledStyle.styleSheet?.rules.map((rule) => styleImages.styleRule(rule, 2));
+  const styleCode = styleImages.bindings.size > 0
+    ? [
+      ...styleImages.imports,
+      '',
+      `const styleSheet = { version: ${compiledStyle.styleSheet!.version}, rules: [`,
+      ...styleRules!.map((rule) => `  ${rule},`),
+      '] };',
+    ].join('\n')
+    : `const styleSheet = ${JSON.stringify(compiledStyle.styleSheet, undefined, 2)};`;
+
   return {
     ok: true,
     entryFileName,
@@ -251,7 +255,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
       ...(template
         ? [
           {
-            code: template.code,
+            code: [...templateImages.imports, template.code].join('\n'),
             fileName: templateFileName,
           },
         ]
@@ -260,7 +264,7 @@ export function compileCue(source: string, options: CompileCueOptions): CompileC
         ? [
           {
             code: [
-              `const styleSheet = ${JSON.stringify(compiledStyle.styleSheet, undefined, 2)};`,
+              styleCode,
               '',
               'export default styleSheet;',
               '',
@@ -359,14 +363,101 @@ const transformCueModel: DirectiveTransform = (directive, node, context) => {
   };
 };
 
+function collectTemplateIdentifiers(root: RootNode): Set<string> {
+  const identifiers = new Set<string>();
+  const collectExpression = (expression: ExpressionNode | undefined): void => {
+    if (expression?.type !== NodeTypes.SIMPLE_EXPRESSION || expression.isStatic) {
+      return;
+    }
+    if (expression.ast) {
+      // Vue's parsed AST includes decoded identifiers and destructured binding patterns.
+      walkIdentifiers(expression.ast, (identifier) => identifiers.add(identifier.name), true);
+    } else if (expression.ast === null) {
+      identifiers.add(expression.content);
+    }
+  };
+  const visit = (node: RootNode | ElementNode): void => {
+    if (node.type === NodeTypes.ELEMENT) {
+      for (const property of node.props) {
+        if (property.type !== NodeTypes.DIRECTIVE) {
+          continue;
+        }
+        collectExpression(property.arg);
+        collectExpression(property.exp);
+        if (
+          property.name === 'bind'
+          && !property.exp
+          && property.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+          && property.arg.isStatic
+        ) {
+          // Vue expands :name to :name="name" after parsing.
+          identifiers.add(property.arg.content);
+        }
+        if (property.forParseResult) {
+          const { source, value, key, index } = property.forParseResult;
+          for (const expression of [
+            source,
+            value,
+            key,
+            index,
+          ]) {
+            collectExpression(expression);
+          }
+        }
+      }
+    }
+    for (const child of node.children) {
+      if (child.type === NodeTypes.ELEMENT) {
+        visit(child);
+      } else if (child.type === NodeTypes.INTERPOLATION) {
+        collectExpression(child.content);
+      }
+    }
+  };
+  visit(root);
+  return identifiers;
+}
+
 function compileTemplateProperties(
   node: RootNode | ElementNode,
   options: CompileCueOptions,
+  images: CueImageImports,
   errors: CompileCueError[],
 ): void {
   if (node.type === NodeTypes.ELEMENT) {
     for (let index = 0; index < node.props.length; ++index) {
       const property = node.props[index]!;
+      if (
+        node.tagType === ElementTypes.ELEMENT
+        && node.tag === 'cue-image'
+        && property.type === NodeTypes.ATTRIBUTE
+        && property.name === 'src'
+        && property.value
+      ) {
+        const source = property.value.content;
+        if (!isUuidSource(source)) {
+          if (source.startsWith('./') || source.startsWith('../')) {
+            node.props[index] = {
+              arg: createSimpleExpression('src', true, property.loc),
+              exp: createSimpleExpression(
+                images.expression(source, 'sprite-frame'),
+                false,
+                property.loc,
+                ConstantTypes.CAN_STRINGIFY,
+              ),
+              loc: property.loc,
+              modifiers: [],
+              name: 'bind',
+              type: NodeTypes.DIRECTIVE,
+            };
+          } else {
+            errors.push(Object.assign(new SyntaxError(
+              '<cue-image> src must be a relative path or use the "uuid:" scheme.',
+            ), { loc: property.loc }));
+          }
+        }
+        continue;
+      }
       if (
         node.tagType === ElementTypes.ELEMENT
         && property.type === NodeTypes.DIRECTIVE
@@ -519,7 +610,6 @@ function compileTemplateProperties(
       const result = compileCueInlineStyle(
         property.value?.content ?? '',
         options.filename,
-        options.canonicalizeBackgroundImageSource,
       );
       errors.push(
         ...result.errors.map((error) => Object.assign(error, { loc: property.loc })),
@@ -532,7 +622,7 @@ function compileTemplateProperties(
       node.props[index] = {
         arg: createSimpleExpression('__cueInlineStyle', true, property.loc),
         exp: createSimpleExpression(
-          JSON.stringify(result.rule),
+          images.styleRule(result.rule),
           false,
           property.loc,
           ConstantTypes.CAN_STRINGIFY,
@@ -546,66 +636,9 @@ function compileTemplateProperties(
   }
   for (const child of node.children) {
     if (child.type === NodeTypes.ELEMENT) {
-      compileTemplateProperties(child, options, errors);
+      compileTemplateProperties(child, options, images, errors);
     }
   }
-}
-
-function createCueImageSourceTransform(
-  options: CompileCueOptions,
-  errors: CompileCueError[],
-): NodeTransform {
-  return (node) => {
-    if (
-      node.type !== NodeTypes.ELEMENT
-      || node.tagType !== ElementTypes.ELEMENT
-      || node.tag !== 'cue-image'
-    ) {
-      return;
-    }
-    const sourceAttribute = node.props.find(
-      (property): property is AttributeNode =>
-        property.type === NodeTypes.ATTRIBUTE && property.name === 'src',
-    );
-    if (!sourceAttribute?.value) {
-      return;
-    }
-    const source = sourceAttribute.value.content;
-    if (isUuidSource(source)) {
-      return;
-    }
-    if (!source.startsWith('./') && !source.startsWith('../')) {
-      errors.push(
-        new SyntaxError(
-          '<cue-image> src must be a relative path or use the "uuid:" scheme.',
-        ),
-      );
-      return;
-    }
-    const canonicalizeImageSource = options.canonicalizeImageSource;
-    if (!canonicalizeImageSource) {
-      errors.push(
-        new SyntaxError(
-          `Cannot compile relative <cue-image> src ${JSON.stringify(source)} without a compiler-host image source canonicalizer.`,
-        ),
-      );
-      return;
-    }
-    const result = canonicalizeImageSource(source, options.filename);
-    if (!result.ok) {
-      errors.push(result.error);
-      return;
-    }
-    if (!isUuidSource(result.source)) {
-      errors.push(
-        new SyntaxError(
-          `The compiler host returned an invalid <cue-image> source ${JSON.stringify(result.source)}; expected a non-empty "uuid:" source.`,
-        ),
-      );
-      return;
-    }
-    sourceAttribute.value.content = result.source;
-  };
 }
 
 function isUuidSource(source: string): boolean {

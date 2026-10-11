@@ -12,178 +12,90 @@ const cliEntry = fileURLToPath(new URL('../bin.js', import.meta.url));
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, {
-        recursive: true,
-      }),
-    ),
-  );
+  await Promise.all(temporaryDirectories.splice(0).map((directory) =>
+    rm(directory, { recursive: true }),
+  ));
 });
 
 describe('cue compile', () => {
-  it('writes the generated JavaScript modules to the current directory by default', async () => {
+  it.each([
+    { outDir: undefined, directory: '' },
+    { outDir: 'generated', directory: 'generated' },
+  ])('writes the generated modules with out-dir=$outDir', async ({ outDir, directory }) => {
     /// @case
-    /// A user compiles a .cc.vue file without passing --out-dir.
+    /// A user compiles a component into the current directory or an explicit generated directory.
     /// @expect
-    /// The CLI writes every generated JavaScript file into the current working directory.
-    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-default-'));
+    /// All generated files are written and reported; missing directories are created.
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-'));
     temporaryDirectories.push(workingDirectory);
     await writeFile(
       join(workingDirectory, 'greeting.cc.vue'),
       '<template><div>Hello</div></template>',
-      'utf8',
     );
-
-    const result = await executeFile(
-      process.execPath,
-      [
-        cliEntry,
-        'compile',
-        'greeting.cc.vue',
-      ],
-      {
-        cwd: workingDirectory,
-      },
-    );
-
+    const result = await executeFile(process.execPath, [
+      cliEntry,
+      'compile',
+      'greeting.cc.vue',
+      ...(outDir ? ['--out-dir=' + outDir] : []),
+    ], { cwd: workingDirectory });
     const outputFiles = [
-      join(workingDirectory, 'greeting.cc.vue.js'),
-      join(workingDirectory, 'greeting.cc.vue.script.js'),
-      join(workingDirectory, 'greeting.cc.vue.template.js'),
-    ];
+      'greeting.cc.vue.js',
+      'greeting.cc.vue.script.js',
+      'greeting.cc.vue.template.js',
+    ].map((file) => join(workingDirectory, directory, file));
     expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
     await expect(
       Promise.all(outputFiles.map((file) => readFile(file, 'utf8'))),
     ).resolves.toHaveLength(3);
   });
 
-  it('writes the generated JavaScript modules to --out-dir', async () => {
+  it.each([
+    {
+      outDir: '.',
+      source: './icon.png',
+      specifier: './icon.png?uuid',
+    },
+    {
+      outDir: 'generated/nested',
+      source: './icon.png',
+      specifier: '../../icon.png?uuid',
+    },
+    {
+      outDir: '.',
+      source: './.icon.png',
+      specifier: './.icon.png?uuid',
+    },
+    {
+      outDir: '.',
+      source: './.assets/icon.png',
+      specifier: './.assets/icon.png?uuid',
+    },
+  ])('emits $source relative to $outDir', async ({ outDir, source, specifier }) => {
     /// @case
-    /// A user compiles a .cc.vue file with an explicit generated directory.
+    /// Image, inline background and stylesheet references compile with no PNG or metadata present.
     /// @expect
-    /// The CLI creates the directory and writes every generated JavaScript file there.
-    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-output-'));
+    /// Imports target the original image from the output directory; the bundler owns UUID loading.
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-images-'));
     temporaryDirectories.push(workingDirectory);
-    await writeFile(
-      join(workingDirectory, 'greeting.cc.vue'),
-      '<template><div>Hello</div></template>',
-      'utf8',
-    );
-
-    const result = await executeFile(
-      process.execPath,
-      [
-        cliEntry,
-        'compile',
-        'greeting.cc.vue',
-        '--out-dir=generated',
-      ],
-      {
-        cwd: workingDirectory,
-      },
-    );
-
-    const outputFiles = [
-      join(workingDirectory, 'generated', 'greeting.cc.vue.js'),
-      join(workingDirectory, 'generated', 'greeting.cc.vue.script.js'),
-      join(workingDirectory, 'generated', 'greeting.cc.vue.template.js'),
-    ];
-    expect(result.stdout.trim().split(/\r?\n/u)).toEqual(outputFiles);
-    await expect(
-      Promise.all(outputFiles.map((file) => readFile(file, 'utf8'))),
-    ).resolves.toHaveLength(3);
-  });
-
-  it('compiles a relative cue-image source to its SpriteFrame UUID', async () => {
-    /// @case
-    /// A Cue file references an image beside it and the Cocos meta contains one SpriteFrame
-    /// subasset.
-    /// @expect
-    /// The generated template refers to that SpriteFrame UUID and no longer contains the relative
-    /// path.
-    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-image-'));
-    temporaryDirectories.push(workingDirectory);
-    await Promise.all([
-      writeFile(
-        join(workingDirectory, 'card.cc.vue'),
-        '<template><cue-image src="./icon.png" /></template>',
-        'utf8',
-      ),
-      writeFile(
-        join(workingDirectory, 'icon.png.meta'),
-        JSON.stringify({
-          subMetas: {
-            f9941: {
-              importer: 'sprite-frame',
-              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
-            },
-          },
-        }),
-        'utf8',
-      ),
-    ]);
-
+    await writeFile(join(workingDirectory, 'card.cc.vue'), [
+      `<template><cue-image src="${source}"`,
+      ` style="background-image: url(${source})" /></template>`,
+      `<style>.card { background-image: url(${source}); }</style>`,
+    ].join('\n'));
     await executeFile(process.execPath, [
       cliEntry,
       'compile',
       'card.cc.vue',
-    ], {
-      cwd: workingDirectory,
-    });
-
-    const template = await readFile(
-      join(workingDirectory, 'card.cc.vue.template.js'),
-      'utf8',
-    );
-    expect(template).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941');
-    expect(template).not.toContain('./icon.png');
-  });
-
-  it('compiles a relative CSS background image to its Texture2D UUID', async () => {
-    /// @case
-    /// A Cue stylesheet references a PNG beside the component and its Cocos metadata has a
-    /// texture subasset.
-    /// @expect
-    /// Generated style JavaScript contains the texture UUID and not the source path or
-    /// SpriteFrame UUID.
-    const workingDirectory = await mkdtemp(join(tmpdir(), 'cue-cli-background-'));
-    temporaryDirectories.push(workingDirectory);
-    await Promise.all([
-      writeFile(
-        join(workingDirectory, 'card.cc.vue'),
-        ('<template><div class="card" /></template><style>.card { '
-          + 'background-image: url("./paper.png"); }</style>'),
-        'utf8',
-      ),
-      writeFile(
-        join(workingDirectory, 'paper.png.meta'),
-        JSON.stringify({
-          subMetas: {
-            texture: {
-              importer: 'texture',
-              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a',
-            },
-            spriteFrame: {
-              importer: 'sprite-frame',
-              uuid: '8e56d1ce-933a-4fb1-a2f5-7814727fd380@f9941',
-            },
-          },
-        }),
-        'utf8',
-      ),
-    ]);
-
-    await executeFile(process.execPath, [
-      cliEntry,
-      'compile',
-      'card.cc.vue',
-    ], {
-      cwd: workingDirectory,
-    });
-    const style = await readFile(join(workingDirectory, 'card.cc.vue.style.js'), 'utf8');
-    expect(style).toContain('uuid:8e56d1ce-933a-4fb1-a2f5-7814727fd380@6c48a');
-    expect(style).not.toContain('./paper.png');
-    expect(style).not.toContain('@f9941');
+      '--out-dir=' + outDir,
+    ], { cwd: workingDirectory });
+    const modules = await Promise.all(['template', 'style'].map((kind) =>
+      readFile(join(workingDirectory, outDir, 'card.cc.vue.' + kind + '.js'), 'utf8'),
+    ));
+    for (const code of modules) {
+      expect(code).toContain(specifier);
+      expect(code).toContain('with { importer: "texture" }');
+      expect(code).toContain('"uuid:" + _cue_image_');
+    }
+    expect(modules[0]).toContain('with { importer: "sprite-frame" }');
   });
 });

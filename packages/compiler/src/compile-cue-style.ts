@@ -1,8 +1,5 @@
 import { Buffer } from 'node:buffer';
-import {
-  compileCueStyleRules,
-  type CanonicalizeCueImageSource,
-} from './compile-cue-style-rules.js';
+import { compileCueStyleRules } from './compile-cue-style-rules.js';
 import {
   cueStyleSchemaVersion,
   type CueStyleRule,
@@ -18,7 +15,6 @@ export interface CompileCueStyleResult {
 export function compileCueInlineStyle(
   source: string,
   filename: string,
-  canonicalizeBackgroundImageSource?: CanonicalizeCueImageSource,
 ): { errors: Error[]; rule?: CueStyleRule } {
   try {
     // The attribute parser rejects rule syntax. Lower its serialized output as
@@ -27,7 +23,6 @@ export function compileCueInlineStyle(
     const result = compileCueStyle(
       ['.cue-inline {' + Buffer.from(attribute.code).toString() + '}'],
       filename,
-      canonicalizeBackgroundImageSource,
     );
     const rule = result.styleSheet?.rules[0];
     return { errors: result.errors, ...(rule ? { rule } : {}) };
@@ -39,7 +34,6 @@ export function compileCueInlineStyle(
 export function compileCueStyle(
   styleSources: readonly string[],
   filename: string,
-  canonicalizeBackgroundImageSource?: CanonicalizeCueImageSource,
 ): CompileCueStyleResult {
   const errors: Error[] = [];
   const rules: CueStyleRule[] = [];
@@ -67,8 +61,6 @@ export function compileCueStyle(
     }
     rules.push(...compileCueStyleRules(
       ast,
-      filename,
-      canonicalizeBackgroundImageSource,
       errors,
     ));
   }
